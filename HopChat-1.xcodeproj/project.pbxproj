@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E160020A2F4FAEBC00BED14D /* iPhoneNumberField in Frameworks */ = {isa = PBXBuildFile; productRef = E16002092F4FAEBC00BED14D /* iPhoneNumberField */; };
+		E160020D2F4FB28000BED14D /* LibP2PKadDHT in Frameworks */ = {isa = PBXBuildFile; productRef = E160020C2F4FB28000BED14D /* LibP2PKadDHT */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E15D74E02F4F81AD0091BB92 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E160020A2F4FAEBC00BED14D /* iPhoneNumberField in Frameworks */,
+				E160020D2F4FB28000BED14D /* LibP2PKadDHT in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +85,7 @@
 				E15D74D42F4F81AC0091BB92 /* HopChat-1 */,
 				E15D74E22F4F81AD0091BB92 /* HopChat-1Tests */,
 				E15D74EC2F4F81AD0091BB92 /* HopChat-1UITests */,
+				E16002082F4FAEBC00BED14D /* Frameworks */,
 				E15D74D32F4F81AC0091BB92 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +98,13 @@
 				E15D74E92F4F81AD0091BB92 /* HopChat-1UITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E16002082F4FAEBC00BED14D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +127,8 @@
 			);
 			name = "HopChat-1";
 			packageProductDependencies = (
+				E16002092F4FAEBC00BED14D /* iPhoneNumberField */,
+				E160020C2F4FB28000BED14D /* LibP2PKadDHT */,
 			);
 			productName = "HopChat-1";
 			productReference = E15D74D22F4F81AC0091BB92 /* HopChat-1.app */;
@@ -195,6 +212,10 @@
 			);
 			mainGroup = E15D74C92F4F81AC0091BB92;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E15D75052F4FA9610091BB92 /* XCRemoteSwiftPackageReference "iPhoneNumberField" */,
+				E160020B2F4FB26400BED14D /* XCRemoteSwiftPackageReference "swift-libp2p-kad-dht" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E15D74D32F4F81AC0091BB92 /* Products */;
 			projectDirPath = "";
@@ -578,6 +599,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E15D75052F4FA9610091BB92 /* XCRemoteSwiftPackageReference "iPhoneNumberField" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/MojtabaHs/iPhoneNumberField";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.10.4;
+			};
+		};
+		E160020B2F4FB26400BED14D /* XCRemoteSwiftPackageReference "swift-libp2p-kad-dht" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swift-libp2p/swift-libp2p-kad-dht.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E16002092F4FAEBC00BED14D /* iPhoneNumberField */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E15D75052F4FA9610091BB92 /* XCRemoteSwiftPackageReference "iPhoneNumberField" */;
+			productName = iPhoneNumberField;
+		};
+		E160020C2F4FB28000BED14D /* LibP2PKadDHT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E160020B2F4FB26400BED14D /* XCRemoteSwiftPackageReference "swift-libp2p-kad-dht" */;
+			productName = LibP2PKadDHT;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E15D74CA2F4F81AC0091BB92 /* Project object */;
 }
