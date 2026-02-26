@@ -56,7 +56,8 @@ class KademliaService: ObservableObject {
         
         isBootstrapped = true
         connectedPeers = kad.routingTable.buckets.flatMap { $0.peers }.count
-        status = "🟢 Online — \(connectedPeers) peers"
+        status = "🟢 Online"
+        
     }
     
     // MARK: - Find a peer by phone number

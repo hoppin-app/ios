@@ -5,6 +5,7 @@ struct GetStarted: View {
     @StateObject private var kad = KademliaService.shared
     @State private var phoneText = ""
     @State private var isLoading = false
+ 
 
     var body: some View {
         NavigationStack {
@@ -37,8 +38,10 @@ struct GetStarted: View {
                 // Status indicator
                 if isLoading {
                     if kad.status == ""{
+                        // TODO
                         // Connected successfully
                         // Go to the screen of the chats
+                    
                     }
                     HStack(spacing: 8) {
                         ProgressView()
