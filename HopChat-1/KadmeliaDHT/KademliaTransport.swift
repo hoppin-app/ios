@@ -18,6 +18,9 @@ enum KadMessageType: UInt8 {
     case store     = 0x05
     case findValue = 0x06
     case foundValue = 0x07
+    case connectRequest = 0x08
+    case connectAccept  = 0x09
+    case connectDecline = 0x0A
 }
 
 // MARK: - Message
@@ -26,26 +29,29 @@ struct KadMessage: Codable {
     let senderID: [UInt8]
     let senderIP: String
     let senderPort: UInt16
+    let senderPhone: String   // So Bob knows who Alice is
     let targetID: [UInt8]?       // for FIND_NODE
     let peers: [KadPeerCodable]? // for FOUND_NODE response
     let key: String?             // for STORE / FIND_VALUE
     let value: String?           // for STORE / FOUND_VALUE
     let transactionID: String    // to match requests/responses
+
 }
 
 struct KadPeerCodable: Codable {
     let id: [UInt8]
     let ip: String
     let port: UInt16
+    let phone: String
     
     func toKadPeer() -> KadPeer {
-        KadPeer(id: NodeID(bytes: id), ip: ip, port: port)
+        KadPeer(id: NodeID(bytes: id), ip: ip, port: port, phone: phone)
     }
 }
 
 extension KadPeer {
     func toCodable() -> KadPeerCodable {
-        KadPeerCodable(id: id.bytes, ip: ip, port: port)
+        KadPeerCodable(id: id.bytes, ip: ip, port: port, phone: phone)
     }
 }
 
@@ -119,10 +125,58 @@ class KademliaTransport {
         })
     }
     
+    
+    static func makeConnectRequest(from sender: KadPeer, myPhone: String, toPhone: String) -> KadMessage {
+        KadMessage(
+            type: KadMessageType.connectRequest.rawValue,
+            senderID: sender.id.bytes,
+            senderIP: sender.ip,
+            senderPort: sender.port,
+            senderPhone: myPhone,
+            targetID: nil,
+            peers: nil,
+            key: toPhone,       // who we're trying to reach
+            value: nil,
+            transactionID: UUID().uuidString
+        )
+    }
+
+    static func makeConnectAccept(from sender: KadPeer, replyTo txID: String) -> KadMessage {
+        KadMessage(
+            type: KadMessageType.connectAccept.rawValue,
+            senderID: sender.id.bytes,
+            senderIP: sender.ip,
+            senderPort: sender.port,
+            senderPhone: sender.phone,
+            targetID: nil,
+            peers: nil,
+            key: nil,
+            value: nil,
+            transactionID: txID     // same txID so Alice's sendAndWait resolves
+        )
+    }
+
+    static func makeConnectDecline(from sender: KadPeer, replyTo txID: String) -> KadMessage {
+        KadMessage(
+            type: KadMessageType.connectDecline.rawValue,
+            senderID: sender.id.bytes,
+            senderIP: sender.ip,
+            senderPort: sender.port,
+            senderPhone: sender.phone,
+            targetID: nil,
+            peers: nil,
+            key: nil,
+            value: nil,
+            transactionID: txID
+        )
+    }
+
+    
     func stop() {
         listener?.cancel()
         listener = nil
     }
+
 }
 
 // MARK: - Message Builder helpers
@@ -133,6 +187,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: nil,
             peers: nil,
             key: nil,
@@ -147,6 +202,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: nil,
             peers: nil,
             key: nil,
@@ -161,6 +217,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: target.bytes,
             peers: nil,
             key: nil,
@@ -175,6 +232,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: nil,
             peers: peers.map { $0.toCodable() },
             key: nil,
@@ -189,6 +247,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: nil,
             peers: nil,
             key: key,
@@ -203,6 +262,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: nil,
             peers: nil,
             key: key,
@@ -217,6 +277,7 @@ extension KademliaTransport {
             senderID: sender.id.bytes,
             senderIP: sender.ip,
             senderPort: sender.port,
+            senderPhone: sender.phone,
             targetID: nil,
             peers: nil,
             key: key,

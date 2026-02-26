@@ -27,7 +27,7 @@ class KademliaProtocol: ObservableObject {
     
     init(phone: String, ip: String, port: UInt16 = 4001) {
         let id = NodeID.from(phone: phone)
-        self.localPeer = KadPeer(id: id, ip: ip, port: port)
+        self.localPeer = KadPeer(id: id, ip: ip, port: port, phone:phone)
         self.routingTable = RoutingTable(localID: id)
         self.transport = KademliaTransport(port: port)
         
@@ -49,7 +49,8 @@ class KademliaProtocol: ObservableObject {
             let sender = KadPeer(
                 id: NodeID(bytes: message.senderID),
                 ip: message.senderIP,
-                port: message.senderPort
+                port: message.senderPort,
+                phone: message.senderPhone,
             )
             self.routingTable.add(sender)
             self.connectedPeers = self.routingTable.buckets.flatMap { $0.peers }.count
@@ -119,6 +120,22 @@ class KademliaProtocol: ObservableObject {
                 transport.send(reply, to: sender.ip, port: sender.port)
                 print("❓ FIND_VALUE \(key) not found → returned \(closest.count) peers")
             }
+        case .connectRequest:
+            let senderPhone = message.senderPhone
+            print("📬 Connect request from \(senderPhone)")
+            
+            // Notify the UI — new contact request arrived!
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .newContactRequest,
+                    object: nil,
+                    userInfo: ["phone": senderPhone, "ip": sender.ip, "port": sender.port]
+                )
+            }
+            
+            // Auto-accept for now (later: show UI prompt)
+            let reply = KademliaTransport.makeConnectAccept(from: localPeer, replyTo: message.transactionID)
+            transport.send(reply, to: sender.ip, port: sender.port)
             
         default:
             break
@@ -232,13 +249,33 @@ class KademliaProtocol: ObservableObject {
         return nil
     }
     
+    // MARK: - Send connection request to a phone number
+    func requestConnect(toPhone phone: String, myPhone: String) async -> Bool {
+        // 1. Find their IP from DHT
+        guard let address = await findValue(key: "user-\(phone)") else {
+            print("❌ Peer \(phone) not found in DHT")
+            return false
+        }
+        
+        let parts = address.split(separator: ":").map(String.init)
+        guard parts.count == 2, let port = UInt16(parts[1]) else { return false }
+        let ip = parts[0]
+        
+        // 2. Send connect request directly to their IP
+        let peer = KadPeer(id: NodeID.from(phone: phone), ip: ip, port: port, phone: phone)
+        let msg = KademliaTransport.makeConnectRequest(from: localPeer, myPhone: myPhone, toPhone: phone)
+        let reply = await sendAndWait(msg, to: peer)
+        
+        return reply?.type == KadMessageType.connectAccept.rawValue
+    }
+    
     // MARK: - Bootstrap
-    func bootstrap(bootnodes: [(ip: String, port: UInt16)]) async {
+    func bootstrap(bootnodes: [(ip: String, port: UInt16, phone: String)]) async {
         print("🚀 Bootstrapping with \(bootnodes.count) bootnodes...")
         
         // Ping all bootnodes
         for node in bootnodes {
-            let tempPeer = KadPeer(id: NodeID.random(), ip: node.ip, port: node.port)
+            let tempPeer = KadPeer(id: NodeID.random(), ip: node.ip, port: node.port, phone: node.phone)
             let alive = await ping(tempPeer)
             if alive { print("✅ Bootnode \(node.ip):\(node.port) is alive") }
             else { print("❌ Bootnode \(node.ip):\(node.port) unreachable") }
@@ -275,3 +312,8 @@ class KademliaProtocol: ObservableObject {
         }
     }
 }
+
+extension Notification.Name {
+    static let newContactRequest = Notification.Name("newContactRequest")
+}
+

@@ -5,7 +5,7 @@ struct GetStarted: View {
     @StateObject private var kad = KademliaService.shared
     @State private var phoneText = ""
     @State private var isLoading = false
- 
+    @State private var navigateToChats = false
 
     var body: some View {
         NavigationStack {
@@ -35,14 +35,7 @@ struct GetStarted: View {
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal)
 
-                // Status indicator
                 if isLoading {
-                    if kad.status == ""{
-                        // TODO
-                        // Connected successfully
-                        // Go to the screen of the chats
-                    
-                    }
                     HStack(spacing: 8) {
                         ProgressView()
                         Text(kad.status)
@@ -51,40 +44,83 @@ struct GetStarted: View {
                     }
                 }
 
-                Button(action: {
-                    guard !phoneText.isEmpty else { return }
+            
+                Button {
                     isLoading = true
+                    
                     Task {
+                        // 1. Generate or retrieve persistent node UUID
+                        clearPhone()
+                        let nodeUUID: UUID
+                        if let existing = KeychainHelper.shared.getUUID() {
+                            nodeUUID = existing
+                            print("🔑 Existing node UUID: \(nodeUUID)")
+                        } else {
+                            nodeUUID = UUID()
+                            let saved = KeychainHelper.shared.saveUUID(nodeUUID)
+                            print("🔑 New node UUID saved: \(saved)")
+                        }
+                        
                         await kad.register(phone: phoneText)
-                        isLoading = false
+                        
+                        savePhone(phoneText)
+                        
+                        await MainActor.run {
+                            isLoading = false
+                            navigateToChats = true
+                        }
                     }
-                }) {
+                } label: {
                     HStack {
                         if isLoading {
-                            ProgressView()
-                                .tint(.white)
+                            ProgressView().tint(.white)
                         } else {
                             Text("Register")
-                            Image(systemName: "arrow.right")
                         }
                     }
                     .font(.title2.bold())
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
-                    .background(phoneText.isEmpty ? .gray : .blue, in: Capsule())
+                    .background(.blue, in: Capsule())
                     .shadow(color: .blue.opacity(0.3), radius: 10)
                 }
-                .disabled(phoneText.isEmpty || isLoading)
 
-                Spacer()
-                    .frame(height: 60)
+
+                Spacer().frame(height: 60)
             }
             .padding(.horizontal, 32)
             .frame(maxHeight: .infinity)
             .background(Color(.systemBackground))
             .ignoresSafeArea(.container, edges: .all)
+            .navigationDestination(isPresented: $navigateToChats) {
+                ChatListView()
+                    .navigationBarBackButtonHidden(true)
+            }
+            .onAppear {
+                // Already registered? Skip straight to chats
+                if let saved = loadPhone() {
+                    phoneText = saved
+                    Task {
+                        await kad.register(phone: saved)
+                        navigateToChats = true
+                    }
+                }
+            }
         }
+    }
+
+    // MARK: - Local persistence (just the phone number)
+    private func savePhone(_ phone: String) {
+        UserDefaults.standard.set(phone, forKey: "hopchat.phone")
+    }
+
+    private func loadPhone() -> String? {
+        return UserDefaults.standard.string(forKey: "hopchat.phone")
+    }
+    
+    private func clearPhone() {
+        UserDefaults.standard.removeObject(forKey: "hopchat.phone")
     }
 }
 

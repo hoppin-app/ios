@@ -34,9 +34,33 @@
 		E15D74E92F4F81AD0091BB92 /* HopChat-1UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "HopChat-1UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E16002432F50B13100BED14D /* Exceptions for "HopChat-1" folder in "HopChat-1" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Notification.swift,
+			);
+			target = E15D74D12F4F81AC0091BB92 /* HopChat-1 */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		E16002442F50B13100BED14D /* Exceptions for "HopChat-1" folder in "Copy Bundle Resources" phase from "HopChat-1" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = E15D74D02F4F81AC0091BB92 /* Resources */;
+			membershipExceptions = (
+				Notification.swift,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E15D74D42F4F81AC0091BB92 /* HopChat-1 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E16002432F50B13100BED14D /* Exceptions for "HopChat-1" folder in "HopChat-1" target */,
+				E16002442F50B13100BED14D /* Exceptions for "HopChat-1" folder in "Copy Bundle Resources" phase from "HopChat-1" target */,
+			);
 			path = "HopChat-1";
 			sourceTree = "<group>";
 		};

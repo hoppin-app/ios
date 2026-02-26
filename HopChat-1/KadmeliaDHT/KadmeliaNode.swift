@@ -53,6 +53,7 @@ struct KadPeer: Equatable, Hashable {
     let ip: String
     let port: UInt16
     var lastSeen: Date = Date()
+    let phone: String
     
     var address: String { "\(ip):\(port)" }
 }

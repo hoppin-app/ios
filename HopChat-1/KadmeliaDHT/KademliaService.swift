@@ -45,7 +45,7 @@ class KademliaService: ObservableObject {
         
         // These are YOUR bootstrap nodes
         // For now using a placeholder — Phase 5 we'll set up a real one
-        let bootnodes: [(ip: String, port: UInt16)] = [
+        let bootnodes: [(ip: String, port: UInt16, phone: String)] = [
             // ("YOUR_BOOTSTRAP_IP", 4001)  ← we'll fill this in Phase 5
         ]
         

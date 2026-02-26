@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var pulse: CGFloat = 1.0
+
     
     var body: some View {
         NavigationStack{
