@@ -5,13 +5,6 @@
 //  Created by Rodrigo Loução on 25/02/2026.
 //
 
-//
-//  KademliaTransport.swift
-//  HopChat-1
-//
-//  UDP transport layer + message type definitions + message builders.
-//
-
 import Foundation
 import Network
 
@@ -27,8 +20,9 @@ enum KadMessageType: UInt8 {
     case connectRequest = 0x08
     case connectAccept  = 0x09
     case connectDecline = 0x0A
-    case chatMessage    = 0x0B   // ← NEW: direct peer-to-peer chat message
-    case chatAck        = 0x0C   // ← NEW: delivery acknowledgement
+    case chatMessage    = 0x0B
+    case chatAck        = 0x0C
+    case holePunch      = 0x0D   // Bootstrap tells us a peer's public address
 }
 
 // MARK: - Wire Message
@@ -43,10 +37,9 @@ struct KadMessage: Codable {
     let key:           String?
     let value:         String?
     let transactionID: String
-    // Chat payload
-    let chatBody:      String?   // message text
-    let chatID:        String?   // stable message UUID (for dedup + ACK)
-    let chatTimestamp: Double?   // unix timestamp
+    let chatBody:      String?
+    let chatID:        String?
+    let chatTimestamp: Double?
 }
 
 // MARK: - Peer (codable wire form)
@@ -75,9 +68,8 @@ final class KademliaTransport {
 
     var onMessage: ((KadMessage, String, UInt16) -> Void)?
 
-    init(port: UInt16 = 4001) { self.port = port }
+    init(port: UInt16) { self.port = port }
 
-    // MARK: Start listening
     func startListening() throws {
         let params = NWParameters.udp
         params.allowLocalEndpointReuse = true
@@ -88,7 +80,7 @@ final class KademliaTransport {
             conn.start(queue: self?.queue ?? .global())
         }
         listener?.start(queue: queue)
-        print("🟢 Kademlia UDP listening on port \(port)")
+        print("🟢 UDP listening on port \(port)")
     }
 
     func stop() {
@@ -96,11 +88,9 @@ final class KademliaTransport {
         listener = nil
     }
 
-    // MARK: Receive loop
     private func receive(on connection: NWConnection) {
         connection.receiveMessage { [weak self] data, _, _, _ in
             guard let data, !data.isEmpty else { return }
-
             if case let .hostPort(host, port) = connection.endpoint,
                let msg = try? JSONDecoder().decode(KadMessage.self, from: data) {
                 let ip  = "\(host)"
@@ -111,20 +101,15 @@ final class KademliaTransport {
         }
     }
 
-    // MARK: Send (fire-and-forget)
     func send(_ message: KadMessage, to ip: String, port: UInt16) {
         guard let data = try? JSONEncoder().encode(message) else { return }
-
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(ip),
             port: NWEndpoint.Port(rawValue: port)!
         )
         let conn = NWConnection(to: endpoint, using: .udp)
         conn.start(queue: queue)
-        conn.send(content: data, completion: .contentProcessed { error in
-            if let error { print("❌ Send error: \(error)") }
-            conn.cancel()
-        })
+        conn.send(content: data, completion: .contentProcessed { _ in conn.cancel() })
     }
 }
 
@@ -194,27 +179,14 @@ extension KademliaTransport {
     }
 
     static func makeConnectAccept(from sender: KadPeer, replyTo txID: String) -> KadMessage {
-        KadMessage(type: KadMessageType.connectAccept.rawValue,
-                   senderID: sender.id.bytes, senderIP: sender.ip,
-                   senderPort: sender.port, senderPhone: sender.phone,
-                   targetID: nil, peers: nil,
-                   key: nil, value: nil, transactionID: txID,
-                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+        base(type: .connectAccept, sender: sender, txID: txID)
     }
 
     static func makeConnectDecline(from sender: KadPeer, replyTo txID: String) -> KadMessage {
-        KadMessage(type: KadMessageType.connectDecline.rawValue,
-                   senderID: sender.id.bytes, senderIP: sender.ip,
-                   senderPort: sender.port, senderPhone: sender.phone,
-                   targetID: nil, peers: nil,
-                   key: nil, value: nil, transactionID: txID,
-                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+        base(type: .connectDecline, sender: sender, txID: txID)
     }
 
-    /// Direct chat message sent to a peer.
-    static func makeChatMessage(from sender: KadPeer,
-                                body: String,
-                                chatID: String = uuid()) -> KadMessage {
+    static func makeChatMessage(from sender: KadPeer, body: String, chatID: String = uuid()) -> KadMessage {
         KadMessage(type: KadMessageType.chatMessage.rawValue,
                    senderID: sender.id.bytes, senderIP: sender.ip,
                    senderPort: sender.port, senderPhone: sender.phone,
@@ -224,20 +196,15 @@ extension KademliaTransport {
                    chatTimestamp: Date().timeIntervalSince1970)
     }
 
-    /// ACK for a received chat message (uses same chatID).
-    static func makeChatAck(from sender: KadPeer,
-                            chatID: String,
-                            replyTo txID: String) -> KadMessage {
+    static func makeChatAck(from sender: KadPeer, chatID: String, replyTo txID: String) -> KadMessage {
         KadMessage(type: KadMessageType.chatAck.rawValue,
                    senderID: sender.id.bytes, senderIP: sender.ip,
                    senderPort: sender.port, senderPhone: sender.phone,
                    targetID: nil, peers: nil,
                    key: nil, value: nil, transactionID: txID,
-                   chatBody: nil, chatID: chatID,
-                   chatTimestamp: nil)
+                   chatBody: nil, chatID: chatID, chatTimestamp: nil)
     }
 
-    // MARK: Helpers
     private static func uuid() -> String { UUID().uuidString }
 
     private static func base(type: KadMessageType, sender: KadPeer, txID: String) -> KadMessage {

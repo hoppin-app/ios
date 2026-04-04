@@ -2,181 +2,176 @@
 //  KademliaService.swift
 //  HopChat-1
 //
+//  Created by Rodrigo Loução on 25/02/2026.
+//
+
+
 import Foundation
 import SwiftUI
 import Combine
- 
+
+
+#if targetEnvironment(simulator)
+let BOOTSTRAP_IP: String = "127.0.0.1"
+#else
+let BOOTSTRAP_IP: String = "192.168.1.241"
+#endif
+
+let BOOTSTRAP_PORT: UInt16 = 4001
+
 @MainActor
 final class KademliaService: ObservableObject {
     static let shared = KademliaService()
- 
+
     @Published var isBootstrapped = false
     @Published var connectedPeers = 0
     @Published var status         = "Offline"
     @Published var myPhone: String = ""
- 
+
     private(set) var node:    KademliaProtocol?
     private      var bonjour: BonjourDiscovery?
- 
-    // MARK: - Register / Join
- 
+    private      var keepAliveTask: Task<Void, Never>?
+
+    // MARK: - Register
+
     func register(phone: String) async {
         myPhone = phone
-        status  = "Looking up IP…"
- 
-        let ip = localWiFiIP() ?? "127.0.0.1"
- 
-        // On simulators, each instance needs a unique port since they share the same IP.
-        // We derive a stable port from the phone number so it's always the same for a given user.
+        status  = "Starting…"
+
+        let ip   = localWiFiIP() ?? "0.0.0.0"
         let port = stablePort(for: phone)
-        print("📶 IP: \(ip), port: \(port)")
-        status = "Starting node…"
- 
+        print("📶 Local: \(ip):\(port)")
+
         let kad = KademliaProtocol(phone: phone, ip: ip, port: port)
         self.node = kad
- 
-        // Wire incoming chat messages → ConversationStore
+
         kad.onChatMessage = { [weak self] senderPhone, body, chatID, timestamp in
             guard let self else { return }
-            let msg = StoredMessage(id: chatID,
-                                   fromPhone: senderPhone,
-                                   toPhone: self.myPhone,
-                                   body: body,
-                                   timestamp: timestamp,
-                                   delivered: true,
-                                   isFromMe: false)
+            let msg = StoredMessage(id: chatID, fromPhone: senderPhone,
+                                   toPhone: self.myPhone, body: body,
+                                   timestamp: timestamp, delivered: true, isFromMe: false)
             ConversationStore.shared.appendMessage(msg)
- 
             if ConversationStore.shared.contact(for: senderPhone) == nil {
-                let contact = Contact(phone: senderPhone, name: senderPhone,
-                                      ip: "", port: 0, addedAt: Date())
-                ConversationStore.shared.addContact(contact)
+                ConversationStore.shared.addContact(
+                    Contact(phone: senderPhone, name: senderPhone,
+                            ip: "", port: 0, addedAt: Date())
+                )
             }
         }
- 
-        do {
-            try kad.start()
-        } catch {
+
+        do { try kad.start() } catch {
             status = "❌ UDP failed: \(error)"
             isBootstrapped = true
             return
         }
- 
-        // Bonjour discovery
-        let bonjour = BonjourDiscovery()
-        self.bonjour = bonjour
- 
-        bonjour.onPeerFound = { [weak self] peer in
-            guard let self, let node = self.node else { return }
-            let kadPeer = KadPeer(id: NodeID.from(phone: peer.phone),
-                                  ip: peer.ip,
-                                  port: peer.port,
-                                  phone: peer.phone)
-            node.addPeer(kadPeer)
-            // Store with the port Bonjour gave us (which is their real port)
-            Task { await node.store(key: "user-\(peer.phone)", value: "\(peer.ip):\(peer.port)") }
-            Task { @MainActor in self.connectedPeers = node.connectedPeers }
-            print("🔗 Bonjour peer: \(peer.phone) @ \(peer.ip):\(peer.port)")
-        }
- 
-        bonjour.publish(phone: phone, port: port)
-        bonjour.startBrowsing()
- 
-        // Announce ourselves
-        await kad.store(key: "user-\(phone)", value: "\(ip):\(port)")
- 
+
+        // LAN discovery
+        startBonjour(phone: phone, port: port, node: kad)
+
+        // Connect to bootstrap
+        status = "Connecting to network…"
+        let bootstrapPeer = KadPeer(id: NodeID.from(phone: "bootstrap"),
+                                    ip: BOOTSTRAP_IP, port: BOOTSTRAP_PORT, phone: "bootstrap")
+        await kad.bootstrap(peers: [bootstrapPeer])
+
+        // Announce public address (bootstrap told us via PONG)
+        let publicAddr = kad.publicAddress(for: phone) ?? "\(ip):\(port)"
+        await kad.store(key: "user-\(phone)", value: publicAddr)
+        print("📢 Announced: user-\(phone) = \(publicAddr)")
+
         isBootstrapped = true
         connectedPeers = kad.connectedPeers
-        status = "🟢 Online (\(ip):\(port))"
-    }
- 
-    // MARK: - Send a message
- 
-    func send(body: String, toPhone: String) async {
-        guard let node else { return }
-        guard !body.trimmingCharacters(in: .whitespaces).isEmpty else { return }
- 
-        let chatID    = UUID().uuidString
-        let timestamp = Date()
-        let msg = StoredMessage(id: chatID,
-                                fromPhone: myPhone,
-                                toPhone: toPhone,
-                                body: body,
-                                timestamp: timestamp,
-                                delivered: false,
-                                isFromMe: true)
-        ConversationStore.shared.appendMessage(msg)
- 
-        Task {
-            let sentID = await node.sendChat(toPhone: toPhone, body: body)
-            if sentID != nil {
-                ConversationStore.shared.markDelivered(chatID: chatID,
-                                                      peerPhone: toPhone,
-                                                      myPhone: myPhone)
+        status = "🟢 Online"
+
+        // Keep-alive ping every 60s
+        keepAliveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                guard let self, let node = self.node else { break }
+                let ping = KademliaTransport.makePing(from: node.localPeer)
+                node.transport.send(ping, to: BOOTSTRAP_IP, port: BOOTSTRAP_PORT)
+                if let addr = node.publicAddress(for: phone) {
+                    await node.store(key: "user-\(phone)", value: addr)
+                }
+                await MainActor.run { self.connectedPeers = node.connectedPeers }
             }
         }
     }
- 
-    // MARK: - Connect to a new contact
- 
-    func connectTo(phone: String) async -> Bool {
-        guard let node else { return false }
-        status = "🔗 Connecting to \(phone)…"
- 
-        // First check if Bonjour already gave us the peer directly
-        if let existingPeer = node.routingTable.allPeers.first(where: { $0.phone == phone }) {
-            print("✅ Peer found directly in routing table: \(existingPeer.address)")
-            if ConversationStore.shared.contact(for: phone) == nil {
-                let contact = Contact(phone: phone, name: phone,
-                                      ip: existingPeer.ip, port: existingPeer.port,
-                                      addedAt: Date())
-                ConversationStore.shared.addContact(contact)
+
+    // MARK: - Send
+
+    func send(body: String, toPhone: String) async {
+        guard let node, !body.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let chatID = UUID().uuidString
+        ConversationStore.shared.appendMessage(
+            StoredMessage(id: chatID, fromPhone: myPhone, toPhone: toPhone,
+                          body: body, timestamp: Date(), delivered: false, isFromMe: true)
+        )
+        Task {
+            let sent = await node.sendChat(toPhone: toPhone, body: body)
+            if sent != nil {
+                ConversationStore.shared.markDelivered(chatID: chatID,
+                                                      peerPhone: toPhone, myPhone: myPhone)
             }
-            // Send connect request directly
-            let msg = KademliaTransport.makeConnectRequest(from: node.localPeer, toPhone: phone)
-            let reply = await node.sendAndWait(msg, to: existingPeer)
-            let ok = reply?.type == KadMessageType.connectAccept.rawValue
-            status = ok ? "✅ Connected to \(phone)" : "❌ No reply from \(phone)"
+        }
+    }
+
+    // MARK: - Connect
+
+    func connectTo(phone: String) async -> Bool {
+            guard let node else { return false }
+            status = "🔗 Connecting to \(phone)…"
+            let ok = await node.requestConnect(toPhone: phone)
+            if ok {
+                status = "✅ Connected to \(phone)"
+                if ConversationStore.shared.contact(for: phone) == nil {
+                    // Resolve address — try routing table first, then DHT
+                    let addr: String
+                    if let direct = node.routingTable.allPeers.first(where: { $0.phone == phone }) {
+                        addr = "\(direct.ip):\(direct.port)"
+                    } else {
+                        addr = await node.findValue(key: "user-\(phone)") ?? ":"
+                    }
+                    let parts = addr.split(separator: ":").map(String.init)
+                    ConversationStore.shared.addContact(
+                        Contact(phone: phone, name: phone,
+                                ip:   parts.first ?? "",
+                                port: UInt16(parts.last ?? "0") ?? 0,
+                                addedAt: Date())
+                    )
+                }
+            } else {
+                status = "❌ Could not reach \(phone)"
+            }
             return ok
         }
- 
-        // Fall back to DHT lookup
-        let ok = await node.requestConnect(toPhone: phone)
-        if ok {
-            status = "✅ Connected to \(phone)"
-            if ConversationStore.shared.contact(for: phone) == nil {
-                let address = await node.findValue(key: "user-\(phone)") ?? ":"
-                let parts   = address.split(separator: ":").map(String.init)
-                let contact = Contact(phone: phone, name: phone,
-                                      ip:   parts.first ?? "",
-                                      port: UInt16(parts.last ?? "0") ?? 0,
-                                      addedAt: Date())
-                ConversationStore.shared.addContact(contact)
-            }
-        } else {
-            status = "❌ Could not reach \(phone)"
+
+    // MARK: - Bonjour
+
+    private func startBonjour(phone: String, port: UInt16, node: KademliaProtocol) {
+        let b = BonjourDiscovery()
+        self.bonjour = b
+        b.onPeerFound = { [weak node] peer in
+            guard let node else { return }
+            node.addPeer(KadPeer(id: NodeID.from(phone: peer.phone),
+                                 ip: peer.ip, port: peer.port, phone: peer.phone))
+            Task { await node.store(key: "user-\(peer.phone)", value: "\(peer.ip):\(peer.port)") }
         }
-        return ok
+        b.publish(phone: phone, port: port)
+        b.startBrowsing()
     }
- 
+
     // MARK: - Stop
- 
+
     func stop() {
+        keepAliveTask?.cancel()
         bonjour?.stop()
         node?.transport.stop()
-        node = nil
-        bonjour = nil
-        status = "Offline"
-        isBootstrapped = false
+        node = nil; bonjour = nil
+        status = "Offline"; isBootstrapped = false
     }
- 
-    // MARK: - Helpers
- 
-    /// Derives a stable UDP port from the phone number in range 4001-4999.
-    /// This ensures two simulators on the same IP don't collide on port 4001.
+
     private func stablePort(for phone: String) -> UInt16 {
-        let hash = abs(phone.hashValue)
-        return UInt16(4001 + (hash % 999))
+        UInt16(4001 + (abs(phone.hashValue) % 999))
     }
 }
- 
