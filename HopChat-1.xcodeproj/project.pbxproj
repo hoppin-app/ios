@@ -38,7 +38,7 @@
 		E16002432F50B13100BED14D /* Exceptions for "HopChat-1" folder in "HopChat-1" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Notification.swift,
+				Notifications.swift,
 			);
 			target = E15D74D12F4F81AC0091BB92 /* HopChat-1 */;
 		};
@@ -49,7 +49,7 @@
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			buildPhase = E15D74D02F4F81AC0091BB92 /* Resources */;
 			membershipExceptions = (
-				Notification.swift,
+				Notifications.swift,
 			);
 		};
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
