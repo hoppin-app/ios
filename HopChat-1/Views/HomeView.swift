@@ -262,6 +262,7 @@ struct NewChatSheet: View {
                            HStack { Spacer(); ProgressView(); Spacer() }
                        } else {
                            Text("Connect")
+                               .multilineTextAlignment(.center)
                        }
                    }
                    .disabled(phone.isEmpty || isLoading)
