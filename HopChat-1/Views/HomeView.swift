@@ -41,18 +41,9 @@ struct ChatListView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
  
-                // Status pill
-                Text(kad.status)
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(kad.isBootstrapped ? Color.green.opacity(0.15) : Color.orange.opacity(0.15),
-                                in: Capsule())
-                    .foregroundStyle(kad.isBootstrapped ? .green : .orange)
-                    .padding(.bottom, 8)
  
                 // MARK: Search
-                HStack(spacing: 8) {
+                HStack(spacing: 12) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                     TextField("Search", text: $searchText).font(.system(size: 16))
                 }

@@ -187,7 +187,16 @@ final class KademliaProtocol: ObservableObject {
                                "chatID": chatID, "timestamp": ts]
                 )
             }
-
+        case .relay:
+            guard let innerJSON = message.value,
+                  let innerData = innerJSON.data(using: .utf8),
+                  let innerMsg  = try? JSONDecoder().decode(KadMessage.self, from: innerData)
+            else { return }
+            // actualIP/port here are the bootstrap's — use the stamped senderIP from inner
+            await handle(innerMsg, from: sender,
+                         actualIP: innerMsg.senderIP, actualPort: innerMsg.senderPort)
+            
+            
         default:
             break
         }
@@ -342,6 +351,15 @@ final class KademliaProtocol: ObservableObject {
             let msg2  = KademliaTransport.makeConnectRequest(from: localPeer, toPhone: phone)
             let reply2 = await sendAndWait(msg2, to: direct)
             return reply2?.type == KadMessageType.connectAccept.rawValue
+        }
+        
+        // Let's try relay through bootstrap node
+        if let bootstrap = routingTable.allPeers.first(where: { $0.phone == "bootstrap" }),
+           let connectMsg = KademliaTransport.makeRelay(
+               from: localPeer, toPhone: phone,
+               wrapping: KademliaTransport.makeConnectRequest(from: localPeer, toPhone: phone)) {
+            let reply = await sendAndWait(connectMsg, to: bootstrap)
+            return reply?.type == KadMessageType.connectAccept.rawValue
         }
         return false
     }

@@ -23,6 +23,7 @@ enum KadMessageType: UInt8 {
     case chatMessage    = 0x0B
     case chatAck        = 0x0C
     case holePunch      = 0x0D   // Bootstrap tells us a peer's public address
+    case relay          = 0x0E
 }
 
 // MARK: - Wire Message
@@ -110,6 +111,19 @@ final class KademliaTransport {
         let conn = NWConnection(to: endpoint, using: .udp)
         conn.start(queue: queue)
         conn.send(content: data, completion: .contentProcessed { _ in conn.cancel() })
+    }
+    
+    static func makeRelay(from sender: KadPeer, toPhone: String,
+                          wrapping inner: KadMessage) -> KadMessage? {
+        guard let innerData = try? JSONEncoder().encode(inner),
+              let innerJSON = String(data: innerData, encoding: .utf8) else { return nil }
+        return KadMessage(type: KadMessageType.relay.rawValue,
+                          senderID: sender.id.bytes, senderIP: sender.ip,
+                          senderPort: sender.port, senderPhone: sender.phone,
+                          targetID: nil, peers: nil,
+                          key: toPhone, value: innerJSON,
+                          transactionID: UUID().uuidString,
+                          chatBody: nil, chatID: nil, chatTimestamp: nil)
     }
 }
 
