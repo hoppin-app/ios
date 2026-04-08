@@ -53,11 +53,11 @@ struct ContentView: View {
 
                         // Tagline
                         VStack(spacing: 5) {
-                            Text("Chat without the cloud")
+                            Text("No servers. No strangers.")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(Color.accentColor)
 
-                            Text("No servers. No sign-ups.\nJust hop on WiFi and go!")
+                            Text("No sign-ups.\nJust hop on WiFi and go!")
                                 .font(.system(size: 15))
                                 .multilineTextAlignment(.center)
                                 .foregroundStyle(.secondary)
@@ -68,18 +68,6 @@ struct ContentView: View {
                     }
 
                     Spacer()
-
-                    // ── Feature Pills ─────────────────────────────────
-                    HStack(spacing: 10) {
-                        FeaturePill(emoji: "🔒", label: "Private")
-                        FeaturePill(emoji: "⚡️", label: "Instant")
-                        FeaturePill(emoji: "📲", label: "P2P")
-                    }
-                    .opacity(appear ? 1 : 0)
-                    .offset(y: appear ? 0 : 8)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.35), value: appear)
-
-                    Spacer().frame(height: 32)
 
                     // ── Phone Input & CTA ─────────────────────────────
                     VStack(spacing: 16) {
@@ -117,7 +105,7 @@ struct ContentView: View {
                                         lineWidth: 1.5
                                     )
                             )
-                        }
+                        }.padding(.horizontal, 16)
 
                         // Error
                         if let errorMessage {
@@ -156,14 +144,15 @@ struct ContentView: View {
                         }
                         .disabled(phoneText.isEmpty || isLoading)
                         .animation(.easeInOut(duration: 0.18), value: phoneText.isEmpty)
+                        .padding(.horizontal,16)
 
                         Spacer().frame(height: 32)
                         // Privacy note — typical Apple onboarding footer
                         Text("Your number is only stored on this device and never shared.")
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundStyle(Color(.tertiaryLabel))
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 16)
                     }
                     .padding(.horizontal, 14)
                     .opacity(appear ? 1 : 0)
