@@ -20,28 +20,38 @@ func localWiFiIP() -> String? {
     guard getifaddrs(&ifaddr) == 0 else { return nil }
     defer { freeifaddrs(ifaddr) }
 
+    let preferred = ["en0", "en1", "en2", "en3", "bridge100"]
+    var candidates: [(String, String)] = []
+
     var ptr = ifaddr
     while let ifa = ptr {
-        let flags     = Int32(ifa.pointee.ifa_flags)
-        let isUp      = (flags & IFF_UP)      != 0
-        let isRunning = (flags & IFF_RUNNING)  != 0
-        let isLoopback = (flags & IFF_LOOPBACK) != 0
+        defer { ptr = ifa.pointee.ifa_next }
+        let flags = Int32(ifa.pointee.ifa_flags)
+        guard (flags & IFF_UP) != 0,
+              (flags & IFF_RUNNING) != 0,
+              (flags & IFF_LOOPBACK) == 0,
+              ifa.pointee.ifa_addr.pointee.sa_family == UInt8(AF_INET),
+              let name = ifa.pointee.ifa_name else { continue }
 
-        if isUp && isRunning && !isLoopback,
-           ifa.pointee.ifa_addr.pointee.sa_family == UInt8(AF_INET),
-           let name = ifa.pointee.ifa_name,
-           String(cString: name).hasPrefix("en") {
-            var addr = ifa.pointee.ifa_addr.pointee
-            var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-            if getnameinfo(&addr, socklen_t(addr.sa_len),
-                           &hostname, socklen_t(hostname.count),
-                           nil, 0, NI_NUMERICHOST) == 0 {
-                return String(cString: hostname)
-            }
-        }
-        ptr = ifa.pointee.ifa_next
+        let ifName = String(cString: name)
+        var addr = ifa.pointee.ifa_addr.pointee
+        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        guard getnameinfo(&addr, socklen_t(addr.sa_len),
+                          &hostname, socklen_t(hostname.count),
+                          nil, 0, NI_NUMERICHOST) == 0 else { continue }
+
+        let ip = String(cString: hostname)
+        guard !ip.hasPrefix("169.254") else { continue } // ignora link-local
+        candidates.append((ifName, ip))
+        print("🔌 Interface: \(ifName) → \(ip)")  // log temporário
     }
-    return nil
+
+    for name in preferred {
+        if let match = candidates.first(where: { $0.0 == name }) {
+            return match.1
+        }
+    }
+    return candidates.first?.1
 }
 
 // MARK: - Bonjour peer discovery
@@ -67,17 +77,21 @@ final class BonjourDiscovery: NSObject {
 
     // MARK: Publish own service
     func publish(phone: String, port: UInt16) {
-        let txtData = NetService.data(fromTXTRecord: ["phone": Data(phone.utf8)])
 
+        netService?.stop()
+        netService?.delegate = nil
+        netService = nil
+
+        let txtData = NetService.data(fromTXTRecord: ["phone": Data(phone.utf8)])
         let svc = NetService(domain: BonjourDiscovery.domain,
                              type:   BonjourDiscovery.serviceType,
-                             name:   "HopChat-\(phone)",
+                             name:   "HopChat-\(phone)-\(port)",
                              port:   Int32(port))
         svc.delegate = self
         svc.setTXTRecord(txtData)
         svc.publish()
         self.netService = svc
-        print("📡 Bonjour published as HopChat-\(phone) on port \(port)")
+        print("📡 Bonjour published as \(svc.name) on port \(svc.port)")
     }
 
     // MARK: Browse for peers
@@ -92,8 +106,12 @@ final class BonjourDiscovery: NSObject {
 
     func stop() {
         netService?.stop()
+        netService?.delegate = nil
+        netService = nil
         browser?.stop()
-        resolving.forEach { $0.stop() }
+        browser?.delegate = nil
+        browser = nil
+        resolving.forEach { $0.stop(); $0.delegate = nil }
         resolving.removeAll()
     }
 }
@@ -159,8 +177,14 @@ extension BonjourDiscovery: NetServiceBrowserDelegate {
     func netServiceBrowser(_ browser: NetServiceBrowser,
                            didFind service: NetService,
                            moreComing: Bool) {
-        // Skip our own service
+        print("🔭 Bonjour found service: \(service.name)")  
         if let ownName = netService?.name, service.name == ownName { return }
+        if let ownService = netService,
+           service.name.hasPrefix("HopChat-") {
+            let parts = service.name.dropFirst("HopChat-".count).split(separator: "-")
+            if let ownParts = ownService.name.dropFirst("HopChat-".count).split(separator: "-").first,
+               parts.first == ownParts { return }
+        }
         service.delegate = self
         service.resolve(withTimeout: 5)
         resolving.append(service)
