@@ -68,8 +68,23 @@ final class KademliaProtocol: ObservableObject {
         transport.onMessage = { [weak self] message, ip, port in
             guard let self else { return }
  
+            // `ip` is the real source IP observed from the TCP connection —
+            // useful as the ground-truth public IP.
+            // `port` is the EPHEMERAL source port the OS assigned for that
+            // outbound TCP connection — NOT the peer's listening port.
+            //
+            // For all routing and reply purposes we must use the stable
+            // listening port the peer declared in the message payload
+            // (message.senderPort).  Using the ephemeral port caused ACKs
+            // and replies to be sent to a port the peer had already closed,
+            // producing TCP RST and "No ACK" errors after ~60 s.
+            let replyPort = message.senderPort  // stable listening port
+            let replyIP   = message.senderIP.isEmpty || message.senderIP == "0.0.0.0"
+                              ? ip               // fall back to observed IP
+                              : message.senderIP
+ 
             let sender = KadPeer(id: NodeID(bytes: message.senderID),
-                                 ip: ip, port: port,
+                                 ip: replyIP, port: replyPort,
                                  phone: message.senderPhone)
  
             if sender.phone != "bootstrap" {
@@ -79,7 +94,8 @@ final class KademliaProtocol: ObservableObject {
                 }
             }
  
-            Task { await self.handle(message, from: sender, actualIP: ip, actualPort: port) }
+            Task { await self.handle(message, from: sender,
+                                     actualIP: replyIP, actualPort: replyPort) }
         }
     }
  

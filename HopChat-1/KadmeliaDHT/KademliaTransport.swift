@@ -5,6 +5,7 @@
 //  Created by Rodrigo Loução on 25/02/2026.
 //
 
+
 import Foundation
 import Network
  
@@ -31,12 +32,10 @@ enum KadMessageType: UInt8 {
  
 struct KadMessage: Codable {
     let type:          UInt8
-    /// SHA-256 NodeID — 32 bytes (previously 20 bytes / SHA-1).
-    let senderID:      [UInt8]
+    let senderID:      [UInt8]      // 32 bytes — SHA-256 NodeID
     let senderIP:      String
     let senderPort:    UInt16
     let senderPhone:   String
-    /// SHA-256 NodeID — 32 bytes, optional (FIND_NODE messages only).
     let targetID:      [UInt8]?
     let peers:         [KadPeerCodable]?
     let key:           String?
@@ -50,7 +49,6 @@ struct KadMessage: Codable {
 // MARK: - Peer (codable wire form)
  
 struct KadPeerCodable: Codable {
-    /// SHA-256 NodeID — 32 bytes.
     let id:    [UInt8]
     let ip:    String
     let port:  UInt16
@@ -67,18 +65,30 @@ extension KadPeer {
     }
 }
  
-// MARK: - UDP Transport (single bound socket)
+// MARK: - Framing
+ 
+/// Prepend a 4-byte big-endian length to a JSON payload.
+private func frame(_ data: Data) -> Data {
+    var length = UInt32(data.count).bigEndian
+    var framed = Data(bytes: &length, count: 4)
+    framed.append(data)
+    return framed
+}
+ 
+// MARK: - TCP Transport
  
 final class KademliaTransport {
  
-    private let port:  UInt16
-    private let queue = DispatchQueue(label: "hopchat.udp", qos: .userInitiated)
+    private let port:    UInt16
+    private let queue  = DispatchQueue(label: "hopchat.tcp", qos: .userInitiated)
+    private var listener: NWListener?
  
-    private var sock: Int32 = -1
- 
+    // Pending RPC continuations: transactionID → continuation
     private var pending:    [String: CheckedContinuation<KadMessage?, Never>] = [:]
     private let pendingLock = NSLock()
  
+    /// Called for every unsolicited inbound message.
+    /// Parameters: (message, remoteIP, remotePort)
     var onMessage: ((KadMessage, String, UInt16) -> Void)?
  
     init(port: UInt16) { self.port = port }
@@ -86,43 +96,36 @@ final class KademliaTransport {
     // MARK: - Start / Stop
  
     func startListening() throws {
-        print("🔧 Using BSD socket transport on port \(port)")
-        let fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-        guard fd >= 0 else {
-            throw NSError(domain: "KademliaTransport",
-                          code: Int(errno),
-                          userInfo: [NSLocalizedDescriptionKey: "socket() failed: \(errno)"])
+        let params = NWParameters.tcp
+        params.allowLocalEndpointReuse = true
+ 
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+            throw NSError(domain: "KademliaTransport", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Invalid port \(port)"])
         }
  
-        var one: Int32 = 1
-        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, socklen_t(MemoryLayout<Int32>.size))
-        setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &one, socklen_t(MemoryLayout<Int32>.size))
+        let l = try NWListener(using: params, on: nwPort)
+        self.listener = l
  
-        var addr          = sockaddr_in()
-        addr.sin_family   = sa_family_t(AF_INET)
-        addr.sin_port     = port.bigEndian
-        addr.sin_addr     = in_addr(s_addr: INADDR_ANY)
-        addr.sin_len      = UInt8(MemoryLayout<sockaddr_in>.size)
- 
-        let bindResult = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+        l.stateUpdateHandler = { state in
+            switch state {
+            case .ready:   print("🟢 TCP listener ready on port \(self.port)")
+            case .failed(let e): print("❌ TCP listener failed: \(e)")
+            default: break
             }
         }
-        guard bindResult == 0 else {
-            close(fd)
-            throw NSError(domain: "KademliaTransport",
-                          code: Int(errno),
-                          userInfo: [NSLocalizedDescriptionKey: "bind() failed on port \(port): \(errno)"])
+ 
+        l.newConnectionHandler = { [weak self] conn in
+            self?.handleIncoming(conn)
         }
  
-        self.sock = fd
-        print("🟢 UDP listening on port \(port)")
-        startReceiveLoop()
+        l.start(queue: queue)
+        print("🔧 Using TCP transport on port \(port)")
     }
  
     func stop() {
-        if sock >= 0 { close(sock); sock = -1 }
+        listener?.cancel()
+        listener = nil
         pendingLock.lock()
         let all = pending
         pending.removeAll()
@@ -130,120 +133,254 @@ final class KademliaTransport {
         for (_, cont) in all { cont.resume(returning: nil) }
     }
  
-    // MARK: - Receive loop
+    // MARK: - Inbound connection handler
  
-    private func startReceiveLoop() {
-        queue.async { [weak self] in
-            guard let self, self.sock >= 0 else { return }
+    private func handleIncoming(_ conn: NWConnection) {
+        conn.start(queue: queue)
  
-            let bufSize = 65_536
-            let buf = UnsafeMutableRawPointer.allocate(byteCount: bufSize, alignment: 1)
-            defer { buf.deallocate() }
+        readFrame(from: conn) { [weak self] result in
+            guard let self else { conn.cancel(); return }
  
-            while self.sock >= 0 {
-                print("👂 recvfrom waiting...")
+            switch result {
+            case .failure(let err):
+                print("⚠️ TCP inbound read error: \(err)")
+                conn.cancel()
  
-                var srcAddr    = sockaddr_in()
-                var srcAddrLen = socklen_t(MemoryLayout<sockaddr_in>.size)
- 
-                let n = withUnsafeMutablePointer(to: &srcAddr) {
-                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                        recvfrom(self.sock, buf, bufSize, 0, $0, &srcAddrLen)
-                    }
-                }
-                guard n > 0 else { break }
-                if n < 0 { print("❌ recvfrom error: errno=\(errno)"); break }
-                if n == 0 { continue }
- 
-                let data = Data(bytes: buf, count: n)
- 
-                var hostBuf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                var addr4   = srcAddr
-                inet_ntop(AF_INET, &addr4.sin_addr, &hostBuf, socklen_t(INET_ADDRSTRLEN))
-                let srcIP   = String(cString: hostBuf)
-                let srcPort = UInt16(bigEndian: srcAddr.sin_port)
- 
+            case .success(let data):
                 guard let msg = try? JSONDecoder().decode(KadMessage.self, from: data) else {
-                    let raw = String(data: data, encoding: .utf8) ?? "<binary \(n)b>"
-                    print("⚠️ Failed to decode UDP from \(srcIP):\(srcPort): \(raw.prefix(200))")
-                    continue
+                    print("⚠️ TCP decode failed from \(conn.endpoint)")
+                    conn.cancel()
+                    return
                 }
  
-                print("📩 [\(msg.senderPhone)] type=\(msg.type) tx=\(msg.transactionID.prefix(8)) from \(srcIP):\(srcPort)")
+                let (srcIP, srcPort) = self.endpointAddress(conn.endpoint)
+                print("📩 [\(msg.senderPhone)] type=\(msg.type) "
+                    + "tx=\(msg.transactionID.prefix(8)) from \(srcIP):\(srcPort)")
  
-                // Resolve pending RPC continuation first (time-critical).
+                // Is this a reply to one of our pending RPCs?
                 self.pendingLock.lock()
                 if let cont = self.pending[msg.transactionID] {
                     self.pending.removeValue(forKey: msg.transactionID)
                     self.pendingLock.unlock()
+                    conn.cancel()
                     cont.resume(returning: msg)
-                    continue
+                    return
                 }
                 self.pendingLock.unlock()
  
-                // Unsolicited inbound — dispatch to protocol handler.
-                let ip = srcIP; let p = srcPort
-                DispatchQueue.main.async { self.onMessage?(msg, ip, p) }
+                // Unsolicited message — dispatch to protocol layer.
+                // The protocol layer replies via send(to: ip, port:) using
+                // the senderPort from the message payload, which is the
+                // peer's stable listening port — not the ephemeral source
+                // port of this inbound connection.
+                conn.cancel()
+                DispatchQueue.main.async {
+                    self.onMessage?(msg, srcIP, srcPort)
+                }
             }
         }
     }
  
-    // MARK: - Send
+    // MARK: - Send (always opens a fresh outbound connection)
+    //
+    // We never reuse the inbound connection to send replies.  The inbound
+    // connection's source port is an ephemeral OS-assigned port that the
+    // peer is not listening on.  The peer's stable listening port is carried
+    // in message.senderPort — that is what `port` here refers to, supplied
+    // by KademliaProtocol which passes actualPort from the decoded message.
  
     func send(_ message: KadMessage, to ip: String, port: UInt16) {
-        guard let data = try? JSONEncoder().encode(message), sock >= 0 else {
-            print("⚠️ send: sock=\(sock) data=\(message.type)")
-            return
-        }
- 
-        print("📤 Queuing send type=\(message.type) to \(ip):\(port) [\(data.count)b]")
- 
-        var dst          = sockaddr_in()
-        dst.sin_family   = sa_family_t(AF_INET)
-        dst.sin_port     = port.bigEndian
-        dst.sin_len      = UInt8(MemoryLayout<sockaddr_in>.size)
-        inet_pton(AF_INET, ip, &dst.sin_addr)
- 
+        guard let data = try? JSONEncoder().encode(message) else { return }
+        let framed = frame(data)
+        print("📤 TCP send type=\(message.type) to \(ip):\(port) [\(data.count)b]")
         queue.async { [weak self] in
-            guard let self, self.sock >= 0 else { return }
-            data.withUnsafeBytes { ptr in
-                withUnsafePointer(to: dst) {
-                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                        let sent = sendto(self.sock, ptr.baseAddress, data.count,
-                                         0, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-                        if sent < 0 {
-                            print("⚠️ sendto \(ip):\(port) failed: errno=\(errno)")
-                        } else {
-                            print("✅ sendto \(ip):\(port) sent \(sent)b")
-                        }
-                    }
-                }
+            self?.openAndSend(framed, to: ip, port: port)
+        }
+    }
+ 
+    private func openAndSend(_ framed: Data, to ip: String, port: UInt16) {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return }
+        let conn = NWConnection(host: NWEndpoint.Host(ip), port: nwPort, using: .tcp)
+        conn.stateUpdateHandler = { state in
+            switch state {
+            case .ready:
+                conn.send(content: framed, completion: .contentProcessed { err in
+                    if let err { print("⚠️ TCP send error to \(ip):\(port): \(err)") }
+                    else       { print("✅ TCP sent to \(ip):\(port)") }
+                    conn.cancel()
+                })
+            case .failed(let e):
+                print("⚠️ TCP connect failed to \(ip):\(port): \(e)")
+            default: break
             }
         }
+        conn.start(queue: queue)
     }
  
     // MARK: - RPC send-and-wait (10 s timeout)
+    //
+    // Opens a connection, sends the request, and reads the reply on the
+    // same connection — one round-trip, one TCP connection.
  
     func sendAndWait(_ message: KadMessage, to peer: KadPeer) async -> KadMessage? {
-        await withCheckedContinuation { cont in
+        guard let data = try? JSONEncoder().encode(message) else { return nil }
+        let framed = frame(data)
+        let txID   = message.transactionID
+ 
+        return await withCheckedContinuation { cont in
+            // Also register in the pending dict as a fallback for cases where
+            // the peer replies on a separate inbound connection.
             pendingLock.lock()
-            pending[message.transactionID] = cont
+            pending[txID] = cont
             pendingLock.unlock()
  
-            send(message, to: peer.ip, port: peer.port)
- 
-            Task {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
+            guard let nwPort = NWEndpoint.Port(rawValue: peer.port) else {
                 pendingLock.lock()
-                if let c = pending[message.transactionID] {
-                    pending.removeValue(forKey: message.transactionID)
-                    pendingLock.unlock()
+                pending.removeValue(forKey: txID)
+                pendingLock.unlock()
+                cont.resume(returning: nil)
+                return
+            }
+ 
+            let conn = NWConnection(host: NWEndpoint.Host(peer.ip),
+                                    port: nwPort, using: .tcp)
+ 
+            // Timeout task
+            let timeoutTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                guard let self else { return }
+                self.pendingLock.lock()
+                if let c = self.pending[txID] {
+                    self.pending.removeValue(forKey: txID)
+                    self.pendingLock.unlock()
+                    conn.cancel()
                     c.resume(returning: nil)
                 } else {
-                    pendingLock.unlock()
+                    self.pendingLock.unlock()
                 }
             }
+ 
+            conn.stateUpdateHandler = { [weak self] state in
+                guard let self else { return }
+                switch state {
+                case .ready:
+                    print("📤 TCP RPC type=\(message.type) to \(peer.ip):\(peer.port)")
+                    conn.send(content: framed, completion: .contentProcessed { err in
+                        if let err {
+                            print("⚠️ TCP RPC send error: \(err)")
+                            timeoutTask.cancel()
+                            self.pendingLock.lock()
+                            if let c = self.pending[txID] {
+                                self.pending.removeValue(forKey: txID)
+                                self.pendingLock.unlock()
+                                conn.cancel()
+                                c.resume(returning: nil)
+                            } else {
+                                self.pendingLock.unlock()
+                            }
+                            return
+                        }
+                        // Read reply on the same connection.
+                        self.readFrame(from: conn) { result in
+                            timeoutTask.cancel()
+                            conn.cancel()
+                            self.pendingLock.lock()
+                            guard let c = self.pending[txID] else {
+                                self.pendingLock.unlock()
+                                return  // already resolved by timeout
+                            }
+                            self.pending.removeValue(forKey: txID)
+                            self.pendingLock.unlock()
+ 
+                            switch result {
+                            case .failure(let e):
+                                print("⚠️ TCP RPC read error: \(e)")
+                                c.resume(returning: nil)
+                            case .success(let replyData):
+                                let reply = try? JSONDecoder().decode(KadMessage.self,
+                                                                      from: replyData)
+                                if let reply {
+                                    print("📩 RPC reply type=\(reply.type) "
+                                        + "tx=\(reply.transactionID.prefix(8))")
+                                }
+                                c.resume(returning: reply)
+                            }
+                        }
+                    })
+ 
+                case .failed(let e):
+                    print("⚠️ TCP RPC connect failed to \(peer.ip):\(peer.port): \(e)")
+                    timeoutTask.cancel()
+                    self.pendingLock.lock()
+                    if let c = self.pending[txID] {
+                        self.pending.removeValue(forKey: txID)
+                        self.pendingLock.unlock()
+                        c.resume(returning: nil)
+                    } else {
+                        self.pendingLock.unlock()
+                    }
+ 
+                default: break
+                }
+            }
+            conn.start(queue: queue)
         }
+    }
+ 
+    // MARK: - Length-prefixed frame reader
+ 
+    private func readFrame(from conn: NWConnection,
+                           completion: @escaping (Result<Data, Error>) -> Void) {
+        // Read 4-byte length prefix first.
+        conn.receive(minimumIncompleteLength: 4, maximumLength: 4) { data, _, _, err in
+            if let err { completion(.failure(err)); return }
+            guard let data, data.count == 4 else {
+                completion(.failure(NSError(domain: "KademliaTransport", code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "Short length prefix"])))
+                return
+            }
+            let length = Int(data.withUnsafeBytes {
+                UInt32(bigEndian: $0.load(as: UInt32.self))
+            })
+            guard length > 0, length < 1_048_576 else {
+                completion(.failure(NSError(domain: "KademliaTransport", code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "Bad frame length: \(length)"])))
+                return
+            }
+            // Read payload.
+            conn.receive(minimumIncompleteLength: length,
+                         maximumLength: length) { payload, _, _, err in
+                if let err { completion(.failure(err)); return }
+                guard let payload, payload.count == length else {
+                    completion(.failure(NSError(domain: "KademliaTransport", code: -3,
+                        userInfo: [NSLocalizedDescriptionKey: "Short payload"])))
+                    return
+                }
+                completion(.success(payload))
+            }
+        }
+    }
+ 
+    // MARK: - Address helper
+ 
+    private func endpointAddress(_ endpoint: NWEndpoint) -> (String, UInt16) {
+        guard case .hostPort(let host, let port) = endpoint else { return ("0.0.0.0", 0) }
+        let ip: String
+        switch host {
+        case .ipv4(let a):
+            var buf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+            var raw = a.rawValue
+            inet_ntop(AF_INET, &raw, &buf, socklen_t(INET_ADDRSTRLEN))
+            ip = String(cString: buf)
+        case .ipv6(let a):
+            var buf = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+            var raw = a.rawValue
+            inet_ntop(AF_INET6, &raw, &buf, socklen_t(INET6_ADDRSTRLEN))
+            ip = String(cString: buf)
+        default:
+            ip = host.debugDescription
+        }
+        return (ip, port.rawValue)
     }
  
     // MARK: - Relay helper
@@ -262,7 +399,7 @@ final class KademliaTransport {
     }
 }
  
-// MARK: - Message Builders
+// MARK: - Message Builders  (all unchanged)
  
 extension KademliaTransport {
  
