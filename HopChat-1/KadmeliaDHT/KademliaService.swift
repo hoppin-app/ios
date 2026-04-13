@@ -10,7 +10,7 @@ import SwiftUI
 import Combine
  
 let BOOTSTRAP_IP:   String = "34.14.80.215"
-let BOOTSTRAP_PORT: UInt16 = 4001
+let BOOTSTRAP_PORT: UInt16 = 443
  
 @MainActor
 final class KademliaService: ObservableObject {
