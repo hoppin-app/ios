@@ -159,7 +159,8 @@ struct PeopleView: View {
                 // Online section (placeholder — contacts with recent activity)
                 let online = filteredContacts // In a real app, filter by presence
                 ForEach(online) { contact in
-                    ContactRow(contact: contact, myPhone: kad.myPhone)
+                    ContactRow(contact: contact, myPhone: kad.myPhone,
+                               presenceStatus: kad.presenceMap[contact.phone] ?? .offline)
                         .contentShape(Rectangle())
                         .onTapGesture { selectedContact = contact }
                     Divider().padding(.leading, 78)
@@ -184,18 +185,14 @@ struct PeopleView: View {
 // MARK: - Contact Row
 
 struct ContactRow: View {
-    let contact: Contact
-    let myPhone: String
-    @StateObject private var kad = KademliaService.shared
+    let contact:        Contact
+    let myPhone:        String
+    let presenceStatus: PresenceStatus
 
-    private var presenceLabel: String {
-        let status = kad.presenceMap[contact.phone] ?? .offline
-        return status.rawValue
-    }
+    private var presenceLabel: String { presenceStatus.rawValue }
 
     private var presenceColor: Color {
-        let status = kad.presenceMap[contact.phone] ?? .offline
-        switch status {
+        switch presenceStatus {
         case .online:   return .green
         case .recently: return .orange
         case .offline:  return .secondary
@@ -226,7 +223,7 @@ struct ContactRow: View {
                 Text(initials)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
-                PresenceDot(phone: contact.phone)
+                PresenceDot(status: presenceStatus)
             }
 
             VStack(alignment: .leading, spacing: 3) {
