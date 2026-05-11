@@ -186,7 +186,23 @@ struct PeopleView: View {
 struct ContactRow: View {
     let contact: Contact
     let myPhone: String
+    @StateObject private var kad = KademliaService.shared
 
+    private var presenceLabel: String {
+        let status = kad.presenceMap[contact.phone] ?? .offline
+        return status.rawValue
+    }
+
+    private var presenceColor: Color {
+        let status = kad.presenceMap[contact.phone] ?? .offline
+        switch status {
+        case .online:   return .green
+        case .recently: return .orange
+        case .offline:  return .secondary
+        }
+    }
+
+    // kept for fallback
     private var lastSeen: String {
         if let last = ConversationStore.shared.lastMessage(with: contact.phone, myPhone: myPhone) {
             let cal = Calendar.current
@@ -203,13 +219,14 @@ struct ContactRow: View {
     var body: some View {
         HStack(spacing: 14) {
             // Avatar
-            ZStack {
+            ZStack(alignment: .bottomTrailing) {
                 Circle()
                     .fill(avatarColor(for: contact.name))
                     .frame(width: 52, height: 52)
                 Text(initials)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
+                PresenceDot(phone: contact.phone)
             }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -224,6 +241,9 @@ struct ContactRow: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
+                Text(presenceLabel)
+                    .font(.system(size: 12))
+                    .foregroundStyle(presenceColor)
             }
 
             Spacer()

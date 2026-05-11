@@ -146,10 +146,11 @@ struct ChatRowView: View {
 
    var body: some View {
        HStack(spacing: 14) {
-           // Avatar
-           ZStack {
+           // Avatar with presence dot
+           ZStack(alignment: .bottomTrailing) {
                Circle().fill(Color(.systemGray4)).frame(width: 52, height: 52)
                Text(initials).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+               PresenceDot(phone: contact.phone)
            }
 
            VStack(alignment: .leading, spacing: 3) {
@@ -189,6 +190,22 @@ struct ChatRowView: View {
            let f = DateFormatter(); f.dateStyle = .short; return f.string(from: date)
        }
    }
+}
+
+
+// MARK: - Presence Dot
+
+struct PresenceDot: View {
+    let phone: String
+    @StateObject private var kad = KademliaService.shared
+
+    var body: some View {
+        let status = kad.presenceMap[phone] ?? .offline
+        Circle()
+            .fill(status == .online ? Color.green : Color(.systemGray4))
+            .frame(width: 12, height: 12)
+            .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
+    }
 }
 
 // MARK: - Tab Bar Item
