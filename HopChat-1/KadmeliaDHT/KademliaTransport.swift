@@ -287,21 +287,23 @@ final class KademliaTransport {
                         }
                         // Read reply on the same connection.
                         self.readFrame(from: conn) { result in
-                            timeoutTask.cancel()
                             conn.cancel()
-                            self.pendingLock.lock()
-                            guard let c = self.pending[txID] else {
-                                self.pendingLock.unlock()
-                                return  // already resolved by timeout
-                            }
-                            self.pending.removeValue(forKey: txID)
-                            self.pendingLock.unlock()
- 
                             switch result {
                             case .failure(let e):
-                                print("⚠️ TCP RPC read error: \(e)")
-                                c.resume(returning: nil)
+                                print("⚠️ TCP RPC read error — awaiting inbound reply: \(e)")
+                                // The peer closes the outbound connection after sending its
+                                // reply on a new inbound connection.  Leave the continuation
+                                // in `pending` so handleIncoming can resolve it.  The timeout
+                                // task will clean up if no reply arrives within 10 s.
                             case .success(let replyData):
+                                timeoutTask.cancel()
+                                self.pendingLock.lock()
+                                guard let c = self.pending[txID] else {
+                                    self.pendingLock.unlock()
+                                    return  // already resolved (timeout or inbound)
+                                }
+                                self.pending.removeValue(forKey: txID)
+                                self.pendingLock.unlock()
                                 let reply = try? JSONDecoder().decode(KadMessage.self,
                                                                       from: replyData)
                                 if let reply {
@@ -493,8 +495,7 @@ extension KademliaTransport {
                                 chatID: String = uuid(),
                                 toPhone: String) -> KadMessage {
         let crypto  = CryptoManager.shared
-        let txID    = uuid()
-        let payload = CryptoManager.signingPayload(txID: txID, senderPhone: sender.phone, chatBody: body)
+        let txID = uuid()
 
         let (finalBody, isEncrypted): (String, Bool)
         if let ciphertext = crypto.encrypt(message: body, forPhone: toPhone) {
@@ -504,6 +505,9 @@ extension KademliaTransport {
             finalBody   = body
             isEncrypted = false
         }
+        // Sign the wire body (ciphertext when encrypted, plaintext otherwise)
+        // so the receiver can verify against message.chatBody.
+        let payload = CryptoManager.signingPayload(txID: txID, senderPhone: sender.phone, chatBody: finalBody)
 
         var msg = KadMessage(type: KadMessageType.chatMessage.rawValue,
                              senderID: sender.id.bytes, senderIP: sender.ip,
