@@ -57,7 +57,7 @@ struct ContentView: View {
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(Color.accentColor)
 
-                            Text("No sign-ups.\nJust hop on WiFi and go!")
+                            Text("No sign-ups.\nJust hop and go!")
                                 .font(.system(size: 15))
                                 .multilineTextAlignment(.center)
                                 .foregroundStyle(.secondary)

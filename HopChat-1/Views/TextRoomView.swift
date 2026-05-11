@@ -67,7 +67,7 @@ struct TextRoomView: View {
 
             // MARK: Input Bar
             HStack(spacing: 12) {
-                TextField("HopChat Message", text: $messageText, axis: .vertical)
+                TextField("Message", text: $messageText, axis: .vertical)
                     .font(.system(size: 16))
                     .lineLimit(5)
                     .focused($isFocused)
