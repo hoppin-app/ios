@@ -177,9 +177,8 @@ struct ChatRowView: View {
     }
 
     private var initials: String {
-        let parts = contact.name.split(separator: " ").prefix(2)
-            .compactMap { $0.first }.map(String.init).joined()
-        return parts.isEmpty ? String(contact.name.prefix(2)).uppercased() : parts
+        let parts = contact.name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init)
+        return parts.isEmpty ? String(contact.name.prefix(2)).uppercased() : parts.joined()
     }
 
     private func timeString(_ date: Date) -> String {
