@@ -71,9 +71,11 @@ final class BonjourDiscovery: NSObject {
     var onPeerFound: ((DiscoveredPeer) -> Void)?
     var onPeerLost:  ((DiscoveredPeer) -> Void)?
 
-    private var netService: NetService?
-    private var browser:    NetServiceBrowser?
-    private var resolving:  [NetService] = []
+    private var netService:     NetService?
+    private var browser:        NetServiceBrowser?
+    private var resolving:      [NetService] = []
+    private var resolveAttempts: [String: Int] = [:]   // service.name → attempt count
+    private let maxResolveAttempts = 3
 
     // MARK: Publish own service
     func publish(phone: String, port: UInt16) {
@@ -156,17 +158,35 @@ extension BonjourDiscovery: NetServiceDelegate {
             let port = UInt16(bigEndian: addr4.sin_port)
 
             print("📬 Bonjour resolved: \(phone) @ \(ip):\(port)")
+            resolveAttempts.removeValue(forKey: sender.name)
             onPeerFound?(DiscoveredPeer(ip: ip, port: port, phone: phone))
             resolving.removeAll { $0 === sender }
             return
         }
 
-        resolving.removeAll { $0 === sender }
+        // No valid IPv4 found — retry up to maxResolveAttempts times
+        let attempts = (resolveAttempts[sender.name] ?? 0) + 1
+        if attempts < maxResolveAttempts {
+            resolveAttempts[sender.name] = attempts
+            print("🔄 Bonjour re-resolving \(sender.name) (attempt \(attempts + 1))")
+            sender.resolve(withTimeout: 5)
+        } else {
+            resolveAttempts.removeValue(forKey: sender.name)
+            resolving.removeAll { $0 === sender }
+        }
     }
 
     func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
         print("❌ Bonjour resolve failed: \(errorDict)")
-        resolving.removeAll { $0 === sender }
+        let attempts = (resolveAttempts[sender.name] ?? 0) + 1
+        if attempts < maxResolveAttempts {
+            resolveAttempts[sender.name] = attempts
+            print("🔄 Bonjour retry resolve \(sender.name) (attempt \(attempts + 1))")
+            sender.resolve(withTimeout: 5)
+        } else {
+            resolveAttempts.removeValue(forKey: sender.name)
+            resolving.removeAll { $0 === sender }
+        }
     }
 }
 

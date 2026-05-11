@@ -30,6 +30,21 @@ struct TextRoomView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Error banner
+            if let error = kad.lastError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.12))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
             Divider()
 
             // MARK: Messages
@@ -150,20 +165,28 @@ struct MessageBubble: View {
             HStack {
                 if message.isFromMe { Spacer(minLength: 60) }
 
-                Text(message.body)
-                    .font(.system(size: 16))
-                    .foregroundStyle(message.isFromMe ? .white : .primary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(message.isFromMe ? Color.blue : Color(.systemGray5),
-                                in: BubbleShape(isFromMe: message.isFromMe))
-                    .opacity(opacity)
-                    .offset(y: offsetY)
-                    .onAppear {
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                            opacity = 1; offsetY = 0
-                        }
+                VStack(alignment: message.isFromMe ? .trailing : .leading, spacing: 4) {
+                    Text(message.translatedBody ?? message.body)
+                        .font(.system(size: 16))
+                        .foregroundStyle(message.isFromMe ? .white : .primary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(message.isFromMe ? Color.blue : Color(.systemGray5),
+                                    in: BubbleShape(isFromMe: message.isFromMe))
+
+                    if message.translatedBody != nil {
+                        Label("Translated", systemImage: "character.bubble")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
                     }
+                }
+                .opacity(opacity)
+                .offset(y: offsetY)
+                .onAppear {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                        opacity = 1; offsetY = 0
+                    }
+                }
 
                 if !message.isFromMe { Spacer(minLength: 60) }
             }

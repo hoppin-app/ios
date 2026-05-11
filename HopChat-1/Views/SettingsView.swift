@@ -16,6 +16,9 @@ struct SettingsView: View {
     @AppStorage("hopchat.displayName")      private var displayName   = ""
     @AppStorage("hopchat.autoTranslate")    private var autoTranslate = false
     @AppStorage("hopchat.translateLang")    private var translateLang = "en"
+    @AppStorage("hopchat.bootstrap.ip")    private var bootstrapIP   = ""
+    @State private var showBootstrapEditor = false
+    @State private var editedBootstrapIP   = ""
 
     @State private var showInviteSheet    = false
     @State private var showNameEditor     = false
@@ -194,6 +197,30 @@ struct SettingsView: View {
                         }
                     }
 
+
+                    // MARK: Developer Section
+                    Section {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Bootstrap Node")
+                                    .font(.system(size: 16))
+                                Text(bootstrapIP.isEmpty ? AppConfig.bootstrapIP : bootstrapIP)
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Edit") {
+                                editedBootstrapIP = bootstrapIP.isEmpty ? AppConfig.bootstrapIP : bootstrapIP
+                                showBootstrapEditor = true
+                            }
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.blue)
+                        }
+                    } header: {
+                        Text("Developer")
+                    } footer: {
+                        Text("Custom bootstrap node IP. Leave empty to use the default.")
+                    }
                     // MARK: About Section
                     Section {
                         LabeledContent("Version", value: "1.0.0")
@@ -232,6 +259,18 @@ struct SettingsView: View {
                 InviteSheet()
             }
             // MARK: Name Editor
+
+            // Bootstrap editor alert
+            .alert("Bootstrap Node IP", isPresented: $showBootstrapEditor) {
+                TextField("e.g. 34.14.80.215", text: $editedBootstrapIP)
+                    .keyboardType(.numbersAndPunctuation)
+                Button("Save") {
+                    let trimmed = editedBootstrapIP.trimmingCharacters(in: .whitespaces)
+                    bootstrapIP = trimmed
+                }
+                Button("Reset") { bootstrapIP = "" }
+                Button("Cancel", role: .cancel) {}
+            }
             .alert("Display Name", isPresented: $showNameEditor) {
                 TextField("Your name", text: $editedName)
                 Button("Save") {

@@ -44,6 +44,11 @@ struct KadMessage: Codable {
     let chatBody:      String?
     let chatID:        String?
     let chatTimestamp: Double?
+    // E2E encryption & authentication (nil on older messages → backwards-compatible)
+    var senderPublicKey:  String? = nil   // base64 Curve25519 agreement public key
+    var senderSigningKey: String? = nil   // base64 Curve25519 signing public key
+    var signature:        String? = nil   // base64 signature over canonical payload
+    var encrypted:        Bool?   = nil   // true when chatBody is AES-GCM ciphertext
 }
  
 // MARK: - Peer (codable wire form)
@@ -396,6 +401,7 @@ final class KademliaTransport {
                           key: toPhone, value: innerJSON,
                           transactionID: UUID().uuidString,
                           chatBody: nil, chatID: nil, chatTimestamp: nil)
+        // Note: relay wrapper intentionally omits crypto fields; inner message carries them
     }
 }
  
@@ -459,16 +465,24 @@ extension KademliaTransport {
     }
  
     static func makeConnectRequest(from sender: KadPeer, toPhone: String) -> KadMessage {
-        KadMessage(type: KadMessageType.connectRequest.rawValue,
-                   senderID: sender.id.bytes, senderIP: sender.ip,
-                   senderPort: sender.port, senderPhone: sender.phone,
-                   targetID: nil, peers: nil,
-                   key: toPhone, value: nil, transactionID: uuid(),
-                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+        let crypto = CryptoManager.shared
+        var msg = KadMessage(type: KadMessageType.connectRequest.rawValue,
+                             senderID: sender.id.bytes, senderIP: sender.ip,
+                             senderPort: sender.port, senderPhone: sender.phone,
+                             targetID: nil, peers: nil,
+                             key: toPhone, value: nil, transactionID: uuid(),
+                             chatBody: nil, chatID: nil, chatTimestamp: nil)
+        msg.senderPublicKey  = crypto.agreementPublicKeyBase64
+        msg.senderSigningKey = crypto.signingPublicKeyBase64
+        return msg
     }
  
     static func makeConnectAccept(from sender: KadPeer, replyTo txID: String) -> KadMessage {
-        base(type: .connectAccept, sender: sender, txID: txID)
+        let crypto = CryptoManager.shared
+        var msg = base(type: .connectAccept, sender: sender, txID: txID)
+        msg.senderPublicKey  = crypto.agreementPublicKeyBase64
+        msg.senderSigningKey = crypto.signingPublicKeyBase64
+        return msg
     }
  
     static func makeConnectDecline(from sender: KadPeer, replyTo txID: String) -> KadMessage {
@@ -476,14 +490,33 @@ extension KademliaTransport {
     }
  
     static func makeChatMessage(from sender: KadPeer, body: String,
-                                chatID: String = uuid()) -> KadMessage {
-        KadMessage(type: KadMessageType.chatMessage.rawValue,
-                   senderID: sender.id.bytes, senderIP: sender.ip,
-                   senderPort: sender.port, senderPhone: sender.phone,
-                   targetID: nil, peers: nil,
-                   key: nil, value: nil, transactionID: uuid(),
-                   chatBody: body, chatID: chatID,
-                   chatTimestamp: Date().timeIntervalSince1970)
+                                chatID: String = uuid(),
+                                toPhone: String) -> KadMessage {
+        let crypto  = CryptoManager.shared
+        let txID    = uuid()
+        let payload = CryptoManager.signingPayload(txID: txID, senderPhone: sender.phone, chatBody: body)
+
+        let (finalBody, isEncrypted): (String, Bool)
+        if let ciphertext = crypto.encrypt(message: body, forPhone: toPhone) {
+            finalBody   = ciphertext
+            isEncrypted = true
+        } else {
+            finalBody   = body
+            isEncrypted = false
+        }
+
+        var msg = KadMessage(type: KadMessageType.chatMessage.rawValue,
+                             senderID: sender.id.bytes, senderIP: sender.ip,
+                             senderPort: sender.port, senderPhone: sender.phone,
+                             targetID: nil, peers: nil,
+                             key: nil, value: nil, transactionID: txID,
+                             chatBody: finalBody, chatID: chatID,
+                             chatTimestamp: Date().timeIntervalSince1970)
+        msg.senderPublicKey  = crypto.agreementPublicKeyBase64
+        msg.senderSigningKey = crypto.signingPublicKeyBase64
+        msg.signature        = crypto.sign(payload: payload)
+        msg.encrypted        = isEncrypted
+        return msg
     }
  
     static func makeChatAck(from sender: KadPeer, chatID: String,

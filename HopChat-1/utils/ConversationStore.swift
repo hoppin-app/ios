@@ -25,8 +25,9 @@ struct StoredMessage: Identifiable, Codable {
     let toPhone:    String   // recipient phone
     let body:       String
     let timestamp:  Date
-    var delivered:  Bool
-    var isFromMe:   Bool
+    var delivered:      Bool
+    var isFromMe:       Bool
+    var translatedBody: String? = nil   // set if auto-translate was applied
 }
 
 // MARK: - Store

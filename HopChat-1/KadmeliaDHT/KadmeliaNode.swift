@@ -7,6 +7,18 @@
 
 import Foundation
 import CryptoKit
+
+// MARK: - DHT Storage Entry (value + TTL)
+
+struct DHTEntry {
+    let value:    String
+    let storedAt: Date
+
+    var isExpired: Bool {
+        Date().timeIntervalSince(storedAt) > AppConfig.dhtTTL
+    }
+}
+
  
 // MARK: - NodeID (256-bit / SHA-256)
  
