@@ -163,6 +163,13 @@ struct PeopleView: View {
                                presenceStatus: kad.presenceMap[contact.phone] ?? .offline)
                         .contentShape(Rectangle())
                         .onTapGesture { selectedContact = contact }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                store.removeContact(phone: contact.phone)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     Divider().padding(.leading, 78)
                 }
             }
@@ -279,7 +286,9 @@ struct ContactRow: View {
 struct ContactDetailSheet: View {
     let contact: Contact
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var kad = KademliaService.shared
+    @StateObject private var kad   = KademliaService.shared
+    @StateObject private var store = ConversationStore.shared
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -330,6 +339,18 @@ struct ContactDetailSheet: View {
                             return f.string(from: contact.addedAt)
                         }())
                     }
+
+                    Section {
+                        Button(role: .destructive) {
+                            confirmDelete = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Delete Contact")
+                                Spacer()
+                            }
+                        }
+                    }
                 }
                 .listStyle(.insetGrouped)
             }
@@ -339,6 +360,19 @@ struct ContactDetailSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .confirmationDialog(
+                "Delete \(contact.name)?",
+                isPresented: $confirmDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Contact", role: .destructive) {
+                    store.removeContact(phone: contact.phone)
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will remove the contact.")
             }
         }
     }

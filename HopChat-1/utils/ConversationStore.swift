@@ -62,6 +62,11 @@ final class ConversationStore: ObservableObject {
         }
     }
 
+    func removeContact(phone: String) {
+        contacts.removeAll { $0.phone == phone }
+        save()
+    }
+
     func contact(for phone: String) -> Contact? {
         contacts.first { $0.phone == phone }
     }
