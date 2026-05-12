@@ -69,23 +69,27 @@ struct ChatListView: View {
                     }
                     Spacer()
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(filteredContacts) { contact in
-                                Button {
-                                    navPath.append(contact)
+                    List {
+                        ForEach(filteredContacts) { contact in
+                            ChatRowView(
+                                contact: contact,
+                                myPhone: kad.myPhone,
+                                presenceStatus: kad.presenceMap[contact.phone] ?? .offline
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture { navPath.append(contact) }
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparatorTint(Color(.separator))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    store.deleteConversation(with: contact.phone, myPhone: kad.myPhone)
                                 } label: {
-                                    ChatRowView(
-                                        contact: contact,
-                                        myPhone: kad.myPhone,
-                                        presenceStatus: kad.presenceMap[contact.phone] ?? .offline
-                                    )
+                                    Label("Delete", systemImage: "trash")
                                 }
-                                .buttonStyle(.plain)
-                                Divider().padding(.leading, 78)
                             }
                         }
                     }
+                    .listStyle(.plain)
                 }
 
                 Spacer()
@@ -132,7 +136,9 @@ struct ChatListView: View {
     }
 
     private var filteredContacts: [Contact] {
-        let all = store.contacts
+        let all = store.contacts.filter {
+            store.lastMessage(with: $0.phone, myPhone: kad.myPhone) != nil
+        }
         if searchText.isEmpty { return all }
         return all.filter { $0.name.localizedCaseInsensitiveContains(searchText) ||
                             $0.phone.contains(searchText) }
