@@ -119,6 +119,12 @@ struct ChatListView: View {
                 let contact = Contact(phone: phone, name: phone, ip: ip, port: port, addedAt: Date())
                 ConversationStore.shared.addContact(contact)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openChat)) { note in
+                guard let phone = note.userInfo?["phone"] as? String,
+                      let contact = store.contact(for: phone) else { return }
+                navPath.append(contact)
+            }
+            .onAppear { NotificationService.shared.clearBadge() }
             // Chat destination (programmatic push via navPath.append)
             .navigationDestination(for: Contact.self) { contact in
                 TextRoomView(contact: contact, myPhone: kad.myPhone)

@@ -39,6 +39,7 @@ final class KademliaService: ObservableObject {
     func register(phone: String) async {
         myPhone = phone
         status  = "Starting…"
+        NotificationService.shared.requestPermission()
 
         let ip   = localWiFiIP() ?? "0.0.0.0"
         let port = stablePort(for: phone)
@@ -59,6 +60,7 @@ final class KademliaService: ObservableObject {
                                        timestamp: timestamp, delivered: true, isFromMe: false)
                 msg.translatedBody = translated
                 ConversationStore.shared.appendMessage(msg)
+                NotificationService.shared.post(from: senderPhone, body: body)
                 if ConversationStore.shared.contact(for: senderPhone) == nil {
                     ConversationStore.shared.addContact(
                         Contact(phone: senderPhone, name: senderPhone,
