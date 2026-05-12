@@ -4,6 +4,8 @@ struct ContentView: View {
     @StateObject private var kad = KademliaService.shared
     @Environment(\.colorScheme) private var colorScheme
 
+    @AppStorage("hopchat.hasSeenOnboarding") private var hasSeenOnboarding = false
+
     @State private var phoneText       = ""
     @State private var isLoading       = false
     @State private var errorMessage:   String?
@@ -12,7 +14,9 @@ struct ContentView: View {
     @State private var appear          = false
 
     var body: some View {
-        if navigateToChats {
+        if !hasSeenOnboarding {
+            OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
+        } else if navigateToChats {
             ChatListView()
         } else {
             onboardingView
