@@ -4,59 +4,52 @@
 //
 
 import Foundation
+import Combine
+import Translation
 
 @MainActor
-final class TranslationService {
+final class TranslationService: ObservableObject {
     static let shared = TranslationService()
-
     private init() {}
 
-    /// Translate `text` to `targetLangCode` (BCP-47, e.g. "pt", "es", "fr").
-    /// Uses Apple's Translation framework on iOS 17.4+; returns nil on older OS or failure.
-    func translate(text: String, to targetLangCode: String) async -> String? {
-        guard #available(iOS 17.4, *) else { return nil }
-        return await translateWithApple(text: text, targetLang: targetLangCode)
+    struct PendingRequest: Identifiable {
+        let id    = UUID()
+        let text:       String
+        let targetLang: String
+        let continuation: CheckedContinuation<String?, Never>
     }
 
-    @available(iOS 17.4, *)
-    private func translateWithApple(text: String, targetLang: String) async -> String? {
-        // Translation framework requires a session and a configuration.
-        // We import Translation conditionally so the app still builds on older SDKs.
-        return await withCheckedContinuation { continuation in
-            Task {
-                do {
-                    let result = try await performAppleTranslation(text: text, targetLang: targetLang)
-                    continuation.resume(returning: result)
-                } catch {
-                    print("🌐 Translation error: \(error)")
-                    continuation.resume(returning: nil)
-                }
+    @Published private(set) var pendingRequest: PendingRequest?
+    private var pendingQueue: [PendingRequest] = []
+
+    // Called by TranslationBridgeView once translation completes.
+    func complete(request: PendingRequest, result: String?) {
+        request.continuation.resume(returning: result)
+        // Advance the queue: go through nil so onChange always sees a change
+        // even when consecutive requests share the same target language.
+        pendingRequest = nil
+        if !pendingQueue.isEmpty {
+            Task { @MainActor in
+                self.pendingRequest = self.pendingQueue.removeFirst()
             }
         }
     }
 
-    @available(iOS 17.4, *)
-    private func performAppleTranslation(text: String, targetLang: String) async throws -> String? {
-        // Dynamic import to avoid hard-linking Translation framework on older OS
-        guard let translationClass = NSClassFromString("Translation.TranslationSession") as? NSObject.Type,
-              let config = NSClassFromString("Translation.TranslationSession.Configuration") as? NSObject.Type
-        else {
-            return nil
+    // MARK: - Public API
+
+    func translate(text: String, to targetLangCode: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            let req = PendingRequest(text: text, targetLang: targetLangCode, continuation: continuation)
+            if pendingRequest == nil {
+                pendingRequest = req
+            } else {
+                pendingQueue.append(req)
+            }
         }
-        _ = translationClass
-        _ = config
-        // Fallback: return nil when Translation framework is not directly importable.
-        // Users should add Translation framework to the Xcode target and use the
-        // proper Translation API. This stub ensures the app compiles without it.
-        return nil
     }
-}
 
-// MARK: - Integration helper
-
-extension TranslationService {
-    /// Translates incoming message body if auto-translate is enabled.
-    /// Returns the translated text or nil if translation was skipped/failed.
+    /// Translates `body` using the user's stored auto-translate settings.
+    /// Returns nil if auto-translate is disabled, unavailable, or fails.
     func autoTranslate(body: String) async -> String? {
         let enabled  = UserDefaults.standard.bool(forKey: "hopchat.autoTranslate")
         let langCode = UserDefaults.standard.string(forKey: "hopchat.translateLang") ?? "en"

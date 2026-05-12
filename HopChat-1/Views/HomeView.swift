@@ -2,6 +2,10 @@
 //  HomeView.swift
 //  HopChat-1
 //
+// Created by Rodrigo Loução on 08/04/2026.
+//
+// Home View
+//
 
 import SwiftUI
 

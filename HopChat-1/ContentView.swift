@@ -170,6 +170,7 @@ struct ContentView: View {
                     Spacer().frame(height: 10)
                 }
             }
+            .overlay { TranslationBridgeView() }
             .onAppear {
                 appear = true
                 pulse  = 1.10
