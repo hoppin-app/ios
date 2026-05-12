@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import Network
 
 // MARK: - Presence
 
@@ -33,6 +34,9 @@ final class KademliaService: ObservableObject {
     private(set) var node:    KademliaProtocol?
     private      var bonjour: BonjourDiscovery?
     private      var keepAliveTask: Task<Void, Never>?
+    private      var pathMonitor: NWPathMonitor?
+    private      var isReconnecting = false
+    private      var didBootstrap   = false
 
     // MARK: - Register
 
@@ -106,6 +110,11 @@ final class KademliaService: ObservableObject {
         status = "🟢 Online"
 
         persistPeers(from: kad)
+
+        if !didBootstrap {
+            didBootstrap = true
+            startNetworkMonitor()
+        }
 
         keepAliveTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -275,12 +284,50 @@ final class KademliaService: ObservableObject {
 
     // MARK: - Stop
 
-    func stop() {
+    private func stopNode() {
         keepAliveTask?.cancel()
         bonjour?.stop()
         node?.transport.stop()
         node = nil; bonjour = nil
         status = "Offline"; isBootstrapped = false
+    }
+
+    func stop() {
+        stopNode()
+        pathMonitor?.cancel()
+        pathMonitor = nil
+        didBootstrap = false
+    }
+
+    // MARK: - Network Monitor
+
+    private func startNetworkMonitor() {
+        let monitor = NWPathMonitor()
+        pathMonitor = monitor
+        var isFirstEvent = true
+        monitor.pathUpdateHandler = { [weak self] path in
+            if isFirstEvent { isFirstEvent = false; return }
+            guard path.status == .satisfied else { return }
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.didBootstrap,
+                      !self.isReconnecting,
+                      !self.myPhone.isEmpty else { return }
+                await self.reconnect()
+            }
+        }
+        monitor.start(queue: DispatchQueue.global(qos: .utility))
+    }
+
+    private func reconnect() async {
+        guard !isReconnecting else { return }
+        isReconnecting = true
+        print("🔄 Network changed — reconnecting…")
+        let phone = myPhone
+        stopNode()
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        await register(phone: phone)
+        isReconnecting = false
     }
 
     private func stablePort(for phone: String) -> UInt16 {
