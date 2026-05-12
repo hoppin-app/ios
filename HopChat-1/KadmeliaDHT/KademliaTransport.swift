@@ -26,6 +26,9 @@ enum KadMessageType: UInt8 {
     case chatAck        = 0x0C
     case holePunch      = 0x0D
     case relay          = 0x0E
+    case offlineNotify  = 0x0F  // client → bootstrap: "tried to reach {key}, couldn't"
+    case cameOnline     = 0x10  // client → bootstrap: "I'm back, check your log"
+    case peerOnline     = 0x11  // bootstrap → client: "peer {key} is now at {value}"
 }
  
 // MARK: - Wire Message
@@ -529,6 +532,44 @@ extension KademliaTransport {
                    chatBody: nil, chatID: chatID, chatTimestamp: nil)
     }
  
+    // MARK: - Offline delivery builders
+
+    /// Sent by a client to bootstrap when a chat message couldn't be delivered.
+    /// key = target phone that was unreachable.
+    static func makeOfflineNotify(from sender: KadPeer, targetPhone: String) -> KadMessage {
+        KadMessage(type: KadMessageType.offlineNotify.rawValue,
+                   senderID: sender.id.bytes, senderIP: sender.ip,
+                   senderPort: sender.port, senderPhone: sender.phone,
+                   targetID: nil, peers: nil,
+                   key: targetPhone, value: nil, transactionID: uuid(),
+                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+    }
+
+    /// Sent by a client to bootstrap right after a successful bootstrap ping.
+    /// Bootstrap uses this to flush its offline-notify log for this phone.
+    /// value = sender's own address ("ip:port") so bootstrap can relay it to waiters.
+    static func makeCameOnline(from sender: KadPeer) -> KadMessage {
+        KadMessage(type: KadMessageType.cameOnline.rawValue,
+                   senderID: sender.id.bytes, senderIP: sender.ip,
+                   senderPort: sender.port, senderPhone: sender.phone,
+                   targetID: nil, peers: nil,
+                   key: sender.phone, value: "\(sender.ip):\(sender.port)",
+                   transactionID: uuid(),
+                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+    }
+
+    /// Sent by bootstrap to a waiting client when the target peer comes online.
+    /// key = online peer's phone, value = "ip:port".
+    static func makePeerOnline(from sender: KadPeer,
+                               peerPhone: String, address: String) -> KadMessage {
+        KadMessage(type: KadMessageType.peerOnline.rawValue,
+                   senderID: sender.id.bytes, senderIP: sender.ip,
+                   senderPort: sender.port, senderPhone: sender.phone,
+                   targetID: nil, peers: nil,
+                   key: peerPhone, value: address, transactionID: uuid(),
+                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+    }
+
     static func uuid() -> String { UUID().uuidString }
  
     private static func base(type: KadMessageType, sender: KadPeer,

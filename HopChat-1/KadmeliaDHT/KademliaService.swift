@@ -93,6 +93,12 @@ final class KademliaService: ObservableObject {
             print("⚠️ Bootstrap unreachable — announced LAN address: user-\(phone) = \(lanAddr)")
         }
 
+        // When bootstrap tells us a peer came online, retry any messages we couldn't deliver.
+        kad.onPeerOnline = { [weak self] phone, _, _ in
+            guard let self else { return }
+            Task { await self.retryUndelivered(for: phone) }
+        }
+
         isBootstrapped = true
         connectedPeers = kad.connectedPeers
         status = "🟢 Online"
@@ -138,12 +144,39 @@ final class KademliaService: ObservableObject {
                 ConversationStore.shared.markDelivered(chatID: chatID,
                                                       peerPhone: toPhone, myPhone: myPhone)
             } else {
-                self.lastError = "Couldn't reach \(toPhone). Message not delivered."
-                // Clear error after 3s
-                Task {
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
-                    await MainActor.run { self.lastError = nil }
+                await MainActor.run {
+                    self.lastError = "Couldn't reach \(toPhone). Will deliver when they reconnect."
+                    Task {
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        await MainActor.run { self.lastError = nil }
+                    }
                 }
+                // Notify bootstrap so it can alert us when the peer comes back online.
+                if let bs = node.routingTable.allPeers.first(where: { $0.phone == "bootstrap" }) {
+                    let notify = KademliaTransport.makeOfflineNotify(from: node.localPeer,
+                                                                      targetPhone: toPhone)
+                    node.transport.send(notify, to: bs.ip, port: bs.port)
+                    print("📭 Registered offline-notify for \(toPhone) with bootstrap")
+                }
+            }
+        }
+    }
+
+    // MARK: - Offline Retry
+
+    private func retryUndelivered(for phone: String) async {
+        guard let node else { return }
+        let undelivered = ConversationStore.shared
+            .thread(with: phone, myPhone: myPhone)
+            .filter { $0.isFromMe && !$0.delivered }
+        guard !undelivered.isEmpty else { return }
+        print("🔄 Retrying \(undelivered.count) undelivered message(s) for \(phone)")
+        for msg in undelivered {
+            let sent = await node.sendChat(toPhone: phone, body: msg.body)
+            if sent != nil {
+                ConversationStore.shared.markDelivered(chatID: msg.id,
+                                                       peerPhone: phone, myPhone: myPhone)
+                print("✅ Offline-queued message delivered to \(phone): \(msg.id.prefix(8))")
             }
         }
     }

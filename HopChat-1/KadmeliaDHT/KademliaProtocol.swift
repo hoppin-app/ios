@@ -24,10 +24,23 @@ final class KademliaProtocol: ObservableObject {
     private let connectRateLimit  = 5
     private let connectRateWindow: TimeInterval = 60
 
+    // Offline delivery log (bootstrap-side).
+    // targetPhone → unique senders that couldn't reach it.
+    // In-memory only; acceptable for a bootstrap process that stays running.
+    private struct OfflineWaiter {
+        let senderPhone: String
+        let senderIP:    String
+        let senderPort:  UInt16
+    }
+    private var offlineLog: [String: [OfflineWaiter]] = [:]
+
     @Published var connectedPeers: Int  = 0
     @Published var isBootstrapped: Bool = false
 
     var onChatMessage: ((String, String, String, Date) -> Void)?
+    /// Fired on the client when bootstrap notifies that a previously offline peer is now reachable.
+    /// Parameters: (peerPhone, ip, port)
+    var onPeerOnline: ((String, String, UInt16) -> Void)?
 
     init(phone: String, ip: String, port: UInt16) {
         let id = NodeID.from(phone: phone)
@@ -248,6 +261,48 @@ final class KademliaProtocol: ObservableObject {
             else { return }
             await handle(innerMsg, from: sender,
                          actualIP: innerMsg.senderIP, actualPort: innerMsg.senderPort)
+
+        case .offlineNotify:
+            // Bootstrap-side: log that sender couldn't reach the target phone.
+            guard let targetPhone = message.key else { return }
+            let waiter = OfflineWaiter(senderPhone: sender.phone,
+                                       senderIP: actualIP,
+                                       senderPort: message.senderPort)
+            // Deduplicate: one entry per (sender, target) pair.
+            if !(offlineLog[targetPhone] ?? []).contains(where: { $0.senderPhone == waiter.senderPhone }) {
+                offlineLog[targetPhone, default: []].append(waiter)
+                print("📭 Offline log: \(sender.phone) → \(targetPhone) (\(offlineLog[targetPhone]!.count) waiter(s))")
+            }
+
+        case .cameOnline:
+            // Bootstrap-side: a peer just reconnected — flush its offline log.
+            let onlinePhone = sender.phone
+            guard let waiters = offlineLog[onlinePhone], !waiters.isEmpty else { return }
+            offlineLog.removeValue(forKey: onlinePhone)
+            // Prefer the address the peer announced; fall back to the actual TCP source.
+            let onlineAddress = message.value
+                ?? storage["user-\(onlinePhone)"]?.value
+                ?? "\(actualIP):\(message.senderPort)"
+            print("📬 \(onlinePhone) came online — notifying \(waiters.count) waiter(s)")
+            for waiter in waiters {
+                let notify = KademliaTransport.makePeerOnline(from: localPeer,
+                                                              peerPhone: onlinePhone,
+                                                              address: onlineAddress)
+                transport.send(notify, to: waiter.senderIP, port: waiter.senderPort)
+                print("📤 Notified \(waiter.senderPhone) that \(onlinePhone) is reachable")
+            }
+
+        case .peerOnline:
+            // Client-side: bootstrap tells us a previously offline peer is now reachable.
+            guard let peerPhone = message.key,
+                  let address   = message.value,
+                  let peer      = parsePeer(phone: peerPhone, address: address) else { return }
+            routingTable.add(peer)
+            storage["user-\(peerPhone)"] = DHTEntry(value: address, storedAt: Date())
+            print("🟢 Peer online: \(peerPhone) @ \(address) — will retry queued messages")
+            DispatchQueue.main.async {
+                self.onPeerOnline?(peerPhone, peer.ip, peer.port)
+            }
 
         default:
             break
@@ -478,6 +533,13 @@ final class KademliaProtocol: ObservableObject {
 
         isBootstrapped = true
         print("🌐 Bootstrap done. Peers: \(connectedPeers)")
+
+        // Tell bootstrap we're back online so it can flush its offline-notify log for us.
+        if let bs = routingTable.allPeers.first(where: { $0.phone == "bootstrap" }) {
+            let msg = KademliaTransport.makeCameOnline(from: localPeer)
+            transport.send(msg, to: bs.ip, port: bs.port)
+            print("📡 Sent cameOnline to bootstrap")
+        }
     }
 
     func addPeer(_ peer: KadPeer) {
