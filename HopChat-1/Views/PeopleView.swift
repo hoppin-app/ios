@@ -217,12 +217,14 @@ struct ContactRow: View {
         HStack(spacing: 14) {
             // Avatar
             ZStack(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(avatarColor(for: contact.name))
-                    .frame(width: 52, height: 52)
-                Text(initials)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
+                ZStack {
+                    Circle()
+                        .fill(avatarColor(for: contact.name))
+                        .frame(width: 52, height: 52)
+                    Text(initials)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
                 PresenceDot(status: presenceStatus)
             }
 
