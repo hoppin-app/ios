@@ -6,10 +6,12 @@
 //
 
 import Testing
+import Foundation
 import CryptoKit
 @testable import HopChat_1
 
 // MARK: - NodeID Tests
+// Passes
 
 @Suite("NodeID")
 struct NodeIDTests {
@@ -67,6 +69,7 @@ struct NodeIDTests {
 }
 
 // MARK: - KBucket Tests
+// Passes
 
 @Suite("KBucket")
 struct KBucketTests {
@@ -120,6 +123,7 @@ struct KBucketTests {
 }
 
 // MARK: - RoutingTable Tests
+// Passes
 
 @Suite("RoutingTable")
 struct RoutingTableTests {
@@ -162,6 +166,7 @@ struct RoutingTableTests {
 }
 
 // MARK: - CryptoManager Tests (using isolated TestCryptoManager)
+// Passes
 
 @Suite("CryptoManager")
 struct CryptoManagerTests {
@@ -257,7 +262,215 @@ final class TestCryptoManager {
     }
 }
 
+// MARK: - Integration Tests
+
+// Allocates unique loopback ports so parallel test runs don't clash.
+private final class PortAllocator: @unchecked Sendable {
+    static let shared = PortAllocator()
+    private var next: UInt16 = 15200
+    private let lock = NSLock()
+    func allocate() -> UInt16 {
+        lock.withLock { let p = next; next += 1; return p }
+    }
+}
+
+// Thread-safe message collector. Uses polling so it stays async-friendly.
+private final class Mailbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var messages: [(phone: String, body: String, chatID: String)] = []
+    private var totalPushed = 0
+
+    // Total ever received (not affected by next() calls).
+    var count: Int { lock.withLock { totalPushed } }
+
+    func push(phone: String, body: String, chatID: String) {
+        lock.withLock { messages.append((phone, body, chatID)); totalPushed += 1 }
+    }
+
+    // Returns the next unconsumed message, polling every 50 ms up to timeout.
+    // Works correctly whether the message arrived before or after this is called.
+    func next(timeout: Double = 5) async -> (phone: String, body: String, chatID: String)? {
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if let msg = lock.withLock({ messages.isEmpty ? nil : messages.removeFirst() }) {
+                return msg
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        return nil
+    }
+}
+
+// Passes
+@Suite("Integration – send / receive flow")
+struct IntegrationTests {
+
+    // Spin up a node on a unique loopback port.
+    private func makeNode(phone: String) throws -> (KademliaProtocol, UInt16) {
+        let port = PortAllocator.shared.allocate()
+        let node = KademliaProtocol(phone: phone, ip: "127.0.0.1", port: port)
+        try node.start()
+        return (node, port)
+    }
+
+    // MARK: 1. Core path: direct send → ACK → onChatMessage
+
+    @Test("direct send delivers message and returns ACK chatID")
+    func directSendDeliverAndAck() async throws {
+        let (alice, _)     = try makeNode(phone: "alice-\(UUID())")
+        let (bob, bobPort) = try makeNode(phone: "bob-\(UUID())")
+        defer { alice.transport.stop(); bob.transport.stop() }
+
+        alice.addPeer(KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
+                              port: bobPort, phone: bob.localPeer.phone))
+
+        let box = Mailbox()
+        bob.onChatMessage = { phone, body, chatID, _ in
+            box.push(phone: phone, body: body, chatID: chatID)
+        }
+
+        let chatID = await alice.sendChat(toPhone: bob.localPeer.phone, body: "Hello Bob!")
+        #expect(chatID != nil, "sendChat must return a chatID when the peer ACKs")
+
+        let msg = await box.next()
+        #expect(msg != nil,                          "bob should deliver the message within timeout")
+        #expect(msg?.phone == alice.localPeer.phone, "sender phone must match")
+        #expect(msg?.body  == "Hello Bob!",          "message body must arrive intact")
+    }
+
+    // MARK: 2. Ping / pong round-trip
+
+    @Test("ping returns pong")
+    func pingReturnsPong() async throws {
+        let (alice, _)     = try makeNode(phone: "ping-alice-\(UUID())")
+        let (bob, bobPort) = try makeNode(phone: "ping-bob-\(UUID())")
+        defer { alice.transport.stop(); bob.transport.stop() }
+
+        let bobPeer = KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
+                              port: bobPort, phone: bob.localPeer.phone)
+        let alive = await alice.ping(bobPeer)
+        #expect(alive == true)
+    }
+
+    // MARK: 3. sendChat returns nil when peer is unreachable
+
+    @Test("sendChat returns nil for unknown peer")
+    func sendToUnknownPeer() async throws {
+        let (alice, _) = try makeNode(phone: "lonely-\(UUID())")
+        defer { alice.transport.stop() }
+
+        let chatID = await alice.sendChat(toPhone: "ghost-\(UUID())", body: "Anyone there?")
+        #expect(chatID == nil)
+    }
+
+    // MARK: 4. Duplicate chatID suppressed on receiver
+
+    @Test("duplicate chatID is not delivered twice")
+    func duplicateSuppressed() async throws {
+        let (alice, _)     = try makeNode(phone: "dup-alice-\(UUID())")
+        let (bob, bobPort) = try makeNode(phone: "dup-bob-\(UUID())")
+        defer { alice.transport.stop(); bob.transport.stop() }
+
+        let bobPeer = KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
+                              port: bobPort, phone: bob.localPeer.phone)
+        alice.addPeer(bobPeer)
+
+        let box = Mailbox()
+        bob.onChatMessage = { phone, body, chatID, _ in
+            box.push(phone: phone, body: body, chatID: chatID)
+        }
+
+        let fixedChatID = UUID().uuidString
+        let first = KademliaTransport.makeChatMessage(from: alice.localPeer, body: "Once",
+                                                       chatID: fixedChatID,
+                                                       toPhone: bob.localPeer.phone)
+        _ = await alice.transport.sendAndWait(first, to: bobPeer)
+        _ = await box.next() // wait for legitimate delivery
+
+        // Replay the identical chatID — Bob's seenChatIDs must block it.
+        let replay = KademliaTransport.makeChatMessage(from: alice.localPeer, body: "Once",
+                                                        chatID: fixedChatID,
+                                                        toPhone: bob.localPeer.phone)
+        _ = await alice.transport.sendAndWait(replay, to: bobPeer)
+        try await Task.sleep(nanoseconds: 300_000_000) // give main queue time to fire
+
+        #expect(box.count == 1, "Duplicate chatID must not be delivered twice")
+    }
+
+    // MARK: 5. CONNECT_REQUEST → CONNECT_ACCEPT handshake
+
+    @Test("connect request is accepted by a reachable peer")
+    func connectRequestAccepted() async throws {
+        let (alice, _)     = try makeNode(phone: "cr-alice-\(UUID())")
+        let (bob, bobPort) = try makeNode(phone: "cr-bob-\(UUID())")
+        defer { alice.transport.stop(); bob.transport.stop() }
+
+        alice.addPeer(KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
+                              port: bobPort, phone: bob.localPeer.phone))
+
+        let accepted = await alice.requestConnect(toPhone: bob.localPeer.phone)
+        #expect(accepted == true)
+    }
+
+    // MARK: 6. DHT store → local retrieve
+
+    @Test("stored value retrieved locally before TTL expires")
+    func storeAndRetrieveLocally() async throws {
+        let (alice, _) = try makeNode(phone: "dht-alice-\(UUID())")
+        defer { alice.transport.stop() }
+
+        alice.storage["test-key"] = DHTEntry(value: "hello-dht", storedAt: Date())
+        let value = await alice.findValue(key: "test-key")
+        #expect(value == "hello-dht")
+    }
+
+    // MARK: 7. Expired DHT entry not returned
+
+    @Test("expired DHT entry is not returned by findValue")
+    func expiredEntryIgnored() async throws {
+        let (alice, _) = try makeNode(phone: "ttl-alice-\(UUID())")
+        defer { alice.transport.stop() }
+
+        let past = Date(timeIntervalSinceNow: -(AppConfig.dhtTTL + 1))
+        alice.storage["stale-key"] = DHTEntry(value: "old-value", storedAt: past)
+
+        // No peers to ask, so findValue falls through and returns nil for a stale local entry.
+        let value = await alice.findValue(key: "stale-key")
+        #expect(value == nil)
+    }
+
+    // MARK: 8. Bidirectional exchange
+
+    @Test("bidirectional send: both nodes deliver to each other")
+    func bidirectionalSend() async throws {
+        let (alice, alicePort) = try makeNode(phone: "bi-alice-\(UUID())")
+        let (bob,   bobPort)   = try makeNode(phone: "bi-bob-\(UUID())")
+        defer { alice.transport.stop(); bob.transport.stop() }
+
+        alice.addPeer(KadPeer(id: bob.localPeer.id,   ip: "127.0.0.1", port: bobPort,   phone: bob.localPeer.phone))
+        bob.addPeer(KadPeer(id:   alice.localPeer.id, ip: "127.0.0.1", port: alicePort, phone: alice.localPeer.phone))
+
+        let aliceBox = Mailbox()
+        let bobBox   = Mailbox()
+        alice.onChatMessage = { p, b, id, _ in aliceBox.push(phone: p, body: b, chatID: id) }
+        bob.onChatMessage   = { p, b, id, _ in bobBox.push(phone: p, body: b, chatID: id) }
+
+        async let a2b = alice.sendChat(toPhone: bob.localPeer.phone,   body: "Hi Bob!")
+        async let b2a = bob.sendChat(toPhone:   alice.localPeer.phone, body: "Hi Alice!")
+        let (aliceID, bobID) = await (a2b, b2a)
+
+        #expect(aliceID != nil)
+        #expect(bobID   != nil)
+
+        let toAlice = await aliceBox.next()
+        let toBob   = await bobBox.next()
+        #expect(toAlice?.body == "Hi Alice!")
+        #expect(toBob?.body   == "Hi Bob!")
+    }
+}
+
 // MARK: - DHTEntry Tests
+// Passes
 
 @Suite("DHTEntry")
 struct DHTEntryTests {
