@@ -71,13 +71,17 @@ struct ChatListView: View {
                 } else {
                     List {
                         ForEach(filteredContacts) { contact in
-                            ChatRowView(
-                                contact: contact,
-                                myPhone: kad.myPhone,
-                                presenceStatus: kad.presenceMap[contact.phone] ?? .offline
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture { navPath.append(contact) }
+                            ZStack {
+                                // Invisible NavigationLink owns the tap — built-in debouncing
+                                // prevents multiple pushes during animation.
+                                NavigationLink(value: contact) { EmptyView() }
+                                    .opacity(0)
+                                ChatRowView(
+                                    contact: contact,
+                                    myPhone: kad.myPhone,
+                                    presenceStatus: kad.presenceMap[contact.phone] ?? .offline
+                                )
+                            }
                             .listRowInsets(EdgeInsets())
                             .listRowSeparatorTint(Color(.separator))
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
