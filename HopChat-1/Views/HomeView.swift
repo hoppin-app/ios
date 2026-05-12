@@ -150,8 +150,10 @@ struct ChatRowView: View {
         HStack(spacing: 14) {
             // Avatar with presence dot
             ZStack(alignment: .bottomTrailing) {
-                Circle().fill(Color(.systemGray4)).frame(width: 52, height: 52)
-                Text(initials).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                ZStack {
+                    Circle().fill(Color(.systemGray4)).frame(width: 52, height: 52)
+                    Text(initials).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                }
                 PresenceDot(status: presenceStatus)
             }
 

@@ -12,6 +12,14 @@ struct ContentView: View {
     @State private var appear          = false
 
     var body: some View {
+        if navigateToChats {
+            ChatListView()
+        } else {
+            onboardingView
+        }
+    }
+
+    private var onboardingView: some View {
         NavigationStack {
             ZStack {
                 // Apple-style adaptive background
@@ -161,9 +169,6 @@ struct ContentView: View {
 
                     Spacer().frame(height: 10)
                 }
-            }
-            .navigationDestination(isPresented: $navigateToChats) {
-                ChatListView().navigationBarBackButtonHidden(true)
             }
             .onAppear {
                 appear = true
