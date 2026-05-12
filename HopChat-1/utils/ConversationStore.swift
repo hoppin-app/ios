@@ -101,6 +101,11 @@ final class ConversationStore: ObservableObject {
         thread(with: peerPhone, myPhone: myPhone).last
     }
 
+    func deleteConversation(with peerPhone: String, myPhone: String) {
+        messages.removeValue(forKey: threadKey(phone1: myPhone, phone2: peerPhone))
+        save()
+    }
+
     // MARK: - Persistence
 
     private func conversationKey(_ msg: StoredMessage) -> String {
