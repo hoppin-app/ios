@@ -49,7 +49,6 @@
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			buildPhase = E15D74D02F4F81AC0091BB92 /* Resources */;
 			membershipExceptions = (
-				Info.plist,
 				Notifications.swift,
 			);
 		};
@@ -446,7 +445,7 @@
 				DEVELOPMENT_TEAM = LD924JL9S4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "HopChat-1/Info.plist";
+				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -474,7 +473,7 @@
 				DEVELOPMENT_TEAM = LD924JL9S4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "HopChat-1/Info.plist";
+				INFOPLIST_FILE = Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
