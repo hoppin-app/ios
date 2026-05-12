@@ -282,7 +282,7 @@ final class KademliaProtocol: ObservableObject {
         var bestDistance: [UInt8]? = closest.first?.id.distance(to: target)
 
         while true {
-            let toAsk = closest.filter { !asked.contains($0.id) }.prefix(3)
+            let toAsk = closest.filter { !asked.contains($0.id) && $0.id != localPeer.id }.prefix(3)
             guard !toAsk.isEmpty else { break }
 
             var newPeers: [KadPeer] = []
@@ -300,7 +300,7 @@ final class KademliaProtocol: ObservableObject {
                 for await peers in group { newPeers += peers }
             }
 
-            for p in newPeers {
+            for p in newPeers where p.id != localPeer.id {
                 routingTable.add(p)
                 if !closest.contains(p) { closest.append(p) }
             }
@@ -342,7 +342,7 @@ final class KademliaProtocol: ObservableObject {
         var closest = routingTable.closestPeers(to: NodeID.from(phone: key))
 
         while true {
-            let toAsk = closest.filter { !asked.contains($0.id) }.prefix(3)
+            let toAsk = closest.filter { !asked.contains($0.id) && $0.id != localPeer.id }.prefix(3)
             guard !toAsk.isEmpty else { break }
 
             var found: String?
@@ -362,7 +362,7 @@ final class KademliaProtocol: ObservableObject {
                 }
                 for await (value, newPeers) in group {
                     if let value { found = value }
-                    for p in newPeers {
+                    for p in newPeers where p.id != localPeer.id {
                         self.routingTable.add(p)
                         if !closest.contains(p) { closest.append(p) }
                     }
