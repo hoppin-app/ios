@@ -289,12 +289,8 @@ final class KademliaTransport {
                         self.readFrame(from: conn) { result in
                             conn.cancel()
                             switch result {
-                            case .failure(let e):
-                                print("⚠️ TCP RPC read error — awaiting inbound reply: \(e)")
-                                // The peer closes the outbound connection after sending its
-                                // reply on a new inbound connection.  Leave the continuation
-                                // in `pending` so handleIncoming can resolve it.  The timeout
-                                // task will clean up if no reply arrives within 10 s.
+                            case .failure:
+                                break // peer closed outbound conn; reply arrives via handleIncoming
                             case .success(let replyData):
                                 timeoutTask.cancel()
                                 self.pendingLock.lock()
