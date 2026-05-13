@@ -9,7 +9,10 @@ struct ContentView: View {
     @State private var phoneText       = ""
     @State private var isLoading       = false
     @State private var errorMessage:   String?
-    @State private var navigateToChats = false
+    @State private var navigateToChats: Bool = {
+        let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
+        return !phone.isEmpty
+    }()
     @State private var pulse: CGFloat  = 1.0
     @State private var appear          = false
 
@@ -18,6 +21,14 @@ struct ContentView: View {
             OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
         } else if navigateToChats {
             ChatListView()
+                .task {
+                    let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
+                    guard !phone.isEmpty else { return }
+                    if KeychainHelper.shared.getUUID() == nil {
+                        _ = KeychainHelper.shared.saveUUID(UUID())
+                    }
+                    await kad.register(phone: phone)
+                }
         } else {
             onboardingView
         }
