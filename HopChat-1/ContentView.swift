@@ -37,20 +37,15 @@ struct ContentView: View {
                     VStack(spacing: 16) {
 
                         // Icon — SF Symbols WiFi with Apple blue
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.12))
-                                .frame(width: 100, height: 100)
-                                .scaleEffect(pulse)
-                                .animation(
-                                    .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
-                                    value: pulse
-                                )
-
-                            Image(systemName: "wifi")
-                                .font(.system(size: 44, weight: .medium))
-                                .foregroundStyle(Color.accentColor)
-                        }
+                        Image("HopChatIcon")
+                            .resizable()
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .scaleEffect(pulse)
+                            .animation(
+                                .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
+                                value: pulse
+                            )
                         .opacity(appear ? 1 : 0)
                         .scaleEffect(appear ? 1 : 0.7)
                         .animation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.05), value: appear)
@@ -69,7 +64,7 @@ struct ContentView: View {
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(Color.accentColor)
 
-                            Text("No sign-ups.\nJust hop and go!")
+                            Text("No sign-ups.\nJust hop on and go!")
                                 .font(.system(size: 15))
                                 .multilineTextAlignment(.center)
                                 .foregroundStyle(.secondary)
