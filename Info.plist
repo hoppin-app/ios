@@ -50,6 +50,12 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
+	<!-- Background modes: voip keeps NWListener alive when app is backgrounded -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+	</array>
+
 	<!-- Local network access (required iOS 14+) -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>HopChat uses your local network to discover and connect with nearby users without going through a central server.</string>

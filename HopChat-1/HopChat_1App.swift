@@ -9,10 +9,31 @@ import SwiftUI
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
+    private var bgTask: UIBackgroundTaskIdentifier = .invalid
+
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         return true
+    }
+
+    // Keep the TCP listener alive when the app moves to background.
+    // The `voip` background mode in Info.plist is the primary mechanism;
+    // the background task token here prevents surprise expiration during
+    // the transition window.
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        bgTask = application.beginBackgroundTask(withName: "hopchat.keepalive") { [weak self] in
+            application.endBackgroundTask(self?.bgTask ?? .invalid)
+            self?.bgTask = .invalid
+        }
+    }
+
+    func applicationWillEnterForeground(_ application: UIApplication) {
+        if bgTask != .invalid {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+        }
     }
 
     // Tap on a notification → navigate to the conversation
