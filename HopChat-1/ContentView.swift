@@ -1,53 +1,82 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var kad = KademliaService.shared
+    @StateObject private var kad   = KademliaService.shared
+    @StateObject private var store = ConversationStore.shared
     @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage("hopchat.hasSeenOnboarding") private var hasSeenOnboarding = false
 
-    @State private var phoneText       = ""
-    @State private var isLoading       = false
-    @State private var errorMessage:   String?
+    @State private var phoneText        = ""
+    @State private var isLoading        = false
+    @State private var errorMessage:    String?
     @State private var navigateToChats: Bool = {
         let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
         return !phone.isEmpty
     }()
-    @State private var pulse: CGFloat  = 1.0
-    @State private var appear          = false
+    @State private var selectedTab      = 0
+    @State private var pulse: CGFloat   = 1.0
+    @State private var appear           = false
 
     var body: some View {
         if !hasSeenOnboarding {
             OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
         } else if navigateToChats {
-            ChatListView()
-                .task {
-                    let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
-                    guard !phone.isEmpty else { return }
-                    if KeychainHelper.shared.getUUID() == nil {
-                        _ = KeychainHelper.shared.saveUUID(UUID())
-                    }
-                    await kad.register(phone: phone)
-                }
+            mainTabView
         } else {
-            onboardingView
+            registrationView
         }
     }
 
-    private var onboardingView: some View {
+    // MARK: - Main Tab View
+
+    private var mainTabView: some View {
+        ZStack {
+            TabView(selection: $selectedTab) {
+                ChatListView()
+                    .tabItem { Label("Chats", systemImage: "bubble.left") }
+                    .badge(store.totalUnreadCount)
+                    .tag(0)
+
+                PeopleView()
+                    .tabItem { Label("People", systemImage: "person") }
+                    .tag(1)
+
+                SettingsView()
+                    .tabItem { Label("Settings", systemImage: "gearshape") }
+                    .tag(2)
+            }
+
+            // TranslationBridgeView must always be in the hierarchy so
+            // the TranslationSession is alive during the full chat lifecycle.
+            TranslationBridgeView()
+                .allowsHitTesting(false)
+        }
+        // Switch to Chats tab when a notification deep-links into a conversation
+        .onReceive(NotificationCenter.default.publisher(for: .openChat)) { _ in
+            selectedTab = 0
+        }
+        .task {
+            let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
+            guard !phone.isEmpty else { return }
+            if KeychainHelper.shared.getUUID() == nil {
+                _ = KeychainHelper.shared.saveUUID(UUID())
+            }
+            await kad.register(phone: phone)
+        }
+    }
+
+    // MARK: - Registration View
+
+    private var registrationView: some View {
         NavigationStack {
             ZStack {
-                // Apple-style adaptive background
-                Color(.systemBackground)
-                    .ignoresSafeArea()
+                Color(.systemBackground).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     Spacer()
 
-                    // ── Hero ─────────────────────────────────────────
                     VStack(spacing: 16) {
-
-                        // Icon — SF Symbols WiFi with Apple blue
                         Image("HopChatIcon")
                             .resizable()
                             .frame(width: 100, height: 100)
@@ -57,11 +86,10 @@ struct ContentView: View {
                                 .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
                                 value: pulse
                             )
-                        .opacity(appear ? 1 : 0)
-                        .scaleEffect(appear ? 1 : 0.7)
-                        .animation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.05), value: appear)
+                            .opacity(appear ? 1 : 0)
+                            .scaleEffect(appear ? 1 : 0.7)
+                            .animation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.05), value: appear)
 
-                        // App name — SF Pro Rounded, like Apple apps
                         Text("HopChat")
                             .font(.system(size: 38, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
@@ -69,12 +97,10 @@ struct ContentView: View {
                             .offset(y: appear ? 0 : 10)
                             .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.15), value: appear)
 
-                        // Tagline
                         VStack(spacing: 5) {
                             Text("No servers. No strangers.")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(Color.accentColor)
-
                             Text("No sign-ups.\nJust hop on and go!")
                                 .font(.system(size: 15))
                                 .multilineTextAlignment(.center)
@@ -87,10 +113,7 @@ struct ContentView: View {
 
                     Spacer()
 
-                    // ── Phone Input & CTA ─────────────────────────────
                     VStack(spacing: 16) {
-
-                        // Phone field — Apple grouped list style
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Phone Number")
                                 .font(.system(size: 13, weight: .medium))
@@ -117,15 +140,12 @@ struct ContentView: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .strokeBorder(
-                                        phoneText.isEmpty
-                                            ? Color.clear
-                                            : Color.accentColor.opacity(0.5),
+                                        phoneText.isEmpty ? Color.clear : Color.accentColor.opacity(0.5),
                                         lineWidth: 1.5
                                     )
                             )
                         }.padding(.horizontal, 16)
 
-                        // Error
                         if let errorMessage {
                             Label(errorMessage, systemImage: "exclamationmark.circle.fill")
                                 .font(.system(size: 13))
@@ -134,19 +154,16 @@ struct ContentView: View {
                                 .padding(.leading, 4)
                         }
 
-                        // CTA — Apple-style filled button
                         Button(action: startRegistration) {
                             Group {
                                 if isLoading {
                                     HStack(spacing: 8) {
-                                        ProgressView().tint(Color.white)
+                                        ProgressView().tint(.white)
                                         Text(kad.status)
                                             .font(.system(size: 13))
                                             .foregroundStyle(.secondary)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .center)
-                                    .padding(.leading, 4)
-
                                 } else {
                                     Text("Start Hopping! 👋")
                                         .font(.system(size: 17, weight: .semibold))
@@ -162,10 +179,9 @@ struct ContentView: View {
                         }
                         .disabled(phoneText.isEmpty || isLoading)
                         .animation(.easeInOut(duration: 0.18), value: phoneText.isEmpty)
-                        .padding(.horizontal,16)
+                        .padding(.horizontal, 16)
 
                         Spacer().frame(height: 32)
-                        // Privacy note — typical Apple onboarding footer
                         Text("Your number is only stored on this device and never shared.")
                             .font(.system(size: 14))
                             .foregroundStyle(Color(.tertiaryLabel))
@@ -180,7 +196,6 @@ struct ContentView: View {
                     Spacer().frame(height: 10)
                 }
             }
-            .overlay { TranslationBridgeView() }
             .onAppear {
                 appear = true
                 pulse  = 1.10
@@ -210,7 +225,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Feature Pill
+// MARK: - Feature Pill (kept for potential reuse)
 
 struct FeaturePill: View {
     let emoji: String
@@ -225,14 +240,8 @@ struct FeaturePill: View {
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 7)
-        .background(
-            Capsule()
-                .fill(Color(.secondarySystemBackground))
-        )
-        .overlay(
-            Capsule()
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .background(Capsule().fill(Color(.secondarySystemBackground)))
+        .overlay(Capsule().strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5))
     }
 }
 

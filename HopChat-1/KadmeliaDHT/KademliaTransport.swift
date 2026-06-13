@@ -29,6 +29,7 @@ enum KadMessageType: UInt8 {
     case offlineNotify  = 0x0F  // client → bootstrap: "tried to reach {key}, couldn't"
     case cameOnline     = 0x10  // client → bootstrap: "I'm back, check your log"
     case peerOnline     = 0x11  // bootstrap → client: "peer {key} is now at {value}"
+    case typingIndicator = 0x12 // client → client: sender is typing (fire-and-forget, no ACK)
 }
  
 // MARK: - Wire Message
@@ -567,6 +568,17 @@ extension KademliaTransport {
                    senderPort: sender.port, senderPhone: sender.phone,
                    targetID: nil, peers: nil,
                    key: peerPhone, value: address, transactionID: uuid(),
+                   chatBody: nil, chatID: nil, chatTimestamp: nil)
+    }
+
+    /// Sent peer-to-peer when the user is actively typing. No ACK expected.
+    /// key = recipient phone (so the receiver knows which conversation this is for).
+    static func makeTypingIndicator(from sender: KadPeer, toPhone: String) -> KadMessage {
+        KadMessage(type: KadMessageType.typingIndicator.rawValue,
+                   senderID: sender.id.bytes, senderIP: sender.ip,
+                   senderPort: sender.port, senderPhone: sender.phone,
+                   targetID: nil, peers: nil,
+                   key: toPhone, value: nil, transactionID: uuid(),
                    chatBody: nil, chatID: nil, chatTimestamp: nil)
     }
 

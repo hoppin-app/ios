@@ -4,8 +4,6 @@
 //
 // Created by Rodrigo Loução on 08/04/2026.
 //
-// Home View
-//
 
 import SwiftUI
 
@@ -16,7 +14,6 @@ struct ChatListView: View {
     @StateObject private var kad     = KademliaService.shared
     @State private var navPath       = NavigationPath()
     @State private var searchText    = ""
-    @State private var selectedTab   = 0
     @State private var showNewChat   = false
 
     var body: some View {
@@ -72,14 +69,13 @@ struct ChatListView: View {
                     List {
                         ForEach(filteredContacts) { contact in
                             ZStack {
-                                // Invisible NavigationLink owns the tap — built-in debouncing
-                                // prevents multiple pushes during animation.
                                 NavigationLink(value: contact) { EmptyView() }
                                     .opacity(0)
                                 ChatRowView(
                                     contact: contact,
                                     myPhone: kad.myPhone,
-                                    presenceStatus: kad.presenceMap[contact.phone] ?? .offline
+                                    presenceStatus: kad.presenceMap[contact.phone] ?? .offline,
+                                    unreadCount: store.unreadCount(with: contact.phone, myPhone: kad.myPhone)
                                 )
                             }
                             .listRowInsets(EdgeInsets())
@@ -95,18 +91,6 @@ struct ChatListView: View {
                     }
                     .listStyle(.plain)
                 }
-
-                Spacer()
-
-                // MARK: Tab Bar
-                Divider()
-                HStack {
-                    TabBarItem(icon: "bubble.left",  label: "CHATS",    isSelected: selectedTab == 0) { selectedTab = 0 }
-                    TabBarItem(icon: "person",        label: "PEOPLE",   isSelected: selectedTab == 1) { selectedTab = 1 }
-                    TabBarItem(icon: "gearshape",     label: "SETTINGS", isSelected: selectedTab == 2) { selectedTab = 2 }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
             }
             .background(Color(.systemBackground))
             .sheet(isPresented: $showNewChat) {
@@ -122,25 +106,15 @@ struct ChatListView: View {
             .onReceive(NotificationCenter.default.publisher(for: .openChat)) { note in
                 guard let phone = note.userInfo?["phone"] as? String,
                       let contact = store.contact(for: phone) else { return }
-                navPath.append(contact)
+                // Small delay so the tab switch animation completes first
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    navPath.append(contact)
+                }
             }
             .onAppear { NotificationService.shared.clearBadge() }
-            // Chat destination (programmatic push via navPath.append)
             .navigationDestination(for: Contact.self) { contact in
                 TextRoomView(contact: contact, myPhone: kad.myPhone)
-            }
-            // Tab destinations
-            .navigationDestination(isPresented: Binding(
-                get: { selectedTab == 1 },
-                set: { if !$0 { selectedTab = 0 } }
-            )) {
-                PeopleView().navigationBarBackButtonHidden(true)
-            }
-            .navigationDestination(isPresented: Binding(
-                get: { selectedTab == 2 },
-                set: { if !$0 { selectedTab = 0 } }
-            )) {
-                SettingsView().navigationBarBackButtonHidden(true)
             }
         }
     }
@@ -161,10 +135,13 @@ struct ChatRowView: View {
     let contact:        Contact
     let myPhone:        String
     let presenceStatus: PresenceStatus
+    let unreadCount:    Int
 
     private var last: StoredMessage? {
         ConversationStore.shared.lastMessage(with: contact.phone, myPhone: myPhone)
     }
+
+    private var hasUnread: Bool { unreadCount > 0 }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -179,19 +156,29 @@ struct ChatRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(contact.name)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 16, weight: hasUnread ? .bold : .semibold))
                 Text(last?.body ?? "No messages yet")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 14, weight: hasUnread ? .medium : .regular))
+                    .foregroundStyle(hasUnread ? .primary : .secondary)
                     .lineLimit(1)
             }
 
             Spacer()
 
-            if let last {
-                Text(timeString(last.timestamp))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 4) {
+                if let last {
+                    Text(timeString(last.timestamp))
+                        .font(.system(size: 13))
+                        .foregroundStyle(hasUnread ? .blue : .secondary)
+                }
+                if hasUnread {
+                    Text("\(unreadCount)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, unreadCount > 9 ? 6 : 0)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(.blue, in: Circle())
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -225,26 +212,6 @@ struct PresenceDot: View {
             .fill(status == .online ? Color.green : Color(.systemGray4))
             .frame(width: 12, height: 12)
             .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
-    }
-}
-
-// MARK: - Tab Bar Item
-
-struct TabBarItem: View {
-    let icon:       String
-    let label:      String
-    let isSelected: Bool
-    let action:     () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon).font(.system(size: 22))
-                Text(label).font(.system(size: 10, weight: .medium))
-            }
-            .foregroundStyle(isSelected ? .blue : .secondary)
-            .frame(maxWidth: .infinity)
-        }
     }
 }
 

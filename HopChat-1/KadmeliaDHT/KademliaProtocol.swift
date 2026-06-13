@@ -41,6 +41,8 @@ final class KademliaProtocol: ObservableObject {
     /// Fired on the client when bootstrap notifies that a previously offline peer is now reachable.
     /// Parameters: (peerPhone, ip, port)
     var onPeerOnline: ((String, String, UInt16) -> Void)?
+    /// Fired when a peer sends a typing indicator. Parameter: senderPhone.
+    var onTypingIndicator: ((String) -> Void)?
 
     init(phone: String, ip: String, port: UInt16) {
         let id = NodeID.from(phone: phone)
@@ -302,6 +304,12 @@ final class KademliaProtocol: ObservableObject {
             print("🟢 Peer online: \(peerPhone) @ \(address) — will retry queued messages")
             DispatchQueue.main.async {
                 self.onPeerOnline?(peerPhone, peer.ip, peer.port)
+            }
+
+        case .typingIndicator:
+            // Fire-and-forget: tell the UI layer the sender is typing.
+            DispatchQueue.main.async {
+                self.onTypingIndicator?(sender.phone)
             }
 
         default:

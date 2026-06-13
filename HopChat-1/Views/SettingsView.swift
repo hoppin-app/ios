@@ -4,9 +4,6 @@
 //
 //  Created by Rodrigo Loução on 08/04/2026.
 //
-//  Settings page — Invite a Friend & Translate toggle.
-//
-
 
 import SwiftUI
 
@@ -24,9 +21,7 @@ struct SettingsView: View {
     @State private var showNameEditor     = false
     @State private var editedName         = ""
     @State private var showLangPicker     = false
-    @State private var selectedTab        = 2
 
-    // Available translation target languages
     private let languages: [(code: String, name: String, flag: String)] = [
         ("en", "English",    "🇬🇧"),
         ("pt", "Portuguese", "🇵🇹"),
@@ -132,7 +127,6 @@ struct SettingsView: View {
 
                     // MARK: Translate Section
                     Section {
-                        // Auto-translate toggle
                         HStack(spacing: 14) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -155,7 +149,6 @@ struct SettingsView: View {
                                 .tint(.blue)
                         }
 
-                        // Language picker — only shown when translate is on
                         if autoTranslate {
                             Button {
                                 showLangPicker = true
@@ -197,7 +190,6 @@ struct SettingsView: View {
                         }
                     }
 
-
                     // MARK: Developer Section
                     Section {
                         HStack {
@@ -221,6 +213,7 @@ struct SettingsView: View {
                     } footer: {
                         Text("Custom bootstrap node IP. Leave empty to use the default.")
                     }
+
                     // MARK: About Section
                     Section {
                         LabeledContent("Version", value: "1.0.0")
@@ -254,19 +247,14 @@ struct SettingsView: View {
                 .animation(.easeInOut(duration: 0.2), value: autoTranslate)
             }
             .background(Color(.systemGroupedBackground))
-            // MARK: Invite Sheet
             .sheet(isPresented: $showInviteSheet) {
                 InviteSheet()
             }
-            // MARK: Name Editor
-
-            // Bootstrap editor alert
             .alert("Bootstrap Node IP", isPresented: $showBootstrapEditor) {
                 TextField("e.g. 34.14.80.215", text: $editedBootstrapIP)
                     .keyboardType(.numbersAndPunctuation)
                 Button("Save") {
-                    let trimmed = editedBootstrapIP.trimmingCharacters(in: .whitespaces)
-                    bootstrapIP = trimmed
+                    bootstrapIP = editedBootstrapIP.trimmingCharacters(in: .whitespaces)
                 }
                 Button("Reset") { bootstrapIP = "" }
                 Button("Cancel", role: .cancel) {}
@@ -280,34 +268,8 @@ struct SettingsView: View {
             } message: {
                 Text("This name is visible to people you chat with.")
             }
-            // MARK: Language Picker
             .sheet(isPresented: $showLangPicker) {
                 LanguagePickerSheet(selected: $translateLang, languages: languages)
-            }
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    Divider()
-                    HStack {
-                        TabBarItem(icon: "bubble.left",  label: "CHATS",    isSelected: selectedTab == 0) { selectedTab = 0 }
-                        TabBarItem(icon: "person",        label: "PEOPLE",   isSelected: selectedTab == 1) { selectedTab = 1 }
-                        TabBarItem(icon: "gearshape",     label: "SETTINGS", isSelected: selectedTab == 2) { selectedTab = 2 }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                }
-                .background(Color(.systemBackground))
-            }
-            .navigationDestination(isPresented: Binding(
-                get: { selectedTab == 0 },
-                set: { if !$0 { selectedTab = 2 } }
-            )) {
-                ChatListView().navigationBarBackButtonHidden(true)
-            }
-            .navigationDestination(isPresented: Binding(
-                get: { selectedTab == 1 },
-                set: { if !$0 { selectedTab = 2 } }
-            )) {
-                PeopleView().navigationBarBackButtonHidden(true)
             }
         }
     }
@@ -331,7 +293,6 @@ struct InviteSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 32) {
-                // Hero
                 VStack(spacing: 14) {
                     ZStack {
                         Circle()
@@ -352,7 +313,6 @@ struct InviteSheet: View {
                 }
                 .padding(.top, 12)
 
-                // Link row
                 HStack(spacing: 10) {
                     Text(appLink)
                         .font(.system(size: 14, design: .monospaced))
@@ -377,7 +337,6 @@ struct InviteSheet: View {
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 24)
 
-                // Share sheet button
                 ShareLink(
                     item: URL(string: appLink)!,
                     subject: Text("Join me on HopChat!"),

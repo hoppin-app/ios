@@ -20,9 +20,14 @@ struct TextRoomView: View {
 
     @StateObject private var store = ConversationStore.shared
     @StateObject private var kad   = KademliaService.shared
-    @State private var messageText = ""
-    @State private var isSending   = false
+    @State private var messageText    = ""
+    @State private var isSending      = false
+    @State private var lastTypingSent = Date.distantPast  // throttle typing indicators
     @FocusState private var isFocused: Bool
+
+    private var isContactTyping: Bool {
+        kad.typingPeers.contains(contact.phone)
+    }
 
     private var messages: [StoredMessage] {
         store.thread(with: contact.phone, myPhone: myPhone)
@@ -62,6 +67,12 @@ struct TextRoomView: View {
                             MessageBubble(message: msg)
                                 .id(msg.id)
                         }
+                        if isContactTyping {
+                            TypingBubble()
+                                .id("typing")
+                                .transition(.scale(scale: 0.85, anchor: .bottomLeading)
+                                    .combined(with: .opacity))
+                        }
                     }
                     .padding(.bottom, 8)
                     .padding(.top, 16)
@@ -69,6 +80,13 @@ struct TextRoomView: View {
                 .onChange(of: messages.count) { _, _ in
                     if let last = messages.last {
                         withAnimation(.easeInOut) { proxy.scrollTo(last.id, anchor: .bottom) }
+                    }
+                }
+                .onChange(of: isContactTyping) { _, typing in
+                    if typing {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            proxy.scrollTo("typing", anchor: .bottom)
+                        }
                     }
                 }
                 .onAppear {
@@ -121,10 +139,20 @@ struct TextRoomView: View {
                 }
             }
         }
-        // Listen for messages arriving while this view is open
-        .onReceive(NotificationCenter.default.publisher(for: .incomingChatMessage)) { note in
-            // ConversationStore already updated; SwiftUI re-renders via @StateObject
-            _ = note  // nothing extra to do
+        // Mark all messages as read whenever this view is visible or receives new ones
+        .onAppear {
+            store.markThreadRead(with: contact.phone, myPhone: myPhone)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .incomingChatMessage)) { _ in
+            store.markThreadRead(with: contact.phone, myPhone: myPhone)
+        }
+        // Send typing indicator — at most once every 1.5 s while the user is typing
+        .onChange(of: messageText) { _, newValue in
+            guard !newValue.isEmpty else { return }
+            let now = Date()
+            guard now.timeIntervalSince(lastTypingSent) >= 1.5 else { return }
+            lastTypingSent = now
+            kad.sendTypingIndicator(toPhone: contact.phone)
         }
     }
 
@@ -205,6 +233,36 @@ struct MessageBubble: View {
             .padding(.horizontal, 6)
         }
         .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Typing Bubble
+
+struct TypingBubble: View {
+    @State private var animate = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(Color(.systemGray3))
+                    .frame(width: 8, height: 8)
+                    .offset(y: animate ? -4 : 4)
+                    .animation(
+                        .easeInOut(duration: 0.45)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(i) * 0.15),
+                        value: animate
+                    )
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color(.systemGray5), in: BubbleShape(isFromMe: false))
+        .padding(.leading, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { animate = true }
+        .onDisappear { animate = false }
     }
 }
 

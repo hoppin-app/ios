@@ -15,7 +15,6 @@ struct PeopleView: View {
     @State private var searchText  = ""
     @State private var showNewChat = false
     @State private var selectedContact: Contact?
-    @State private var selectedTab = 1
 
     var body: some View {
         NavigationStack {
@@ -71,31 +70,6 @@ struct PeopleView: View {
             .sheet(isPresented: $showNewChat) { NewChatSheet() }
             .sheet(item: $selectedContact) { contact in
                 ContactDetailSheet(contact: contact)
-            }
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    Divider()
-                    HStack {
-                        TabBarItem(icon: "bubble.left",  label: "CHATS",    isSelected: selectedTab == 0) { selectedTab = 0 }
-                        TabBarItem(icon: "person",        label: "PEOPLE",   isSelected: selectedTab == 1) { selectedTab = 1 }
-                        TabBarItem(icon: "gearshape",     label: "SETTINGS", isSelected: selectedTab == 2) { selectedTab = 2 }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                }
-                .background(Color(.systemBackground))
-            }
-            .navigationDestination(isPresented: Binding(
-                get: { selectedTab == 0 },
-                set: { if !$0 { selectedTab = 1 } }
-            )) {
-                ChatListView().navigationBarBackButtonHidden(true)
-            }
-            .navigationDestination(isPresented: Binding(
-                get: { selectedTab == 2 },
-                set: { if !$0 { selectedTab = 1 } }
-            )) {
-                SettingsView().navigationBarBackButtonHidden(true)
             }
         }
     }
@@ -156,9 +130,7 @@ struct PeopleView: View {
     private var contactList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                // Online section (placeholder — contacts with recent activity)
-                let online = filteredContacts // In a real app, filter by presence
-                ForEach(online) { contact in
+                ForEach(filteredContacts) { contact in
                     ContactRow(contact: contact, myPhone: kad.myPhone,
                                presenceStatus: kad.presenceMap[contact.phone] ?? .offline)
                         .contentShape(Rectangle())
@@ -206,23 +178,8 @@ struct ContactRow: View {
         }
     }
 
-    // kept for fallback
-    private var lastSeen: String {
-        if let last = ConversationStore.shared.lastMessage(with: contact.phone, myPhone: myPhone) {
-            let cal = Calendar.current
-            if cal.isDateInToday(last.timestamp) {
-                let f = DateFormatter(); f.timeStyle = .short
-                return "Active \(f.string(from: last.timestamp))"
-            } else if cal.isDateInYesterday(last.timestamp) {
-                return "Active yesterday"
-            }
-        }
-        return "Added \(shortDate(contact.addedAt))"
-    }
-
     var body: some View {
         HStack(spacing: 14) {
-            // Avatar
             ZStack(alignment: .bottomTrailing) {
                 ZStack {
                     Circle()
@@ -273,12 +230,6 @@ struct ContactRow: View {
         let hash = abs(name.hashValue)
         return colors[hash % colors.count]
     }
-
-    private func shortDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return f.string(from: date)
-    }
 }
 
 // MARK: - Contact Detail Sheet
@@ -289,6 +240,8 @@ struct ContactDetailSheet: View {
     @StateObject private var kad   = KademliaService.shared
     @StateObject private var store = ConversationStore.shared
     @State private var confirmDelete = false
+    @State private var showEditName  = false
+    @State private var editedName    = ""
 
     var body: some View {
         NavigationStack {
@@ -341,6 +294,13 @@ struct ContactDetailSheet: View {
                     }
 
                     Section {
+                        Button {
+                            editedName = contact.name
+                            showEditName = true
+                        } label: {
+                            Label("Edit Name", systemImage: "pencil")
+                        }
+
                         Button(role: .destructive) {
                             confirmDelete = true
                         } label: {
@@ -373,6 +333,17 @@ struct ContactDetailSheet: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will remove the contact.")
+            }
+            .alert("Edit Name", isPresented: $showEditName) {
+                TextField("Display name", text: $editedName)
+                Button("Save") {
+                    let trimmed = editedName.trimmingCharacters(in: .whitespaces)
+                    guard !trimmed.isEmpty else { return }
+                    store.renameContact(phone: contact.phone, newName: trimmed)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This name is only visible to you.")
             }
         }
     }

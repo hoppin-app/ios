@@ -30,6 +30,8 @@ final class KademliaService: ObservableObject {
     @Published var myPhone: String = ""
     @Published var lastError: String?
     @Published var presenceMap: [String: PresenceStatus] = [:]
+    /// Phones currently showing the typing indicator. Auto-clears after 3 s of silence.
+    @Published var typingPeers: Set<String> = []
 
     private(set) var node:    KademliaProtocol?
     private      var bonjour: BonjourDiscovery?
@@ -37,6 +39,7 @@ final class KademliaService: ObservableObject {
     private      var pathMonitor: NWPathMonitor?
     private      var isReconnecting = false
     private      var didBootstrap   = false
+    private      var typingTimers:  [String: Task<Void, Never>] = [:]
 
     // MARK: - Register
 
@@ -61,7 +64,8 @@ final class KademliaService: ObservableObject {
                 let translated = await TranslationService.shared.autoTranslate(body: body)
                 var msg = StoredMessage(id: chatID, fromPhone: senderPhone,
                                        toPhone: self.myPhone, body: body,
-                                       timestamp: timestamp, delivered: true, isFromMe: false)
+                                       timestamp: timestamp, delivered: true,
+                                       isFromMe: false, isRead: false)
                 msg.translatedBody = translated
                 ConversationStore.shared.appendMessage(msg)
                 NotificationService.shared.post(from: senderPhone, body: body)
@@ -103,6 +107,12 @@ final class KademliaService: ObservableObject {
         kad.onPeerOnline = { [weak self] phone, _, _ in
             guard let self else { return }
             Task { await self.retryUndelivered(for: phone) }
+        }
+
+        // Typing indicator from a peer
+        kad.onTypingIndicator = { [weak self] phone in
+            guard let self else { return }
+            Task { @MainActor in self.handleTyping(from: phone) }
         }
 
         isBootstrapped = true
@@ -239,6 +249,27 @@ final class KademliaService: ObservableObject {
             map[peer.phone] = presenceStatus(for: peer.phone)
         }
         presenceMap = map
+    }
+
+    // MARK: - Typing
+
+    private func handleTyping(from phone: String) {
+        typingTimers[phone]?.cancel()
+        typingPeers.insert(phone)
+        // Auto-clear 3 s after the last received indicator
+        typingTimers[phone] = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            await MainActor.run { self?.typingPeers.remove(phone) }
+        }
+    }
+
+    /// Fire-and-forget: sends a typing indicator directly to the peer (no relay, no ACK).
+    func sendTypingIndicator(toPhone: String) {
+        guard let node,
+              let peer = node.routingTable.allPeers.first(where: { $0.phone == toPhone })
+        else { return }
+        let msg = KademliaTransport.makeTypingIndicator(from: node.localPeer, toPhone: toPhone)
+        node.transport.send(msg, to: peer.ip, port: peer.port)
     }
 
     // MARK: - Routing Table Persistence
