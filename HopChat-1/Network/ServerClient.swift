@@ -1,0 +1,276 @@
+//
+//  ServerClient.swift
+//  HopChat-1
+//
+//  Typed client for the bootstrap/relay server (contract §3 message types,
+//  §5 server policy).
+//
+//  Every reply is checked before it is believed: matching txID, sender
+//  `"server"`, freshness ±300 s and a valid signature by the **pinned** server
+//  Ed25519 key. An unsigned or mis-signed reply is a hard failure.
+//
+
+import Foundation
+import os
+
+enum ServerError: Error, Equatable, LocalizedError {
+    case transport(String)
+    case timeout
+    case badResponse
+    case badServerSignature
+    case server(code: String, message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .transport(let detail): return String(localized: "Network error: \(detail)")
+        case .timeout: return String(localized: "The server did not respond.")
+        case .badResponse: return String(localized: "The server sent an unexpected response.")
+        case .badServerSignature: return String(localized: "The server's response could not be verified.")
+        case .server(let code, let message): return message.isEmpty ? code : message
+        }
+    }
+}
+
+final class ServerClient {
+
+    private let crypto: CryptoManager
+    let host: String
+    let port: UInt16
+    let useTLS: Bool
+    let pins: [String]
+    let serverKeyBase64: String
+
+    init(crypto: CryptoManager,
+         host: String = AppConfig.serverHost,
+         port: UInt16,
+         useTLS: Bool,
+         pins: [String],
+         serverKeyBase64: String) {
+        self.crypto = crypto
+        self.host = host
+        self.port = port
+        self.useTLS = useTLS
+        self.pins = pins
+        self.serverKeyBase64 = serverKeyBase64
+    }
+
+    /// Convenience factory wired to `AppConfig`.
+    static func makeDefault(crypto: CryptoManager) -> ServerClient {
+        ServerClient(crypto: crypto,
+                     host: AppConfig.serverHost,
+                     port: AppConfig.serverPort,
+                     useTLS: !AppConfig.usePlaintextTransport,
+                     pins: AppConfig.serverSPKISHA256Base64,
+                     serverKeyBase64: AppConfig.serverSigningKeyBase64)
+    }
+
+    // MARK: - Verification / certificates
+
+    /// Requests an SMS code. Returns `retryAfter` in seconds.
+    /// Sent without a certificate and signed with the prospective signing key.
+    func verifyStart(phone: String) async throws -> Int {
+        var message = WireMessage(type: .verifyStart, senderPhone: phone, key: phone)
+        sign(&message, withCertificate: false)
+        let reply = try await send(message, expecting: .verifyStarted)
+        return Int(reply.value ?? "") ?? 60
+    }
+
+    func verifyConfirm(phone: String, code: String) async throws -> IdentityCertificate {
+        let body: [String: String] = [
+            "code": code,
+            "signingKey": crypto.signingPublicKeyBase64,
+            "agreementKey": crypto.agreementPublicKeyBase64,
+        ]
+        var message = WireMessage(type: .verifyConfirm,
+                                  senderPhone: phone,
+                                  key: phone,
+                                  value: try json(body))
+        sign(&message, withCertificate: false)
+        let reply = try await send(message, expecting: .certificateIssued)
+        return try certificate(from: reply.value)
+    }
+
+    func renewCertificate(agreementKey: String) async throws -> IdentityCertificate {
+        var message = WireMessage(type: .certRenew,
+                                  senderPhone: try myPhone(),
+                                  value: try json(["agreementKey": agreementKey]))
+        sign(&message)
+        let reply = try await send(message, expecting: .certificateIssued)
+        return try certificate(from: reply.value)
+    }
+
+    /// `nil` when the phone is not registered with HopChat.
+    func lookupCertificate(phone: String) async throws -> IdentityCertificate? {
+        var message = WireMessage(type: .certLookup, senderPhone: try myPhone(), key: phone)
+        sign(&message)
+        let reply = try await send(message, expecting: .certResult)
+        guard let value = reply.value, !value.isEmpty else { return nil }
+        return try certificate(from: value)
+    }
+
+    // MARK: - Relay
+
+    func deposit(_ envelope: Envelope) async throws {
+        var message = WireMessage(type: .relayDeposit,
+                                  senderPhone: try myPhone(),
+                                  recipientPhone: envelope.recipientPhone,
+                                  envelope: envelope)
+        sign(&message)
+        _ = try await send(message, expecting: .relayAccepted)
+    }
+
+    /// Long-poll fetch. The server holds the connection up to `wait` seconds.
+    func fetch(wait: Int, max: Int) async throws -> [Envelope] {
+        let wait = Swift.max(0, Swift.min(25, wait))
+        let max = Swift.max(1, Swift.min(100, max))
+        var message = WireMessage(type: .relayFetch,
+                                  senderPhone: try myPhone(),
+                                  value: try json(["wait": wait, "max": max]))
+        sign(&message)
+        // The transport deadline must outlive the server's hold.
+        let reply = try await send(message,
+                                   expecting: .relayBatch,
+                                   timeout: TimeInterval(wait + 10))
+        guard let value = reply.value, !value.isEmpty else { return [] }
+        guard let envelopes = try? JSONDecoder().decode([Envelope].self, from: Data(value.utf8)) else {
+            throw ServerError.badResponse
+        }
+        return envelopes
+    }
+
+    func ack(_ ids: [String]) async throws {
+        guard !ids.isEmpty else { return }
+        var message = WireMessage(type: .relayAck,
+                                  senderPhone: try myPhone(),
+                                  value: try json(ids))
+        sign(&message)
+        _ = try await send(message, expecting: .ok)
+    }
+
+    // MARK: - Account
+
+    func report(reportedPhone: String,
+                reason: String,
+                evidence: [(id: String, timestamp: Int64, text: String)]) async throws {
+        let items = evidence.prefix(20).map { item in
+            ["id": item.id, "timestamp": String(item.timestamp), "text": item.text]
+        }
+        let body: [String: Any] = [
+            "reportedPhone": reportedPhone,
+            "reason": reason,
+            "evidence": items.map { ["id": $0["id"]!,
+                                     "timestamp": Int64($0["timestamp"]!) ?? 0,
+                                     "text": $0["text"]!] as [String: Any] },
+        ]
+        let data = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
+        var message = WireMessage(type: .report,
+                                  senderPhone: try myPhone(),
+                                  value: String(decoding: data, as: UTF8.self))
+        sign(&message)
+        _ = try await send(message, expecting: .ok)
+    }
+
+    func deleteAccount() async throws {
+        var message = WireMessage(type: .deleteAccount, senderPhone: try myPhone())
+        sign(&message)
+        _ = try await send(message, expecting: .ok)
+    }
+
+    func changeNumberStart(newPhone: String) async throws -> Int {
+        var message = WireMessage(type: .changeNumberStart,
+                                  senderPhone: try myPhone(),
+                                  key: newPhone)
+        sign(&message)
+        let reply = try await send(message, expecting: .verifyStarted)
+        return Int(reply.value ?? "") ?? 60
+    }
+
+    func changeNumberConfirm(newPhone: String, code: String) async throws -> IdentityCertificate {
+        var message = WireMessage(type: .changeNumberConfirm,
+                                  senderPhone: try myPhone(),
+                                  value: try json(["newPhone": newPhone, "code": code]))
+        sign(&message)
+        let reply = try await send(message, expecting: .certificateIssued)
+        return try certificate(from: reply.value)
+    }
+
+    // MARK: - Liveness
+
+    @discardableResult
+    func ping() async throws -> Bool {
+        var message = WireMessage(type: .ping, senderPhone: try myPhone())
+        sign(&message)
+        _ = try await send(message, expecting: .pong, timeout: 8)
+        return true
+    }
+
+    // MARK: - Plumbing
+
+    private func myPhone() throws -> String {
+        guard let phone = crypto.certificate?.phone else { throw ServerError.badResponse }
+        return phone
+    }
+
+    private func sign(_ message: inout WireMessage, withCertificate: Bool = true) {
+        if withCertificate {
+            message.certificate = crypto.certificate?.encodedJSON()
+        }
+        message.signature = crypto.sign(message.signedFields)
+    }
+
+    private func json(_ object: Any) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private func certificate(from value: String?) throws -> IdentityCertificate {
+        guard let value, !value.isEmpty,
+              let cert = IdentityCertificate.decode(value) else {
+            throw ServerError.badResponse
+        }
+        return cert
+    }
+
+    /// Sends a signed request and validates the reply's identity before
+    /// returning it.
+    @discardableResult
+    private func send(_ message: WireMessage,
+                      expecting expected: WireType,
+                      timeout: TimeInterval = Transport.defaultTimeout) async throws -> WireMessage {
+
+        guard AppConfig.isServerKeyConfigured || serverKeyBase64 != AppConfig.serverKeyPlaceholder else {
+            throw ServerError.badServerSignature
+        }
+
+        let reply = await Transport.request(message,
+                                            to: host,
+                                            port: port,
+                                            tls: useTLS,
+                                            pins: pins,
+                                            timeout: timeout)
+        guard let reply else { throw ServerError.timeout }
+
+        // Identity of the responder, before anything it says is acted on.
+        guard reply.txID == message.txID, reply.senderPhone == "server" else {
+            Log.net.error("Server reply identity mismatch")
+            throw ServerError.badResponse
+        }
+        guard reply.isFresh() else {
+            Log.net.error("Server reply outside the freshness window")
+            throw ServerError.badResponse
+        }
+        guard reply.hasValidSignature(signingKeyBase64: serverKeyBase64) else {
+            Log.net.error("Server reply signature invalid — dropping")
+            throw ServerError.badServerSignature
+        }
+
+        if reply.wireType == .error {
+            throw ServerError.server(code: reply.key ?? "internal", message: reply.value ?? "")
+        }
+        guard reply.wireType == expected else {
+            Log.net.error("Server replied with type \(reply.type, privacy: .public), expected \(expected.rawValue, privacy: .public)")
+            throw ServerError.badResponse
+        }
+        return reply
+    }
+}

@@ -2,406 +2,215 @@
 //  SettingsView.swift
 //  HopChat-1
 //
-//  Created by Rodrigo Loução on 08/04/2026.
+//  Root of the settings tab (contract §6, §7). Every persisted value here is
+//  a non-sensitive `hopchat.*` UserDefaults key from §6 — no phone numbers,
+//  no secrets. The v1 bootstrap-IP editor is gone: developer overrides live
+//  behind `#if DEBUG` in SettingsDeveloperView.
 //
 
 import SwiftUI
 
-struct SettingsView: View {
-    @StateObject private var kad = KademliaService.shared
-    @AppStorage("hopchat.phone")            private var myPhone       = ""
-    @AppStorage("hopchat.displayName")      private var displayName   = ""
-    @AppStorage("hopchat.autoTranslate")    private var autoTranslate = false
-    @AppStorage("hopchat.translateLang")    private var translateLang = "en"
-    @AppStorage("hopchat.bootstrap.ip")    private var bootstrapIP   = ""
-    @State private var showBootstrapEditor = false
-    @State private var editedBootstrapIP   = ""
+/// Languages offered for auto-translation. Shared by the settings screens.
+nonisolated enum TranslateLanguage {
 
-    @State private var showInviteSheet    = false
-    @State private var showNameEditor     = false
-    @State private var editedName         = ""
-    @State private var showLangPicker     = false
+    struct Option: Identifiable, Hashable {
+        let code: String
+        let name: String
+        let flag: String
+        var id: String { code }
+    }
 
-    private let languages: [(code: String, name: String, flag: String)] = [
-        ("en", "English",    "🇬🇧"),
-        ("pt", "Portuguese", "🇵🇹"),
-        ("es", "Spanish",    "🇪🇸"),
-        ("fr", "French",     "🇫🇷"),
-        ("de", "German",     "🇩🇪"),
-        ("it", "Italian",    "🇮🇹"),
-        ("zh", "Chinese",    "🇨🇳"),
-        ("ja", "Japanese",   "🇯🇵"),
-        ("ar", "Arabic",     "🇸🇦"),
-        ("hi", "Hindi",      "🇮🇳"),
+    static let all: [Option] = [
+        Option(code: "en", name: String(localized: "English"),    flag: "🇬🇧"),
+        Option(code: "pt", name: String(localized: "Portuguese"), flag: "🇵🇹"),
+        Option(code: "es", name: String(localized: "Spanish"),    flag: "🇪🇸"),
+        Option(code: "fr", name: String(localized: "French"),     flag: "🇫🇷"),
+        Option(code: "de", name: String(localized: "German"),     flag: "🇩🇪"),
+        Option(code: "it", name: String(localized: "Italian"),    flag: "🇮🇹"),
+        Option(code: "zh", name: String(localized: "Chinese"),    flag: "🇨🇳"),
+        Option(code: "ja", name: String(localized: "Japanese"),   flag: "🇯🇵"),
+        Option(code: "ar", name: String(localized: "Arabic"),     flag: "🇸🇦"),
+        Option(code: "hi", name: String(localized: "Hindi"),      flag: "🇮🇳"),
     ]
 
-    private var currentLang: (code: String, name: String, flag: String) {
-        languages.first { $0.code == translateLang } ?? languages[0]
-    }
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-
-                // MARK: Header
-                HStack {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.blue)
-                    Text("Settings")
-                        .font(.system(size: 28, weight: .bold))
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 4)
-
-                List {
-
-                    // MARK: Profile Section
-                    Section {
-                        HStack(spacing: 16) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.blue.opacity(0.15))
-                                    .frame(width: 60, height: 60)
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundStyle(.blue)
-                            }
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(displayName.isEmpty ? "Set your name" : displayName)
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundStyle(displayName.isEmpty ? .secondary : .primary)
-                                Text(myPhone.isEmpty ? "No phone set" : myPhone)
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button {
-                                editedName = displayName
-                                showNameEditor = true
-                            } label: {
-                                Text("Edit")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(.blue)
-                            }
-                        }
-                        .padding(.vertical, 6)
-                    } header: {
-                        Text("My Profile")
-                    }
-
-                    // MARK: Invite a Friend
-                    Section {
-                        Button {
-                            showInviteSheet = true
-                        } label: {
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color.green)
-                                        .frame(width: 32, height: 32)
-                                    Image(systemName: "person.badge.plus")
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundStyle(.white)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Invite a Friend")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(.primary)
-                                    Text("Share HopChat via message or link")
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    } header: {
-                        Text("Share")
-                    }
-
-                    // MARK: Translate Section
-                    Section {
-                        HStack(spacing: 14) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.blue)
-                                    .frame(width: 32, height: 32)
-                                Image(systemName: "character.bubble")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(.white)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Auto-Translate")
-                                    .font(.system(size: 16))
-                                Text("Translate incoming messages")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: $autoTranslate)
-                                .labelsHidden()
-                                .tint(.blue)
-                        }
-
-                        if autoTranslate {
-                            Button {
-                                showLangPicker = true
-                            } label: {
-                                HStack(spacing: 14) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(Color.indigo)
-                                            .frame(width: 32, height: 32)
-                                        Image(systemName: "globe")
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundStyle(.white)
-                                    }
-                                    Text("Target Language")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    HStack(spacing: 6) {
-                                        Text(currentLang.flag)
-                                        Text(currentLang.name)
-                                            .font(.system(size: 15))
-                                            .foregroundStyle(.secondary)
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 13, weight: .medium))
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        }
-                    } header: {
-                        Text("Translate")
-                    } footer: {
-                        if autoTranslate {
-                            Text("Incoming messages will be automatically translated to \(currentLang.name). Requires an internet connection.")
-                        } else {
-                            Text("Enable to automatically translate messages from other languages.")
-                        }
-                    }
-
-                    // MARK: Developer Section
-                    Section {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Bootstrap Node")
-                                    .font(.system(size: 16))
-                                Text(bootstrapIP.isEmpty ? AppConfig.bootstrapIP : bootstrapIP)
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button("Edit") {
-                                editedBootstrapIP = bootstrapIP.isEmpty ? AppConfig.bootstrapIP : bootstrapIP
-                                showBootstrapEditor = true
-                            }
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.blue)
-                        }
-                    } header: {
-                        Text("Developer")
-                    } footer: {
-                        Text("Custom bootstrap node IP. Leave empty to use the default.")
-                    }
-
-                    // MARK: About Section
-                    Section {
-                        LabeledContent("Version", value: "1.0.0")
-                        LabeledContent("Node ID") {
-                            Text(nodeIDShort)
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack(spacing: 14) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.orange)
-                                    .frame(width: 32, height: 32)
-                                Image(systemName: "wifi")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(.white)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Network Status")
-                                    .font(.system(size: 16))
-                                Text(kad.status)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    } header: {
-                        Text("About HopChat")
-                    }
-                }
-                .listStyle(.insetGrouped)
-                .animation(.easeInOut(duration: 0.2), value: autoTranslate)
-            }
-            .background(Color(.systemGroupedBackground))
-            .sheet(isPresented: $showInviteSheet) {
-                InviteSheet()
-            }
-            .alert("Bootstrap Node IP", isPresented: $showBootstrapEditor) {
-                TextField("e.g. 34.14.80.215", text: $editedBootstrapIP)
-                    .keyboardType(.numbersAndPunctuation)
-                Button("Save") {
-                    bootstrapIP = editedBootstrapIP.trimmingCharacters(in: .whitespaces)
-                }
-                Button("Reset") { bootstrapIP = "" }
-                Button("Cancel", role: .cancel) {}
-            }
-            .alert("Display Name", isPresented: $showNameEditor) {
-                TextField("Your name", text: $editedName)
-                Button("Save") {
-                    displayName = editedName.trimmingCharacters(in: .whitespaces)
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This name is visible to people you chat with.")
-            }
-            .sheet(isPresented: $showLangPicker) {
-                LanguagePickerSheet(selected: $translateLang, languages: languages)
-            }
-        }
-    }
-
-    private var nodeIDShort: String {
-        if let uuid = UserDefaults.standard.string(forKey: "hopchat.uuid") {
-            return String(uuid.prefix(8)) + "…"
-        }
-        return "Unknown"
+    static func name(for code: String) -> String {
+        all.first { $0.code == code }?.name ?? String(localized: "English")
     }
 }
 
-// MARK: - Invite Sheet
+struct SettingsView: View {
 
-struct InviteSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var didCopy = false
+    @StateObject private var kad = KademliaService.shared
+    @StateObject private var store = ConversationStore.shared
 
-    private let appLink = "https://hopchat.app/join"
+    @AppStorage(AppConfig.Keys.displayName)   private var displayName   = ""
+    @AppStorage(AppConfig.Keys.autoTranslate) private var autoTranslate = false
+    @AppStorage(AppConfig.Keys.translateLang) private var translateLang = "en"
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 32) {
-                VStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.green.opacity(0.12))
-                            .frame(width: 90, height: 90)
-                        Image(systemName: "wifi")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.green)
-                    }
-                    VStack(spacing: 6) {
-                        Text("Invite a Friend")
-                            .font(.system(size: 24, weight: .bold))
-                        Text("HopChat works best with people around you.\nShare the app so they can join!")
-                            .font(.system(size: 15))
+            List {
+                profileSection
+                privacySection
+                translateSection
+                accountSection
+                aboutSection
+                developerSection
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(Text("Settings"))
+        }
+    }
+
+    // MARK: - Profile
+
+    private var profileSection: some View {
+        Section {
+            NavigationLink {
+                SettingsProfileView()
+            } label: {
+                HStack(spacing: 14) {
+                    AvatarView(name: displayNameOrFallback,
+                               imageURL: SelfProfilePhoto.url,
+                               size: 52)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(displayNameOrFallback)
+                            .font(.headline)
+                        Text(phoneLabel)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
                     }
+                    .multilineTextAlignment(.leading)
                 }
-                .padding(.top, 12)
-
-                HStack(spacing: 10) {
-                    Text(appLink)
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer()
-                    Button {
-                        UIPasteboard.general.string = appLink
-                        withAnimation { didCopy = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            withAnimation { didCopy = false }
-                        }
-                    } label: {
-                        Label(didCopy ? "Copied!" : "Copy", systemImage: didCopy ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(didCopy ? .green : .blue)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 24)
-
-                ShareLink(
-                    item: URL(string: appLink)!,
-                    subject: Text("Join me on HopChat!"),
-                    message: Text("Chat with me on HopChat — no servers, totally private, works over WiFi! \(appLink)")
-                ) {
-                    Label("Share via…", systemImage: "square.and.arrow.up")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-                .padding(.horizontal, 24)
-
-                Spacer()
-            }
-            .navigationTitle("Invite")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
+                .padding(.vertical, 6)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(Text("Profile. \(displayNameOrFallback). \(phoneLabel)"))
+                .accessibilityHint(Text("Edit your name and profile photo"))
             }
         }
     }
-}
 
-// MARK: - Language Picker Sheet
+    private var displayNameOrFallback: String {
+        displayName.isEmpty ? String(localized: "Add your name") : displayName
+    }
 
-struct LanguagePickerSheet: View {
-    @Binding var selected: String
-    let languages: [(code: String, name: String, flag: String)]
-    @Environment(\.dismiss) private var dismiss
+    private var phoneLabel: String {
+        kad.myPhone.isEmpty ? String(localized: "Number not verified yet") : kad.myPhone
+    }
 
-    var body: some View {
-        NavigationStack {
-            List(languages, id: \.code) { lang in
-                Button {
-                    selected = lang.code
-                    dismiss()
-                } label: {
-                    HStack(spacing: 14) {
-                        Text(lang.flag).font(.system(size: 22))
-                        Text(lang.name)
-                            .font(.system(size: 16))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if lang.code == selected {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.blue)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
+    // MARK: - Privacy & notifications
+
+    private var privacySection: some View {
+        Section {
+            NavigationLink {
+                SettingsPrivacyView()
+            } label: {
+                Label("Privacy & Security", systemImage: "lock.shield")
             }
-            .navigationTitle("Target Language")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+
+            NavigationLink {
+                SettingsNotificationsView()
+            } label: {
+                Label("Notifications", systemImage: "bell.badge")
             }
         }
+    }
+
+    // MARK: - Translate
+
+    private var translateSection: some View {
+        Section {
+            Toggle(isOn: $autoTranslate) {
+                Text("Auto-translate messages")
+            }
+            .accessibilityHint(Text("Translates incoming messages into your chosen language on this device"))
+
+            if autoTranslate {
+                Picker(selection: $translateLang) {
+                    ForEach(TranslateLanguage.all) { language in
+                        Text("\(language.flag) \(language.name)").tag(language.code)
+                    }
+                } label: {
+                    Text("Translate into")
+                }
+                .pickerStyle(.navigationLink)
+            }
+        } header: {
+            Text("Translate")
+        } footer: {
+            Text("Translation happens on this device. Nothing is sent to a translation service.")
+        }
+    }
+
+    // MARK: - Account
+
+    private var accountSection: some View {
+        Section {
+            NavigationLink {
+                ChangeNumberView()
+            } label: {
+                Label("Change phone number", systemImage: "phone.arrow.up.right")
+            }
+
+            NavigationLink {
+                DeleteAccountView()
+            } label: {
+                Label("Delete account", systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
+            .accessibilityHint(Text("Permanently deletes your account, messages and keys"))
+        } header: {
+            Text("Account")
+        }
+    }
+
+    // MARK: - About
+
+    private var aboutSection: some View {
+        Section {
+            LabeledContent {
+                Text(AppConfig.appVersion)
+            } label: {
+                Text("Version")
+            }
+            .accessibilityElement(children: .combine)
+
+            Link(destination: AppConfig.privacyURL) {
+                Label("Privacy policy", systemImage: "hand.raised")
+            }
+            Link(destination: AppConfig.termsURL) {
+                Label("Terms of service", systemImage: "doc.text")
+            }
+            Link(destination: AppConfig.supportURL) {
+                Label("Support", systemImage: "questionmark.circle")
+            }
+
+            ShareLink(item: AppConfig.inviteURL,
+                      subject: Text("Join me on HopChat"),
+                      message: Text("Let's chat on HopChat — end-to-end encrypted messages.")) {
+                Label("Invite a friend", systemImage: "square.and.arrow.up")
+            }
+            .accessibilityHint(Text("Opens the share sheet with a link to HopChat"))
+        } header: {
+            Text("About")
+        }
+    }
+
+    // MARK: - Developer (DEBUG only)
+
+    @ViewBuilder
+    private var developerSection: some View {
+        #if DEBUG
+        Section {
+            NavigationLink {
+                SettingsDeveloperView()
+            } label: {
+                Label("Developer", systemImage: "hammer")
+            }
+        } footer: {
+            Text("Debug builds only. Not present in the App Store build.")
+        }
+        #endif
     }
 }
 

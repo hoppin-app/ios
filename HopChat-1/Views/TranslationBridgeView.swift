@@ -2,32 +2,47 @@
 //  TranslationBridgeView.swift
 //  HopChat-1
 //
-//  Created by Rodrigo Loução on 26/02/2026.
+//  Invisible 0×0 view that owns the `TranslationSession` lifecycle. Embed once
+//  near the root of the hierarchy.
 //
-//  Invisible 0×0 view that owns the TranslationSession lifecycle.
-//  Embed once at the root of the view hierarchy.
+//  Every exit path tells `TranslationService`, so no request is left waiting:
+//  success, failure, and the view disappearing all resolve the continuation.
+//  The service also enforces a 10 s timeout, which covers the case where
+//  `translationTask` never hands us a session at all (unsupported language or
+//  a model the user hasn't downloaded).
 //
 
 import SwiftUI
 import Translation
+import os
 
 struct TranslationBridgeView: View {
+
     @ObservedObject private var service = TranslationService.shared
 
-    // Current session + the config it was created for.
     @State private var config: TranslationSession.Configuration?
     @State private var readySession: TranslationSession?
-    @State private var readyConfig:  TranslationSession.Configuration?
+    @State private var readyConfig: TranslationSession.Configuration?
 
     var body: some View {
         Color.clear
             .frame(width: 0, height: 0)
+            .onAppear {
+                service.bridgeDidAppear()
+                processNext()
+            }
+            .onDisappear {
+                readySession = nil
+                readyConfig = nil
+                config = nil
+                service.bridgeDidDisappear()
+            }
             .onChange(of: service.pendingRequest?.id) { _, _ in
                 processNext()
             }
             .translationTask(config) { session in
                 readySession = session
-                readyConfig  = config
+                readyConfig = config
                 await processWithSession(session)
             }
     }
@@ -35,28 +50,28 @@ struct TranslationBridgeView: View {
     // MARK: - Private
 
     private func processNext() {
-        guard let req = service.pendingRequest else { return }
+        guard let request = service.pendingRequest else { return }
         let needed = TranslationSession.Configuration(
             source: nil,
-            target: Locale.Language(identifier: req.targetLang)
+            target: Locale.Language(identifier: request.targetLang)
         )
         if let session = readySession, readyConfig == needed {
-            // Reuse existing session for the same language pair.
             Task { await processWithSession(session) }
         } else {
-            // Trigger .translationTask to obtain a new session.
+            // Triggers `.translationTask` to vend a fresh session.
             config = needed
         }
     }
 
     private func processWithSession(_ session: TranslationSession) async {
-        guard let req = service.pendingRequest else { return }
+        guard let request = service.pendingRequest else { return }
         do {
-            let response = try await session.translate(req.text)
-            service.complete(request: req, result: response.targetText)
+            let response = try await session.translate(request.text)
+            service.complete(request: request, result: response.targetText)
         } catch {
-            print("🌐 Translation error: \(error)")
-            service.complete(request: req, result: nil)
+            Log.ui.error("Translation failed: \(String(describing: error), privacy: .public)")
+            // Resolve rather than retry: the caller falls back to the original.
+            service.complete(request: request, result: nil)
         }
     }
 }

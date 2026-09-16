@@ -6,11 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		E160020A2F4FAEBC00BED14D /* iPhoneNumberField in Frameworks */ = {isa = PBXBuildFile; productRef = E16002092F4FAEBC00BED14D /* iPhoneNumberField */; };
-		E160020D2F4FB28000BED14D /* LibP2PKadDHT in Frameworks */ = {isa = PBXBuildFile; productRef = E160020C2F4FB28000BED14D /* LibP2PKadDHT */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		E15D74E02F4F81AD0091BB92 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -38,28 +33,17 @@
 		E16002432F50B13100BED14D /* Exceptions for "HopChat-1" folder in "HopChat-1" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Notifications.swift,
+				CLAUDE.md,
 			);
 			target = E15D74D12F4F81AC0091BB92 /* HopChat-1 */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		E16002442F50B13100BED14D /* Exceptions for "HopChat-1" folder in "Copy Bundle Resources" phase from "HopChat-1" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = E15D74D02F4F81AC0091BB92 /* Resources */;
-			membershipExceptions = (
-				Notifications.swift,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E15D74D42F4F81AC0091BB92 /* HopChat-1 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				E16002432F50B13100BED14D /* Exceptions for "HopChat-1" folder in "HopChat-1" target */,
-				E16002442F50B13100BED14D /* Exceptions for "HopChat-1" folder in "Copy Bundle Resources" phase from "HopChat-1" target */,
 			);
 			path = "HopChat-1";
 			sourceTree = "<group>";
@@ -81,8 +65,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E160020A2F4FAEBC00BED14D /* iPhoneNumberField in Frameworks */,
-				E160020D2F4FB28000BED14D /* LibP2PKadDHT in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -151,8 +133,6 @@
 			);
 			name = "HopChat-1";
 			packageProductDependencies = (
-				E16002092F4FAEBC00BED14D /* iPhoneNumberField */,
-				E160020C2F4FB28000BED14D /* LibP2PKadDHT */,
 			);
 			productName = "HopChat-1";
 			productReference = E15D74D22F4F81AC0091BB92 /* HopChat-1.app */;
@@ -236,10 +216,6 @@
 			);
 			mainGroup = E15D74C92F4F81AC0091BB92;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				E15D75052F4FA9610091BB92 /* XCRemoteSwiftPackageReference "iPhoneNumberField" */,
-				E160020B2F4FB26400BED14D /* XCRemoteSwiftPackageReference "swift-libp2p-kad-dht" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E15D74D32F4F81AC0091BB92 /* Products */;
 			projectDirPath = "";
@@ -367,7 +343,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -375,6 +351,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
 			};
 			name = Debug;
 		};
@@ -425,12 +402,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -446,6 +424,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -453,7 +432,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "rloucao.HopChat-1";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -474,6 +453,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -481,7 +461,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "rloucao.HopChat-1";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -499,7 +479,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LD924JL9S4;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "rloucao.HopChat-1Tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -521,7 +501,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LD924JL9S4;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "rloucao.HopChat-1Tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -542,6 +522,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LD924JL9S4;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "rloucao.HopChat-1UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -562,6 +543,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LD924JL9S4;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "rloucao.HopChat-1UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -615,38 +597,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		E15D75052F4FA9610091BB92 /* XCRemoteSwiftPackageReference "iPhoneNumberField" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/MojtabaHs/iPhoneNumberField";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.10.4;
-			};
-		};
-		E160020B2F4FB26400BED14D /* XCRemoteSwiftPackageReference "swift-libp2p-kad-dht" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/swift-libp2p/swift-libp2p-kad-dht.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.2.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		E16002092F4FAEBC00BED14D /* iPhoneNumberField */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E15D75052F4FA9610091BB92 /* XCRemoteSwiftPackageReference "iPhoneNumberField" */;
-			productName = iPhoneNumberField;
-		};
-		E160020C2F4FB28000BED14D /* LibP2PKadDHT */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E160020B2F4FB26400BED14D /* XCRemoteSwiftPackageReference "swift-libp2p-kad-dht" */;
-			productName = LibP2PKadDHT;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E15D74CA2F4F81AC0091BB92 /* Project object */;
 }

@@ -1,255 +1,326 @@
+//
+//  ContentView.swift
+//  HopChat-1
+//
+//  Root routing: onboarding (with the terms gate) → SMS verification → tabs.
+//  Also owns the three things that must sit above every screen: the app-lock
+//  gate, the privacy cover for the app switcher, and the connection banner.
+//
+
 import SwiftUI
 
-struct ContentView: View {
-    @StateObject private var kad   = KademliaService.shared
-    @StateObject private var store = ConversationStore.shared
-    @Environment(\.colorScheme) private var colorScheme
+// MARK: - Floating Tab Bar
 
-    @AppStorage("hopchat.hasSeenOnboarding") private var hasSeenOnboarding = false
+struct FloatingTabBar: View {
+    @Binding var selectedTab: Int
+    var unreadCount: Int = 0
 
-    @State private var phoneText        = ""
-    @State private var isLoading        = false
-    @State private var errorMessage:    String?
-    @State private var navigateToChats: Bool = {
-        let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
-        return !phone.isEmpty
-    }()
-    @State private var selectedTab      = 0
-    @State private var pulse: CGFloat   = 1.0
-    @State private var appear           = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let items: [(icon: String, filled: String, label: String)] = [
+        ("bubble.left",  "bubble.left.fill",  String(localized: "Chats")),
+        ("person",       "person.fill",       String(localized: "People")),
+        ("gearshape",    "gearshape.fill",    String(localized: "Settings")),
+    ]
 
     var body: some View {
-        if !hasSeenOnboarding {
-            OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
-        } else if navigateToChats {
-            mainTabView
-        } else {
-            registrationView
+        HStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { i in
+                tabButton(index: i)
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
+        .background {
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule().strokeBorder(.primary.opacity(0.07), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.13), radius: 26, x: 0, y: 8)
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 10)
+        .frame(maxWidth: 560)
+    }
+
+    @ViewBuilder
+    private func tabButton(index: Int) -> some View {
+        Button {
+            if reduceMotion {
+                selectedTab = index
+            } else {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                    selectedTab = index
+                }
+            }
+        } label: {
+            VStack(spacing: 4) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: selectedTab == index ? items[index].filled : items[index].icon)
+                        .font(.body.weight(selectedTab == index ? .semibold : .regular))
+                        .frame(minHeight: 24)
+                        .accessibilityHidden(true)
+
+                    if index == 0, unreadCount > 0 {
+                        Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .frame(minWidth: 16, minHeight: 16)
+                            .background(.red, in: Capsule())
+                            .offset(x: 11, y: -5)
+                            .accessibilityHidden(true)
+                    }
+                }
+
+                Text(items[index].label)
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(selectedTab == index ? Color.accentColor : Color(.tertiaryLabel))
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(items[index].label))
+        .accessibilityValue(index == 0 && unreadCount > 0
+                            ? Text("\(unreadCount) unread") : Text(""))
+        .accessibilityAddTraits(selectedTab == index ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier(["tab.chats", "tab.people", "tab.settings"][index])
+    }
+}
+
+// MARK: - Content View
+
+struct ContentView: View {
+
+    @StateObject private var service = KademliaService.shared
+    @StateObject private var store   = ConversationStore.shared
+    @StateObject private var appLock = AppLock.shared
+
+    @AppStorage(AppConfig.Keys.hasSeenOnboarding) private var hasSeenOnboarding = false
+    @AppStorage(AppConfig.Keys.hasAcceptedTerms)  private var hasAcceptedTerms  = false
+
+    @Environment(\.scenePhase) private var scenePhase
+
+    @State private var selectedTab = 0
+    @State private var didStartService = false
+
+    private var needsOnboarding: Bool { !hasSeenOnboarding || !hasAcceptedTerms }
+    private var coverForPrivacy: Bool { appLock.isEnabled && scenePhase != .active }
+
+    var body: some View {
+        ZStack {
+            root
+                .environmentObject(service)
+
+            if appLock.isLocked {
+                LockScreen(appLock: appLock)
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+
+            if coverForPrivacy {
+                PrivacyCover()
+                    .zIndex(2)
+            }
+        }
+        .task {
+            guard !didStartService else { return }
+            await service.start()
+            didStartService = true
         }
     }
 
-    // MARK: - Main Tab View
+    @ViewBuilder
+    private var root: some View {
+        if needsOnboarding {
+            OnboardingView()
+        } else if !didStartService && !service.isRegistered {
+            LaunchPlaceholder()
+        } else if !service.isRegistered {
+            VerificationView()
+        } else {
+            mainTabView
+        }
+    }
+
+    // MARK: - Main tabs
 
     private var mainTabView: some View {
-        ZStack {
-            TabView(selection: $selectedTab) {
-                ChatListView()
-                    .tabItem { Label("Chats", systemImage: "bubble.left") }
-                    .badge(store.totalUnreadCount)
-                    .tag(0)
-
-                PeopleView()
-                    .tabItem { Label("People", systemImage: "person") }
-                    .tag(1)
-
-                SettingsView()
-                    .tabItem { Label("Settings", systemImage: "gearshape") }
-                    .tag(2)
+        TabView(selection: $selectedTab) {
+            ChatListView()
+                .toolbar(.hidden, for: .tabBar)
+                .tag(0)
+            PeopleView()
+                .toolbar(.hidden, for: .tabBar)
+                .tag(1)
+            SettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .tag(2)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if store.showTabBar {
+                FloatingTabBar(selectedTab: $selectedTab,
+                               unreadCount: store.totalUnreadCount)
             }
-
-            // TranslationBridgeView must always be in the hierarchy so
-            // the TranslationSession is alive during the full chat lifecycle.
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            ConnectionBanner(state: service.connectionState)
+        }
+        .overlay(alignment: .center) {
+            // Drives the Translation session; owned by the chat agent.
             TranslationBridgeView()
                 .allowsHitTesting(false)
+                .frame(width: 0, height: 0)
+                .clipped()
+                .accessibilityHidden(true)
         }
-        // Switch to Chats tab when a notification deep-links into a conversation
         .onReceive(NotificationCenter.default.publisher(for: .openChat)) { _ in
             selectedTab = 0
         }
-        .task {
-            let phone = UserDefaults.standard.string(forKey: "hopchat.phone") ?? ""
-            guard !phone.isEmpty else { return }
-            if KeychainHelper.shared.getUUID() == nil {
-                _ = KeychainHelper.shared.saveUUID(UUID())
-            }
-            await kad.register(phone: phone)
-        }
-    }
-
-    // MARK: - Registration View
-
-    private var registrationView: some View {
-        NavigationStack {
-            ZStack {
-                Color(.systemBackground).ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    VStack(spacing: 16) {
-                        Image("HopChatIcon")
-                            .resizable()
-                            .frame(width: 100, height: 100)
-                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                            .scaleEffect(pulse)
-                            .animation(
-                                .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
-                                value: pulse
-                            )
-                            .opacity(appear ? 1 : 0)
-                            .scaleEffect(appear ? 1 : 0.7)
-                            .animation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.05), value: appear)
-
-                        Text("HopChat")
-                            .font(.system(size: 38, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .opacity(appear ? 1 : 0)
-                            .offset(y: appear ? 0 : 10)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.15), value: appear)
-
-                        VStack(spacing: 5) {
-                            Text("No servers. No strangers.")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
-                            Text("No sign-ups.\nJust hop on and go!")
-                                .font(.system(size: 15))
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(.secondary)
-                        }
-                        .opacity(appear ? 1 : 0)
-                        .offset(y: appear ? 0 : 8)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.25), value: appear)
-                    }
-
-                    Spacer()
-
-                    VStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Phone Number")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 4)
-
-                            HStack(spacing: 10) {
-                                Image(systemName: "phone.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(Color.accentColor)
-
-                                TextField("+351 912 345 678", text: $phoneText)
-                                    .keyboardType(.phonePad)
-                                    .font(.system(size: 17))
-                                    .foregroundStyle(.primary)
-                                    .tint(Color.accentColor)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(
-                                        phoneText.isEmpty ? Color.clear : Color.accentColor.opacity(0.5),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                        }.padding(.horizontal, 16)
-
-                        if let errorMessage {
-                            Label(errorMessage, systemImage: "exclamationmark.circle.fill")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, 4)
-                        }
-
-                        Button(action: startRegistration) {
-                            Group {
-                                if isLoading {
-                                    HStack(spacing: 8) {
-                                        ProgressView().tint(.white)
-                                        Text(kad.status)
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                } else {
-                                    Text("Start Hopping! 👋")
-                                        .font(.system(size: 17, weight: .semibold))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .foregroundStyle(.white)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(phoneText.isEmpty ? Color(.tertiarySystemFill) : Color.accentColor)
-                            )
-                        }
-                        .disabled(phoneText.isEmpty || isLoading)
-                        .animation(.easeInOut(duration: 0.18), value: phoneText.isEmpty)
-                        .padding(.horizontal, 16)
-
-                        Spacer().frame(height: 32)
-                        Text("Your number is only stored on this device and never shared.")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color(.tertiaryLabel))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
-                    }
-                    .padding(.horizontal, 14)
-                    .opacity(appear ? 1 : 0)
-                    .offset(y: appear ? 0 : 16)
-                    .animation(.spring(response: 0.55, dampingFraction: 0.8).delay(0.42), value: appear)
-
-                    Spacer().frame(height: 10)
-                }
-            }
-            .onAppear {
-                appear = true
-                pulse  = 1.10
-                if let saved = UserDefaults.standard.string(forKey: "hopchat.phone") {
-                    phoneText = saved
-                }
-            }
-        }
-    }
-
-    // MARK: - Registration
-
-    private func startRegistration() {
-        let phone = phoneText.replacingOccurrences(of: " ", with: "")
-        guard !phone.isEmpty else { return }
-        UserDefaults.standard.set(phone, forKey: "hopchat.phone")
-        isLoading    = true
-        errorMessage = nil
-        if KeychainHelper.shared.getUUID() == nil {
-            _ = KeychainHelper.shared.saveUUID(UUID())
-        }
-        Task {
-            await kad.register(phone: phone)
-            isLoading = false
-            navigateToChats = true
-        }
     }
 }
 
-// MARK: - Feature Pill (kept for potential reuse)
+// MARK: - Connection banner
 
-struct FeaturePill: View {
-    let emoji: String
-    let label: String
+private struct ConnectionBanner: View {
+    let state: ConnectionState
 
     var body: some View {
-        HStack(spacing: 5) {
-            Text(emoji).font(.system(size: 13))
-            Text(label)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
+        switch state {
+        case .error(let message):
+            banner(text: message, systemImage: "exclamationmark.triangle.fill",
+                   tint: .orange, showsProgress: false)
+        case .connecting:
+            banner(text: String(localized: "Connecting…"), systemImage: nil,
+                   tint: .secondary, showsProgress: true)
+        case .offline, .online:
+            EmptyView()
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 7)
-        .background(Capsule().fill(Color(.secondarySystemBackground)))
-        .overlay(Capsule().strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5))
+    }
+
+    private func banner(text: String, systemImage: String?, tint: Color, showsProgress: Bool) -> some View {
+        HStack(spacing: 8) {
+            if showsProgress {
+                ProgressView().controlSize(.small)
+            } else if let systemImage {
+                Image(systemName: systemImage).accessibilityHidden(true)
+            }
+            Text(text)
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+        .accessibilityElement(children: .combine)
     }
 }
 
-#Preview {
-    ContentView()
+// MARK: - Launch placeholder
+
+private struct LaunchPlaceholder: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+            Text("Starting HopChat…")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
+    }
 }
 
-#Preview("Dark") {
-    ContentView()
-        .preferredColorScheme(.dark)
+// MARK: - App lock
+
+private struct LockScreen: View {
+
+    @ObservedObject var appLock: AppLock
+
+    @State private var isAuthenticating = false
+    @State private var failed = false
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(.regularMaterial)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
+
+                Text("HopChat is locked")
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+
+                Text("Unlock to read your messages.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                if failed {
+                    Text("Unlock failed. Try again.")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+
+                Button {
+                    authenticate()
+                } label: {
+                    Group {
+                        if isAuthenticating {
+                            ProgressView()
+                        } else {
+                            Label("Unlock", systemImage: "faceid").font(.headline)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 28)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isAuthenticating)
+                .padding(.horizontal, 32)
+                .padding(.top, 8)
+            }
+            .frame(maxWidth: 420)
+            .padding(24)
+        }
+        .onAppear { authenticate() }
+    }
+
+    private func authenticate() {
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
+        Task {
+            let ok = await appLock.authenticate()
+            failed = !ok
+            isAuthenticating = false
+        }
+    }
 }
+
+// MARK: - Privacy cover
+
+private struct PrivacyCover: View {
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea()
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(Color.accentColor)
+                .accessibilityHidden(true)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+#Preview { ContentView() }
+#Preview("Dark") { ContentView().preferredColorScheme(.dark) }

@@ -2,7 +2,14 @@
 //  HopChat_1Tests.swift
 //  HopChat-1Tests
 //
-//  Created by Rodrigo Loução on 25/02/2026.
+//  Cross-language conformance: every assertion here is against
+//  `docs/fixtures/crypto_vectors.json`, which `server/make_vectors.py`
+//  generates from the Python implementation. If Swift and Python ever disagree
+//  about a single byte, these fail.
+//
+//  The fixtures use fixed timestamps (certs issued 1700000000, expiring
+//  4102444800; wire 1790000500; envelope 1790000600), so validity is always
+//  checked against `Fixtures.referenceDate` rather than the wall clock.
 //
 
 import Testing
@@ -10,481 +17,430 @@ import Foundation
 import CryptoKit
 @testable import HopChat_1
 
-// MARK: - NodeID Tests
-// Passes
+// MARK: - §1 Canonical encoding
 
-@Suite("NodeID")
-struct NodeIDTests {
+@Suite("Fixtures — canonical encoding (§1)")
+struct CanonicalFixtureTests {
 
-    @Test("from(phone:) is deterministic")
-    func deterministicFromPhone() {
-        let a = NodeID.from(phone: "+351912345678")
-        let b = NodeID.from(phone: "+351912345678")
-        #expect(a == b)
-    }
-
-    @Test("different phones produce different IDs")
-    func differentPhonesDifferentIDs() {
-        let a = NodeID.from(phone: "+351912345678")
-        let b = NodeID.from(phone: "+351987654321")
-        #expect(a != b)
-    }
-
-    @Test("distance to self is zero")
-    func distanceToSelfIsZero() {
-        let id = NodeID.from(phone: "+351912345678")
-        let dist = id.distance(to: id)
-        #expect(dist.allSatisfy { $0 == 0 })
-    }
-
-    @Test("distance is symmetric")
-    func distanceSymmetric() {
-        let a = NodeID.from(phone: "alice")
-        let b = NodeID.from(phone: "bob")
-        #expect(a.distance(to: b) == b.distance(to: a))
-    }
-
-    @Test("bucketIndex is in range 0–255")
-    func bucketIndexRange() {
-        let local = NodeID.random()
-        for _ in 0..<50 {
-            let other = NodeID.random()
-            let idx = local.bucketIndex(relativeTo: other)
-            #expect(idx >= 0 && idx <= 255)
+    @Test("every canonical vector encodes byte-for-byte")
+    func canonicalVectors() throws {
+        let vectors = try Fixtures.require()
+        #expect(!vectors.canonical.isEmpty)
+        for testCase in vectors.canonical {
+            let encoded = Canonical.encode(testCase.fields)
+            #expect(encoded.hexString == testCase.hex,
+                    "canonical mismatch for \(testCase.fields)")
+            #expect(encoded.count == testCase.byteLength,
+                    "length mismatch for \(testCase.fields)")
         }
     }
 
-    @Test("random produces 32 bytes")
-    func randomIs32Bytes() {
-        let id = NodeID.random()
-        #expect(id.bytes.count == 32)
+    @Test("contract example: [ab, \"\", é] → 2:ab0:2:é")
+    func contractExample() {
+        #expect(Canonical.encode(["ab", "", "é"]) == Data("2:ab0:2:é".utf8))
     }
 
-    @Test("two randoms differ")
-    func randomIsDifferent() {
-        let a = NodeID.random()
-        let b = NodeID.random()
-        #expect(a != b)
+    @Test("empty list encodes to no bytes")
+    func emptyList() {
+        #expect(Canonical.encode([]).isEmpty)
+    }
+
+    @Test("length prefixes are UTF-8 byte counts, not character counts")
+    func multibyteLengths() {
+        #expect(Canonical.encode(["é"]) == Data([0x32, 0x3A, 0xC3, 0xA9]))
+        #expect(Canonical.encode(["👍"]) == Data([0x34, 0x3A, 0xF0, 0x9F, 0x91, 0x8D]))
+        // A family emoji is one grapheme but 25 UTF-8 bytes.
+        #expect(Canonical.encode(["👨‍👩‍👧‍👦"]).prefix(3) == Data("25:".utf8))
+    }
+
+    @Test("a colon inside a field cannot forge another field")
+    func injectionIsUnambiguous() {
+        #expect(Canonical.encode(["a:b", "c"]) != Canonical.encode(["a", "b:c"]))
+        #expect(Canonical.encode(["3:c"]) != Canonical.encode(["3", "c"]))
+    }
+
+    @Test("field helpers render integers and booleans per contract")
+    func fieldHelpers() {
+        #expect(Canonical.field(Int64(0)) == "0")
+        #expect(Canonical.field(Int64(1_790_000_000)) == "1790000000")
+        #expect(Canonical.field(UInt16(0)) == "0")
+        #expect(Canonical.field(true) == "1")
+        #expect(Canonical.field(false) == "0")
+        #expect(Canonical.field(String?.none) == "")
     }
 }
 
-// MARK: - KBucket Tests
-// Passes
+// MARK: - §2 Certificates
 
-@Suite("KBucket")
-struct KBucketTests {
+@Suite("Fixtures — identity certificates (§2)")
+struct CertificateFixtureTests {
 
-    @Test("add up to k peers fills bucket without eviction")
-    func addUpToK() {
-        var bucket = KBucket()
-        for i in 0..<KBucket.k {
-            let evict = bucket.add(makePeer(phone: "p\(i)"))
-            #expect(evict == nil)
+    @Test("alice and bob certificates verify against the pinned server key")
+    func validCertificates() throws {
+        let vectors = try Fixtures.require()
+        for name in ["alice", "bob"] {
+            let entry = try #require(vectors.certificates[name])
+            #expect(entry.valid)
+            #expect(entry.certificate.isValid(serverKeyBase64: vectors.server.publicKeyBase64,
+                                              now: Fixtures.referenceDate),
+                    "\(name) certificate should validate")
         }
-        #expect(bucket.peers.count == KBucket.k)
     }
 
-    @Test("full bucket returns oldest as eviction candidate")
-    func fullBucketReturnsEvictionCandidate() {
-        var bucket = KBucket()
-        for i in 0..<KBucket.k {
-            bucket.add(makePeer(phone: "p\(i)"))
+    @Test("signedFields match the generated canonical bytes")
+    func signedFields() throws {
+        let vectors = try Fixtures.require()
+        for name in ["alice", "bob"] {
+            let entry = try #require(vectors.certificates[name])
+            let hex = try #require(entry.signedFieldsHex)
+            #expect(Canonical.encode(entry.certificate.signedFields).hexString == hex,
+                    "\(name) signedFields mismatch")
         }
-        let candidate = bucket.add(makePeer(phone: "new"))
-        #expect(candidate?.phone == "p0")
     }
 
-    @Test("known peer refresh moves it to tail")
-    func knownPeerRefresh() {
-        var bucket = KBucket()
-        let peer = makePeer(phone: "alice")
-        bucket.add(peer)
-        bucket.add(makePeer(phone: "bob"))
-        bucket.add(peer) // refresh alice
-        #expect(bucket.peers.last?.phone == "alice")
+    @Test("a tampered certificate is rejected")
+    func tamperedCertificate() throws {
+        let vectors = try Fixtures.require()
+        let entry = try #require(vectors.certificates["tampered"])
+        #expect(entry.valid == false)
+        #expect(entry.certificate.isValid(serverKeyBase64: vectors.server.publicKeyBase64,
+                                          now: Fixtures.referenceDate) == false)
     }
 
-    @Test("confirmEvict replaces old peer with new")
-    func confirmEvict() {
-        var bucket = KBucket()
-        for i in 0..<KBucket.k {
-            bucket.add(makePeer(phone: "p\(i)"))
-        }
-        let newPeer = makePeer(phone: "newcomer")
-        let old = bucket.add(newPeer)!
-        bucket.confirmEvict(old.id, thenAdd: newPeer)
-        #expect(bucket.peers.contains { $0.phone == "newcomer" })
-        #expect(!bucket.peers.contains { $0.phone == old.phone })
+    @Test("a certificate signed by another key is rejected")
+    func wrongServerKey() throws {
+        let vectors = try Fixtures.require()
+        let entry = try #require(vectors.certificates["alice"])
+        let other = Curve25519.Signing.PrivateKey().publicKey
+            .rawRepresentation.base64EncodedString()
+        #expect(entry.certificate.isValid(serverKeyBase64: other,
+                                          now: Fixtures.referenceDate) == false)
     }
 
-    private func makePeer(phone: String) -> KadPeer {
-        KadPeer(id: NodeID.from(phone: phone), ip: "127.0.0.1", port: 4001, phone: phone)
+    @Test("validity window is enforced at both ends")
+    func validityWindow() throws {
+        let vectors = try Fixtures.require()
+        let cert = try #require(vectors.certificates["alice"]).certificate
+        let key = vectors.server.publicKeyBase64
+
+        // issuedAt - 300 is the earliest accepted instant.
+        let justBefore = Date(timeIntervalSince1970: TimeInterval(cert.issuedAt - 301))
+        let atSkewEdge = Date(timeIntervalSince1970: TimeInterval(cert.issuedAt - 300))
+        let afterExpiry = Date(timeIntervalSince1970: TimeInterval(cert.expiresAt))
+
+        #expect(cert.isValid(serverKeyBase64: key, now: justBefore) == false)
+        #expect(cert.isValid(serverKeyBase64: key, now: atSkewEdge))
+        #expect(cert.isValid(serverKeyBase64: key, now: afterExpiry) == false)
+    }
+
+    @Test("decode/encode round-trips the transport JSON")
+    func jsonRoundTrip() throws {
+        let vectors = try Fixtures.require()
+        let entry = try #require(vectors.certificates["alice"])
+        let decoded = try #require(IdentityCertificate.decode(entry.json))
+        #expect(decoded == entry.certificate)
+        // Re-encoding is lossless. (Byte equality with Python's JSON is not
+        // required: JSONEncoder escapes "/" as "\\/", and signatures cover the
+        // canonical field list, never the JSON text.)
+        #expect(IdentityCertificate.decode(decoded.encodedJSON()) == entry.certificate)
+    }
+
+    @Test("expiresSoon flags the last 7 days")
+    func expiresSoon() throws {
+        let vectors = try Fixtures.require()
+        let cert = try #require(vectors.certificates["alice"]).certificate
+        let sixDaysLeft = Date(timeIntervalSince1970: TimeInterval(cert.expiresAt - 6 * 86_400))
+        let eightDaysLeft = Date(timeIntervalSince1970: TimeInterval(cert.expiresAt - 8 * 86_400))
+        #expect(cert.expiresSoon(now: sixDaysLeft))
+        #expect(cert.expiresSoon(now: eightDaysLeft) == false)
     }
 }
 
-// MARK: - RoutingTable Tests
-// Passes
+// MARK: - §3 Wire message
 
-@Suite("RoutingTable")
-struct RoutingTableTests {
+@Suite("Fixtures — wire message (§3)")
+struct WireFixtureTests {
 
-    @Test("does not add self")
-    func doesNotAddSelf() {
-        let local = NodeID.from(phone: "me")
-        let rt = RoutingTable(localID: local)
-        rt.add(KadPeer(id: local, ip: "127.0.0.1", port: 4001, phone: "me"))
-        #expect(rt.allPeers.isEmpty)
+    @Test("signedFields list matches the generator")
+    func signedFieldsList() throws {
+        let vectors = try Fixtures.require()
+        #expect(vectors.wire.message.signedFields == vectors.wire.signedFields)
     }
 
-    @Test("closest peers sorted by XOR distance")
-    func closestPeersSorted() {
-        let local = NodeID.from(phone: "local")
-        let rt = RoutingTable(localID: local)
-        for phone in ["alice", "bob", "carol", "dave", "eve"] {
-            rt.add(KadPeer(id: NodeID.from(phone: phone), ip: "127.0.0.1", port: 4001, phone: phone))
-        }
-        let target  = NodeID.from(phone: "alice")
-        let closest = rt.closestPeers(to: target, k: 3)
-        #expect(closest.first?.phone == "alice")
-        for i in 0..<(closest.count - 1) {
-            let d1 = closest[i].id.distance(to: target)
-            let d2 = closest[i+1].id.distance(to: target)
-            #expect(d1.lexicographicallyPrecedes(d2) || d1 == d2)
-        }
+    @Test("canonical bytes of the signed fields match")
+    func signedFieldsBytes() throws {
+        let vectors = try Fixtures.require()
+        #expect(Canonical.encode(vectors.wire.message.signedFields).hexString
+                == vectors.wire.signedFieldsHex)
     }
 
-    @Test("returns at most k peers")
-    func returnsAtMostK() {
-        let local = NodeID.from(phone: "local")
-        let rt = RoutingTable(localID: local)
-        for i in 0..<50 {
-            rt.add(KadPeer(id: NodeID.random(), ip: "127.0.0.1", port: 4001, phone: "p\(i)"))
-        }
-        let closest = rt.closestPeers(to: NodeID.random(), k: 5)
-        #expect(closest.count <= 5)
-    }
-}
-
-// MARK: - CryptoManager Tests (using isolated TestCryptoManager)
-// Passes
-
-@Suite("CryptoManager")
-struct CryptoManagerTests {
-
-    @Test("encrypt then decrypt round-trips")
-    func encryptDecryptRoundTrip() {
-        let alice = TestCryptoManager()
-        let bob   = TestCryptoManager()
-
-        alice.storePeerKeys(phone: "bob",   agreementBase64: bob.agreementPublicKeyBase64,   signingBase64: bob.signingPublicKeyBase64)
-        bob.storePeerKeys(phone: "alice", agreementBase64: alice.agreementPublicKeyBase64, signingBase64: alice.signingPublicKeyBase64)
-
-        let original   = "Hello, World! 🔐"
-        let ciphertext = alice.encrypt(message: original, forPhone: "bob")
-        #expect(ciphertext != nil)
-        #expect(ciphertext != original)
-
-        let decrypted  = bob.decrypt(ciphertext: ciphertext!, fromPhone: "alice")
-        #expect(decrypted == original)
+    @Test("the Python-generated signature verifies in Swift")
+    func signatureVerifies() throws {
+        let vectors = try Fixtures.require()
+        #expect(CryptoManager.verify(vectors.wire.message.signedFields,
+                                     signature: vectors.wire.signature,
+                                     signingKeyBase64: vectors.alice.signingKeyBase64))
+        #expect(vectors.wire.message.hasValidSignature(
+            signingKeyBase64: vectors.alice.signingKeyBase64))
     }
 
-    @Test("sign and verify round-trips")
-    func signVerify() {
-        let alice = TestCryptoManager()
-        let bob   = TestCryptoManager()
-        bob.storePeerKeys(phone: "alice", agreementBase64: alice.agreementPublicKeyBase64, signingBase64: alice.signingPublicKeyBase64)
+    @Test("mutating any signed field breaks the signature")
+    func mutationBreaksSignature() throws {
+        let vectors = try Fixtures.require()
+        var message = vectors.wire.message
+        message.value = "{\"wait\":0,\"max\":1}"
+        #expect(message.hasValidSignature(
+            signingKeyBase64: vectors.alice.signingKeyBase64) == false)
 
-        let payload = "tx123|alice|hello"
-        let sig     = alice.sign(payload: payload)!
-        #expect(bob.verify(payload: payload, signature: sig, fromPhone: "alice"))
+        var retyped = vectors.wire.message
+        retyped.type = WireType.relayDeposit.rawValue
+        #expect(retyped.hasValidSignature(
+            signingKeyBase64: vectors.alice.signingKeyBase64) == false)
     }
 
-    @Test("tampered payload fails verification")
-    func tamperedPayloadFails() {
-        let alice = TestCryptoManager()
-        let bob   = TestCryptoManager()
-        bob.storePeerKeys(phone: "alice", agreementBase64: alice.agreementPublicKeyBase64, signingBase64: alice.signingPublicKeyBase64)
-
-        let sig = alice.sign(payload: "tx123|alice|hello")!
-        #expect(!bob.verify(payload: "tx123|alice|HACKED", signature: sig, fromPhone: "alice"))
-    }
-
-    @Test("encrypt returns nil without peer key")
-    func encryptWithoutKey() {
-        let crypto = TestCryptoManager()
-        #expect(crypto.encrypt(message: "hello", forPhone: "unknown") == nil)
+    @Test("the fixture message is a relayFetch of the expected shape")
+    func shape() throws {
+        let vectors = try Fixtures.require()
+        let message = vectors.wire.message
+        #expect(message.v == 2)
+        #expect(message.wireType == .relayFetch)
+        #expect(message.senderPhone == vectors.alice.phone)
+        #expect(message.senderPort == 0)
+        #expect(message.timestamp == 1_790_000_500)
+        #expect(message.recipientPhone == nil)
+        #expect(message.envelope == nil)
     }
 }
 
-// Isolated crypto context for testing — avoids Keychain/shared state
-final class TestCryptoManager {
-    let agreementKey = Curve25519.KeyAgreement.PrivateKey()
-    let signingKey   = Curve25519.Signing.PrivateKey()
+// MARK: - §4 Envelope
 
-    var agreementPublicKeyBase64: String { agreementKey.publicKey.rawRepresentation.base64EncodedString() }
-    var signingPublicKeyBase64:   String { signingKey.publicKey.rawRepresentation.base64EncodedString() }
+@Suite("Fixtures — envelope (§4)")
+struct EnvelopeFixtureTests {
 
-    private var peerAgreementKeys: [String: Curve25519.KeyAgreement.PublicKey] = [:]
-    private var peerSigningKeys:   [String: Curve25519.Signing.PublicKey]      = [:]
-
-    func storePeerKeys(phone: String, agreementBase64: String, signingBase64: String) {
-        if let d = Data(base64Encoded: agreementBase64), let k = try? Curve25519.KeyAgreement.PublicKey(rawRepresentation: d) { peerAgreementKeys[phone] = k }
-        if let d = Data(base64Encoded: signingBase64),   let k = try? Curve25519.Signing.PublicKey(rawRepresentation: d)      { peerSigningKeys[phone] = k }
+    @Test("header field list and canonical bytes match")
+    func header() throws {
+        let vectors = try Fixtures.require()
+        let envelope = vectors.envelope.envelope
+        #expect(envelope.header == vectors.envelope.header)
+        #expect(Canonical.encode(envelope.header).hexString
+                == vectors.envelope.headerCanonicalHex)
     }
 
-    func encrypt(message: String, forPhone phone: String) -> String? {
-        guard let pk = peerAgreementKeys[phone], let sh = try? agreementKey.sharedSecretFromKeyAgreement(with: pk),
-              let d = message.data(using: .utf8), let s = try? AES.GCM.seal(d, using: derivedKey(sh))
-        else { return nil }
-        return s.combined?.base64EncodedString()
+    @Test("signedFields canonical bytes match")
+    func signedFields() throws {
+        let vectors = try Fixtures.require()
+        #expect(Canonical.encode(vectors.envelope.envelope.signedFields).hexString
+                == vectors.envelope.signedFieldsHex)
     }
 
-    func decrypt(ciphertext: String, fromPhone phone: String) -> String? {
-        guard let pk = peerAgreementKeys[phone], let sh = try? agreementKey.sharedSecretFromKeyAgreement(with: pk),
-              let d = Data(base64Encoded: ciphertext), let box = try? AES.GCM.SealedBox(combined: d),
-              let plain = try? AES.GCM.open(box, using: derivedKey(sh))
-        else { return nil }
-        return String(data: plain, encoding: .utf8)
+    @Test("digestHex matches (lowercase SHA-256 over header + ciphertext + signature)")
+    func digest() throws {
+        let vectors = try Fixtures.require()
+        let digest = vectors.envelope.envelope.digestHex
+        #expect(digest == vectors.envelope.digestHex)
+        #expect(digest.count == 64)
+        #expect(digest == digest.lowercased())
     }
 
-    func sign(payload: String) -> String? {
-        guard let d = payload.data(using: .utf8), let s = try? signingKey.signature(for: d) else { return nil }
-        return s.base64EncodedString()
+    @Test("the envelope signature verifies with alice's signing key")
+    func signature() throws {
+        let vectors = try Fixtures.require()
+        let envelope = vectors.envelope.envelope
+        #expect(CryptoManager.verify(envelope.signedFields,
+                                     signature: envelope.signature,
+                                     signingKeyBase64: vectors.alice.signingKeyBase64))
     }
 
-    func verify(payload: String, signature: String, fromPhone phone: String) -> Bool {
-        guard let pk = peerSigningKeys[phone], let pd = payload.data(using: .utf8), let sd = Data(base64Encoded: signature) else { return false }
-        return pk.isValidSignature(sd, for: pd)
+    @Test("bob opens the Python-sealed envelope and gets the exact plaintext")
+    func openWithBobsKey() throws {
+        let vectors = try Fixtures.require()
+        let bobCertJSON = try #require(vectors.certificates["bob"]).json
+        let aliceCert = try #require(vectors.certificates["alice"]).certificate
+
+        let bob = try IdentityFactory.fixtureCrypto(party: vectors.bob,
+                                                    certificateJSON: bobCertJSON)
+        let plaintext = try bob.open(vectors.envelope.envelope, senderCert: aliceCert)
+
+        #expect(plaintext.hexString == vectors.envelope.plaintextHex)
+        #expect(String(decoding: plaintext, as: UTF8.self) == vectors.envelope.plaintextJSON)
+
+        let payload = try #require(ChatPayload.decode(plaintext))
+        #expect(payload.kind == .text)
+        #expect(payload.text == "Olá Bob 👋 — é seguro?")
+        #expect(payload.sentAt == 1_790_000_600)
+        #expect(payload.isWellFormed)
     }
 
-    private func derivedKey(_ secret: SharedSecret) -> SymmetricKey {
-        secret.hkdfDerivedSymmetricKey(using: SHA256.self, salt: Data("HopChat-E2E-v1".utf8), sharedInfo: Data(), outputByteCount: 32)
-    }
-}
+    @Test("a tampered header makes the AEAD open fail")
+    func tamperedHeaderFails() throws {
+        let vectors = try Fixtures.require()
+        let bobCertJSON = try #require(vectors.certificates["bob"]).json
+        let aliceCert = try #require(vectors.certificates["alice"]).certificate
+        let bob = try IdentityFactory.fixtureCrypto(party: vectors.bob,
+                                                    certificateJSON: bobCertJSON)
 
-// MARK: - Integration Tests
+        let original = vectors.envelope.envelope
+        let tampered = Envelope(id: original.id,
+                                senderPhone: original.senderPhone,
+                                recipientPhone: original.recipientPhone,
+                                timestamp: original.timestamp + 1,   // authenticated
+                                senderAgreementKey: original.senderAgreementKey,
+                                recipientAgreementKey: original.recipientAgreementKey,
+                                ephemeralKey: original.ephemeralKey,
+                                ciphertext: original.ciphertext,
+                                senderCertificate: original.senderCertificate,
+                                signature: original.signature)
 
-// Allocates unique loopback ports so parallel test runs don't clash.
-private final class PortAllocator: @unchecked Sendable {
-    static let shared = PortAllocator()
-    private var next: UInt16 = 15200
-    private let lock = NSLock()
-    func allocate() -> UInt16 {
-        lock.withLock { let p = next; next += 1; return p }
-    }
-}
-
-// Thread-safe message collector. Uses polling so it stays async-friendly.
-private final class Mailbox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var messages: [(phone: String, body: String, chatID: String)] = []
-    private var totalPushed = 0
-
-    // Total ever received (not affected by next() calls).
-    var count: Int { lock.withLock { totalPushed } }
-
-    func push(phone: String, body: String, chatID: String) {
-        lock.withLock { messages.append((phone, body, chatID)); totalPushed += 1 }
-    }
-
-    // Returns the next unconsumed message, polling every 50 ms up to timeout.
-    // Works correctly whether the message arrived before or after this is called.
-    func next(timeout: Double = 5) async -> (phone: String, body: String, chatID: String)? {
-        let start = Date()
-        while Date().timeIntervalSince(start) < timeout {
-            if let msg = lock.withLock({ messages.isEmpty ? nil : messages.removeFirst() }) {
-                return msg
-            }
-            try? await Task.sleep(nanoseconds: 50_000_000)
+        // The signature covers the header, so this is caught before decryption.
+        #expect(throws: CryptoError.badSignature) {
+            _ = try bob.open(tampered, senderCert: aliceCert)
         }
-        return nil
+    }
+
+    @Test("ciphertext is the combined nonce|ct|tag form")
+    func ciphertextShape() throws {
+        let vectors = try Fixtures.require()
+        let combined = try #require(Data(base64Encoded: vectors.envelope.envelope.ciphertext))
+        let nonce = try #require(Data(hexString: vectors.envelope.nonceHex))
+        #expect(combined.prefix(12) == nonce)
+        let plaintextBytes = try #require(Data(hexString: vectors.envelope.plaintextHex)).count
+        #expect(combined.count == 12 + plaintextBytes + 16)
+    }
+
+    @Test("envelope Codable round-trips unchanged")
+    func codableRoundTrip() throws {
+        let vectors = try Fixtures.require()
+        let envelope = vectors.envelope.envelope
+        let data = try JSONEncoder().encode(envelope)
+        let decoded = try JSONDecoder().decode(Envelope.self, from: data)
+        #expect(decoded == envelope)
+        #expect(decoded.digestHex == envelope.digestHex)
     }
 }
 
-// Passes
-@Suite("Integration – send / receive flow")
-struct IntegrationTests {
+// MARK: - §7 Safety numbers
 
-    // Spin up a node on a unique loopback port.
-    private func makeNode(phone: String) throws -> (KademliaProtocol, UInt16) {
-        let port = PortAllocator.shared.allocate()
-        let node = KademliaProtocol(phone: phone, ip: "127.0.0.1", port: port)
-        try node.start()
-        return (node, port)
+@Suite("Fixtures — safety numbers (§7)")
+struct SafetyNumberFixtureTests {
+
+    @Test("each side's 30-digit fingerprint matches")
+    func halves() throws {
+        let vectors = try Fixtures.require()
+        let aliceHalf = TrustStore.fingerprint(phone: vectors.alice.phone,
+                                               key: vectors.alice.signingKeyBase64)
+        let bobHalf = TrustStore.fingerprint(phone: vectors.bob.phone,
+                                             key: vectors.bob.signingKeyBase64)
+        #expect(aliceHalf == vectors.safetyNumber.aliceHalf)
+        #expect(bobHalf == vectors.safetyNumber.bobHalf)
+        #expect(aliceHalf.count == 30)
+        #expect(bobHalf.count == 30)
     }
 
-    // MARK: 1. Core path: direct send → ACK → onChatMessage
-
-    @Test("direct send delivers message and returns ACK chatID")
-    func directSendDeliverAndAck() async throws {
-        let (alice, _)     = try makeNode(phone: "alice-\(UUID())")
-        let (bob, bobPort) = try makeNode(phone: "bob-\(UUID())")
-        defer { alice.transport.stop(); bob.transport.stop() }
-
-        alice.addPeer(KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
-                              port: bobPort, phone: bob.localPeer.phone))
-
-        let box = Mailbox()
-        bob.onChatMessage = { phone, body, chatID, _ in
-            box.push(phone: phone, body: body, chatID: chatID)
-        }
-
-        let chatID = await alice.sendChat(toPhone: bob.localPeer.phone, body: "Hello Bob!")
-        #expect(chatID != nil, "sendChat must return a chatID when the peer ACKs")
-
-        let msg = await box.next()
-        #expect(msg != nil,                          "bob should deliver the message within timeout")
-        #expect(msg?.phone == alice.localPeer.phone, "sender phone must match")
-        #expect(msg?.body  == "Hello Bob!",          "message body must arrive intact")
+    @Test("the combined 60-digit safety number matches")
+    func combined() throws {
+        let vectors = try Fixtures.require()
+        let number = TrustStore.safetyNumber(myPhone: vectors.alice.phone,
+                                             myKey: vectors.alice.signingKeyBase64,
+                                             theirPhone: vectors.bob.phone,
+                                             theirKey: vectors.bob.signingKeyBase64)
+        #expect(number == vectors.safetyNumber.expected)
+        #expect(number.count == 60)
+        #expect(number.allSatisfy { $0.isNumber })
     }
 
-    // MARK: 2. Ping / pong round-trip
-
-    @Test("ping returns pong")
-    func pingReturnsPong() async throws {
-        let (alice, _)     = try makeNode(phone: "ping-alice-\(UUID())")
-        let (bob, bobPort) = try makeNode(phone: "ping-bob-\(UUID())")
-        defer { alice.transport.stop(); bob.transport.stop() }
-
-        let bobPeer = KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
-                              port: bobPort, phone: bob.localPeer.phone)
-        let alive = await alice.ping(bobPeer)
-        #expect(alive == true)
+    @Test("argument order does not change the safety number")
+    func orderIndependent() throws {
+        let vectors = try Fixtures.require()
+        let forward = TrustStore.safetyNumber(myPhone: vectors.alice.phone,
+                                              myKey: vectors.alice.signingKeyBase64,
+                                              theirPhone: vectors.bob.phone,
+                                              theirKey: vectors.bob.signingKeyBase64)
+        let reversed = TrustStore.safetyNumber(myPhone: vectors.bob.phone,
+                                               myKey: vectors.bob.signingKeyBase64,
+                                               theirPhone: vectors.alice.phone,
+                                               theirKey: vectors.alice.signingKeyBase64)
+        #expect(forward == reversed)
     }
 
-    // MARK: 3. sendChat returns nil when peer is unreachable
-
-    @Test("sendChat returns nil for unknown peer")
-    func sendToUnknownPeer() async throws {
-        let (alice, _) = try makeNode(phone: "lonely-\(UUID())")
-        defer { alice.transport.stop() }
-
-        let chatID = await alice.sendChat(toPhone: "ghost-\(UUID())", body: "Anyone there?")
-        #expect(chatID == nil)
+    @Test("a different key yields a different safety number")
+    func keySensitive() throws {
+        let vectors = try Fixtures.require()
+        let impostor = Curve25519.Signing.PrivateKey().publicKey
+            .rawRepresentation.base64EncodedString()
+        let real = TrustStore.safetyNumber(myPhone: vectors.alice.phone,
+                                           myKey: vectors.alice.signingKeyBase64,
+                                           theirPhone: vectors.bob.phone,
+                                           theirKey: vectors.bob.signingKeyBase64)
+        let fake = TrustStore.safetyNumber(myPhone: vectors.alice.phone,
+                                           myKey: vectors.alice.signingKeyBase64,
+                                           theirPhone: vectors.bob.phone,
+                                           theirKey: impostor)
+        #expect(real != fake)
     }
 
-    // MARK: 4. Duplicate chatID suppressed on receiver
-
-    @Test("duplicate chatID is not delivered twice")
-    func duplicateSuppressed() async throws {
-        let (alice, _)     = try makeNode(phone: "dup-alice-\(UUID())")
-        let (bob, bobPort) = try makeNode(phone: "dup-bob-\(UUID())")
-        defer { alice.transport.stop(); bob.transport.stop() }
-
-        let bobPeer = KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
-                              port: bobPort, phone: bob.localPeer.phone)
-        alice.addPeer(bobPeer)
-
-        let box = Mailbox()
-        bob.onChatMessage = { phone, body, chatID, _ in
-            box.push(phone: phone, body: body, chatID: chatID)
-        }
-
-        let fixedChatID = UUID().uuidString
-        let first = KademliaTransport.makeChatMessage(from: alice.localPeer, body: "Once",
-                                                       chatID: fixedChatID,
-                                                       toPhone: bob.localPeer.phone)
-        _ = await alice.transport.sendAndWait(first, to: bobPeer)
-        _ = await box.next() // wait for legitimate delivery
-
-        // Replay the identical chatID — Bob's seenChatIDs must block it.
-        let replay = KademliaTransport.makeChatMessage(from: alice.localPeer, body: "Once",
-                                                        chatID: fixedChatID,
-                                                        toPhone: bob.localPeer.phone)
-        _ = await alice.transport.sendAndWait(replay, to: bobPeer)
-        try await Task.sleep(nanoseconds: 300_000_000) // give main queue time to fire
-
-        #expect(box.count == 1, "Duplicate chatID must not be delivered twice")
-    }
-
-    // MARK: 5. CONNECT_REQUEST → CONNECT_ACCEPT handshake
-
-    @Test("connect request is accepted by a reachable peer")
-    func connectRequestAccepted() async throws {
-        let (alice, _)     = try makeNode(phone: "cr-alice-\(UUID())")
-        let (bob, bobPort) = try makeNode(phone: "cr-bob-\(UUID())")
-        defer { alice.transport.stop(); bob.transport.stop() }
-
-        alice.addPeer(KadPeer(id: bob.localPeer.id, ip: "127.0.0.1",
-                              port: bobPort, phone: bob.localPeer.phone))
-
-        let accepted = await alice.requestConnect(toPhone: bob.localPeer.phone)
-        #expect(accepted == true)
-    }
-
-    // MARK: 6. DHT store → local retrieve
-
-    @Test("stored value retrieved locally before TTL expires")
-    func storeAndRetrieveLocally() async throws {
-        let (alice, _) = try makeNode(phone: "dht-alice-\(UUID())")
-        defer { alice.transport.stop() }
-
-        alice.storage["test-key"] = DHTEntry(value: "hello-dht", storedAt: Date())
-        let value = await alice.findValue(key: "test-key")
-        #expect(value == "hello-dht")
-    }
-
-    // MARK: 7. Expired DHT entry not returned
-
-    @Test("expired DHT entry is not returned by findValue")
-    func expiredEntryIgnored() async throws {
-        let (alice, _) = try makeNode(phone: "ttl-alice-\(UUID())")
-        defer { alice.transport.stop() }
-
-        let past = Date(timeIntervalSinceNow: -(AppConfig.dhtTTL + 1))
-        alice.storage["stale-key"] = DHTEntry(value: "old-value", storedAt: past)
-
-        // No peers to ask, so findValue falls through and returns nil for a stale local entry.
-        let value = await alice.findValue(key: "stale-key")
-        #expect(value == nil)
-    }
-
-    // MARK: 8. Bidirectional exchange
-
-    @Test("bidirectional send: both nodes deliver to each other")
-    func bidirectionalSend() async throws {
-        let (alice, alicePort) = try makeNode(phone: "bi-alice-\(UUID())")
-        let (bob,   bobPort)   = try makeNode(phone: "bi-bob-\(UUID())")
-        defer { alice.transport.stop(); bob.transport.stop() }
-
-        alice.addPeer(KadPeer(id: bob.localPeer.id,   ip: "127.0.0.1", port: bobPort,   phone: bob.localPeer.phone))
-        bob.addPeer(KadPeer(id:   alice.localPeer.id, ip: "127.0.0.1", port: alicePort, phone: alice.localPeer.phone))
-
-        let aliceBox = Mailbox()
-        let bobBox   = Mailbox()
-        alice.onChatMessage = { p, b, id, _ in aliceBox.push(phone: p, body: b, chatID: id) }
-        bob.onChatMessage   = { p, b, id, _ in bobBox.push(phone: p, body: b, chatID: id) }
-
-        async let a2b = alice.sendChat(toPhone: bob.localPeer.phone,   body: "Hi Bob!")
-        async let b2a = bob.sendChat(toPhone:   alice.localPeer.phone, body: "Hi Alice!")
-        let (aliceID, bobID) = await (a2b, b2a)
-
-        #expect(aliceID != nil)
-        #expect(bobID   != nil)
-
-        let toAlice = await aliceBox.next()
-        let toBob   = await bobBox.next()
-        #expect(toAlice?.body == "Hi Alice!")
-        #expect(toBob?.body   == "Hi Bob!")
+    @Test("display grouping is 12 groups of 5")
+    func formatting() throws {
+        let vectors = try Fixtures.require()
+        let formatted = TrustStore.formattedSafetyNumber(vectors.safetyNumber.expected)
+        let groups = formatted.split(separator: " ")
+        #expect(groups.count == 12)
+        #expect(groups.allSatisfy { $0.count == 5 })
     }
 }
 
-// MARK: - DHTEntry Tests
-// Passes
+// MARK: - §2 Phone normalization
 
-@Suite("DHTEntry")
-struct DHTEntryTests {
+@Suite("Fixtures — phone normalization (§2)")
+struct PhoneFixtureTests {
 
-    @Test("fresh entry is not expired")
-    func freshNotExpired() {
-        let entry = DHTEntry(value: "1.2.3.4:4001", storedAt: Date())
-        #expect(!entry.isExpired)
+    @Test("all 12 normalization vectors match")
+    func normalizationVectors() throws {
+        let vectors = try Fixtures.require()
+        #expect(vectors.phones.count == 12)
+        for testCase in vectors.phones {
+            let normalized = PhoneNumber.normalize(testCase.raw, defaultRegion: testCase.region)
+            #expect(normalized == testCase.expected,
+                    "normalize(\(testCase.raw), \(testCase.region ?? "nil")) → \(normalized ?? "nil")")
+        }
     }
 
-    @Test("old entry is expired")
-    func oldEntryExpired() {
-        let past  = Date(timeIntervalSinceNow: -(AppConfig.dhtTTL + 1))
-        let entry = DHTEntry(value: "1.2.3.4:4001", storedAt: past)
-        #expect(entry.isExpired)
+    @Test("E.164 validation")
+    func e164() {
+        #expect(PhoneNumber.isValidE164("+351912345678"))
+        #expect(PhoneNumber.isValidE164("+14155552671"))
+        #expect(PhoneNumber.isValidE164("+0123456789") == false)   // leading 0
+        #expect(PhoneNumber.isValidE164("351912345678") == false)  // no +
+        #expect(PhoneNumber.isValidE164("+12") == false)           // too short
+        #expect(PhoneNumber.isValidE164("+1234567890123456") == false) // too long
+        #expect(PhoneNumber.isValidE164("+3519123456a8") == false)
+        #expect(PhoneNumber.isValidE164("") == false)
+    }
+
+    @Test("input filter keeps digits, one leading + and separators",
+          arguments: [
+            ("+351 912 345 678", "+351 912 345 678"),
+            ("*351912345678", "351912345678"),        // hardware keyboard on a phone pad
+            ("+351+912", "+351912"),                  // only one +, and only at the start
+            ("(415) 555-2671", "(415) 555-2671"),
+            ("Tel: +351 912", " +351 912"),           // pasted text keeps the number
+            ("12#3*4", "1234"),
+          ])
+    func inputFilter(input: String, expected: String) {
+        #expect(PhoneNumber.sanitizeInput(input) == expected)
+    }
+
+    @Test("filtered input still normalizes")
+    func filteredInputNormalizes() {
+        let typed = PhoneNumber.sanitizeInput("+351 912 345 678")
+        #expect(PhoneNumber.normalize(typed, defaultRegion: "PT") == "+351912345678")
+    }
+
+    @Test("masking keeps only the first 6 and last 2 characters")
+    func masking() {
+        let masked = PhoneNumber.masked("+351912345678")
+        #expect(masked == "+35191*****78")
+        #expect(masked.contains("2345") == false)
+        // Short inputs are returned unchanged rather than crashing.
+        #expect(PhoneNumber.masked("+1234") == "+1234")
     }
 }

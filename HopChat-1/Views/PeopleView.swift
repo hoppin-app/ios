@@ -2,362 +2,294 @@
 //  PeopleView.swift
 //  HopChat-1
 //
-//  Created by Rodrigo Loução on 08/04/2026.
+//  Contact list: search, presence, per-contact verification state, add by number
+//  or import from the system address book, blocked contacts in their own section.
 //
-//  Contacts page — shows every contact the user has added.
+//  Design Contract §7 — contacts never expose IP/port to the user.
 //
 
 import SwiftUI
 
+// MARK: - Verification state
+
+/// How much we trust the key we hold for a contact.
+nonisolated enum ContactTrustState: Equatable {
+    /// The contact's signing key changed and the user has not reviewed it.
+    case keyChanged
+    /// Safety number compared and marked verified.
+    case verified
+    /// Pinned on first sight, never compared.
+    case unverified
+
+    var label: String {
+        switch self {
+        case .keyChanged: return String(localized: "Security code changed")
+        case .verified:   return String(localized: "Verified")
+        case .unverified: return String(localized: "Not verified")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .keyChanged: return "exclamationmark.triangle.fill"
+        case .verified:   return "checkmark.shield.fill"
+        case .unverified: return "shield"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .keyChanged: return .orange
+        case .verified:   return .green
+        case .unverified: return .secondary
+        }
+    }
+}
+
+@MainActor
+func contactTrustState(for phone: String, trust: TrustStore) -> ContactTrustState {
+    if trust.hasPendingKeyChange(phone) { return .keyChanged }
+    return trust.isVerified(phone) ? .verified : .unverified
+}
+
+/// Small badge that always states its meaning in text as well as colour/shape.
+struct ContactVerificationBadge: View {
+    let state: ContactTrustState
+    var showsLabel: Bool = false
+
+    var body: some View {
+        Group {
+            if showsLabel {
+                Label(state.label, systemImage: state.symbol)
+            } else {
+                Image(systemName: state.symbol)
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(state.tint)
+        .accessibilityLabel(Text(state.label))
+    }
+}
+
+// MARK: - People
+
 struct PeopleView: View {
+
     @StateObject private var store = ConversationStore.shared
     @StateObject private var kad   = KademliaService.shared
-    @State private var searchText  = ""
-    @State private var showNewChat = false
+    @StateObject private var trust = TrustStore.shared
+
+    @State private var searchText = ""
     @State private var selectedContact: Contact?
+    @State private var showAddByNumber = false
+    @State private var showImportPicker = false
+    @State private var importedContact: ImportedContact?
+    @State private var prefill: ContactPrefill?
+    @State private var showBlocked = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-
-                // MARK: Header
-                HStack {
-                    Image(systemName: "person.2")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.blue)
-                    Text("People")
-                        .font(.system(size: 28, weight: .bold))
-                    Spacer()
-                    Button { showNewChat = true } label: {
-                        Image(systemName: "person.badge.plus")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.blue)
-                            .padding(10)
-                            .background(Color(.systemGray6), in: Circle())
+            List {
+                if !pendingKeyChangeContacts.isEmpty {
+                    Section {
+                        ForEach(pendingKeyChangeContacts) { contact in
+                            contactRow(contact)
+                        }
+                    } header: {
+                        Text("Needs your attention")
+                    } footer: {
+                        Text("The security code for these contacts changed. Review it before sending anything else.")
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
 
-                // MARK: Search
-                HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search contacts", text: $searchText).font(.system(size: 16))
-                    if !searchText.isEmpty {
-                        Button { searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
+                Section {
+                    if activeContacts.isEmpty {
+                        emptyRow
+                    } else {
+                        ForEach(activeContacts) { contact in
+                            contactRow(contact)
                         }
                     }
+                } header: {
+                    if !activeContacts.isEmpty { Text("Contacts") }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
 
-                // MARK: Body
-                if store.contacts.isEmpty {
-                    emptyState
-                } else if filteredContacts.isEmpty {
-                    noResultsState
-                } else {
-                    contactList
+                if !blockedContacts.isEmpty {
+                    Section {
+                        DisclosureGroup(isExpanded: $showBlocked) {
+                            ForEach(blockedContacts) { contact in
+                                contactRow(contact)
+                            }
+                        } label: {
+                            Text("Blocked (\(blockedContacts.count))")
+                        }
+                    } footer: {
+                        Text("Blocked people can't reach you. Their messages are dropped.")
+                    }
                 }
             }
-            .background(Color(.systemBackground))
-            .sheet(isPresented: $showNewChat) { NewChatSheet() }
+            .listStyle(.insetGrouped)
+            .navigationTitle("People")
+            .searchable(text: $searchText, prompt: Text("Search contacts"))
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            prefill = nil
+                            showAddByNumber = true
+                        } label: {
+                            Label("Enter a Number", systemImage: "keyboard")
+                        }
+                        Button {
+                            showImportPicker = true
+                        } label: {
+                            Label("Import from Contacts", systemImage: "person.crop.circle.badge.plus")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel(Text("Add contact"))
+                }
+            }
             .sheet(item: $selectedContact) { contact in
                 ContactDetailSheet(contact: contact)
             }
+            .sheet(isPresented: $showAddByNumber) {
+                ContactAddView(prefill: prefill)
+            }
+            .sheet(isPresented: $showImportPicker) {
+                ContactPickerView { picked in
+                    showImportPicker = false
+                    guard let picked else { return }
+                    if picked.numbers.count == 1 {
+                        prefill = ContactPrefill(phone: picked.numbers[0], name: picked.name)
+                        showAddByNumber = true
+                    } else if picked.numbers.count > 1 {
+                        importedContact = picked
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            .sheet(item: $importedContact) { picked in
+                ContactNumberChooser(contact: picked) { number in
+                    importedContact = nil
+                    guard let number else { return }
+                    prefill = ContactPrefill(phone: number, name: picked.name)
+                    showAddByNumber = true
+                }
+            }
         }
     }
 
-    // MARK: - Empty States
+    // MARK: Rows
 
-    private var emptyState: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 90, height: 90)
-                Image(systemName: "person.2")
-                    .font(.system(size: 38))
-                    .foregroundStyle(.blue.opacity(0.7))
-            }
-            VStack(spacing: 6) {
-                Text("No contacts yet")
-                    .font(.system(size: 20, weight: .semibold))
-                Text("Add someone on the same WiFi\nto start chatting.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            Button {
-                showNewChat = true
-            } label: {
-                Label("Add Contact", systemImage: "person.badge.plus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 13)
-                    .background(Color.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .padding(.top, 4)
-            Spacer()
+    private func contactRow(_ contact: Contact) -> some View {
+        Button {
+            selectedContact = contact
+        } label: {
+            ContactRow(contact: contact,
+                       presence: kad.presenceMap[contact.phone] ?? .offline,
+                       trustState: contactTrustState(for: contact.phone, trust: trust),
+                       avatarURL: avatarURL(for: contact))
         }
-        .padding(.horizontal, 24)
+        .buttonStyle(.plain)
+        .accessibilityHint(Text("Opens contact details"))
     }
 
-    private var noResultsState: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 38))
-                .foregroundStyle(.secondary)
-            Text("No contacts match \"\(searchText)\"")
+    private var emptyRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(searchText.isEmpty ? "No contacts yet" : "No contacts match")
+                .font(.headline)
+            Text(searchText.isEmpty
+                 ? "Add someone by their phone number, or import them from your address book."
+                 : "Try a different name or number.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Spacer()
         }
+        .padding(.vertical, 8)
     }
 
-    // MARK: - Contact List
+    // MARK: Data
 
-    private var contactList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(filteredContacts) { contact in
-                    ContactRow(contact: contact, myPhone: kad.myPhone,
-                               presenceStatus: kad.presenceMap[contact.phone] ?? .offline)
-                        .contentShape(Rectangle())
-                        .onTapGesture { selectedContact = contact }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                store.removeContact(phone: contact.phone)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    Divider().padding(.leading, 78)
-                }
-            }
-            .padding(.bottom, 20)
-        }
+    private func avatarURL(for contact: Contact) -> URL? {
+        guard let filename = contact.avatarFilename else { return nil }
+        return store.avatarURL(filename)
     }
 
-    private var filteredContacts: [Contact] {
+    private var matching: [Contact] {
         let all = store.contacts.sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
-        guard !searchText.isEmpty else { return all }
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return all }
         return all.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.phone.contains(searchText)
+            $0.displayName.localizedCaseInsensitiveContains(query) ||
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.phone.contains(query)
         }
+    }
+
+    private var pendingKeyChangeContacts: [Contact] {
+        matching.filter { !$0.isBlocked && trust.pendingKeyChanges.contains($0.phone) }
+    }
+
+    private var activeContacts: [Contact] {
+        matching.filter { !$0.isBlocked && !trust.pendingKeyChanges.contains($0.phone) }
+    }
+
+    private var blockedContacts: [Contact] {
+        matching.filter(\.isBlocked)
     }
 }
 
-// MARK: - Contact Row
+// MARK: - Contact row
 
 struct ContactRow: View {
-    let contact:        Contact
-    let myPhone:        String
-    let presenceStatus: PresenceStatus
-
-    private var presenceLabel: String { presenceStatus.rawValue }
-
-    private var presenceColor: Color {
-        switch presenceStatus {
-        case .online:   return .green
-        case .recently: return .orange
-        case .offline:  return .secondary
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack(alignment: .bottomTrailing) {
-                ZStack {
-                    Circle()
-                        .fill(avatarColor(for: contact.name))
-                        .frame(width: 52, height: 52)
-                    Text(initials)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                PresenceDot(status: presenceStatus)
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(contact.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.primary)
-                HStack(spacing: 4) {
-                    Image(systemName: "phone.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text(contact.phone)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                Text(presenceLabel)
-                    .font(.system(size: 12))
-                    .foregroundStyle(presenceColor)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-    }
-
-    private var initials: String {
-        let parts = contact.name.split(separator: " ").prefix(2)
-        let letters = parts.compactMap { $0.first }.map(String.init).joined()
-        return letters.isEmpty ? String(contact.name.prefix(1)).uppercased() : letters
-    }
-
-    private func avatarColor(for name: String) -> Color {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal, .indigo]
-        let hash = abs(name.hashValue)
-        return colors[hash % colors.count]
-    }
-}
-
-// MARK: - Contact Detail Sheet
-
-struct ContactDetailSheet: View {
     let contact: Contact
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var kad   = KademliaService.shared
-    @StateObject private var store = ConversationStore.shared
-    @State private var confirmDelete = false
-    @State private var showEditName  = false
-    @State private var editedName    = ""
+    let presence: PresenceStatus
+    let trustState: ContactTrustState
+    var avatarURL: URL? = nil
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Hero avatar
-                VStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(avatarColor(for: contact.name))
-                            .frame(width: 88, height: 88)
-                        Text(initials)
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                    VStack(spacing: 4) {
-                        Text(contact.name)
-                            .font(.system(size: 22, weight: .bold))
-                        Text(contact.phone)
-                            .font(.system(size: 15))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.top, 24)
-                .padding(.bottom, 28)
-
-                // Action button
-                NavigationLink {
-                    TextRoomView(contact: contact, myPhone: kad.myPhone)
-                } label: {
-                    Label("Send Message", systemImage: "bubble.left.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-                .padding(.horizontal, 24)
-
-                // Info rows
-                List {
-                    Section("Connection Info") {
-                        LabeledContent("IP Address", value: contact.ip)
-                        LabeledContent("Port", value: "\(contact.port)")
-                        LabeledContent("Added", value: {
-                            let f = DateFormatter()
-                            f.dateStyle = .long
-                            return f.string(from: contact.addedAt)
-                        }())
-                    }
-
-                    Section {
-                        Button {
-                            editedName = contact.name
-                            showEditName = true
-                        } label: {
-                            Label("Edit Name", systemImage: "pencil")
-                        }
-
-                        Button(role: .destructive) {
-                            confirmDelete = true
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Delete Contact")
-                                Spacer()
-                            }
-                        }
-                    }
-                }
-                .listStyle(.insetGrouped)
+        HStack(spacing: 12) {
+            ZStack(alignment: .bottomTrailing) {
+                AvatarView(name: contact.displayName, imageURL: avatarURL, size: 44)
+                PresenceDot(status: presence)
             }
-            .navigationTitle("Contact")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(contact.displayName)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    ContactVerificationBadge(state: trustState)
                 }
+                Text(contact.phone)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .confirmationDialog(
-                "Delete \(contact.name)?",
-                isPresented: $confirmDelete,
-                titleVisibility: .visible
-            ) {
-                Button("Delete Contact", role: .destructive) {
-                    store.removeContact(phone: contact.phone)
-                    dismiss()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will remove the contact.")
-            }
-            .alert("Edit Name", isPresented: $showEditName) {
-                TextField("Display name", text: $editedName)
-                Button("Save") {
-                    let trimmed = editedName.trimmingCharacters(in: .whitespaces)
-                    guard !trimmed.isEmpty else { return }
-                    store.renameContact(phone: contact.phone, newName: trimmed)
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This name is only visible to you.")
-            }
+
+            Spacer(minLength: 8)
+
+            Text(presence.label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 4)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(accessibilityText))
     }
 
-    private var initials: String {
-        let parts = contact.name.split(separator: " ").prefix(2)
-        let letters = parts.compactMap { $0.first }.map(String.init).joined()
-        return letters.isEmpty ? String(contact.name.prefix(1)).uppercased() : letters
-    }
-
-    private func avatarColor(for name: String) -> Color {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .green, .teal, .indigo]
-        let hash = abs(name.hashValue)
-        return colors[hash % colors.count]
+    private var accessibilityText: String {
+        var parts = [contact.displayName, contact.phone, trustState.label, presence.label]
+        if contact.isBlocked { parts.append(String(localized: "Blocked")) }
+        return parts.joined(separator: ", ")
     }
 }
 

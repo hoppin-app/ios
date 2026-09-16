@@ -2,180 +2,298 @@
 //  OnboardingView.swift
 //  HopChat-1
 //
-//  First-launch tutorial explaining the P2P / DHT model.
-//  Shown once; suppressed on subsequent launches via hopchat.hasSeenOnboarding.
+//  First-launch story + the Terms/Privacy gate.
+//
+//  The v1 copy claimed "messages never leave the local network" and "no
+//  sign-ups". Neither is true in v2: there is an SMS verification step and an
+//  encrypted store-and-forward relay. This screen says so plainly — App Review
+//  and users both deserve the accurate version.
 //
 
 import SwiftUI
+import os
 
-// MARK: - Data
+// MARK: - Slides
 
-private struct Slide: Identifiable {
-    let id:          Int
-    let icon:        String
-    let color:       Color
-    let title:       String
-    let body:        String
+private struct OnboardingSlide: Identifiable {
+    let id: Int
+    let icon: String
+    let color: Color
+    let title: String
+    let body: String
 }
 
-private let slides: [Slide] = [
-    Slide(
+private let onboardingSlides: [OnboardingSlide] = [
+    OnboardingSlide(
         id: 0,
-        icon: "wifi",
+        icon: "hand.wave.fill",
         color: .blue,
-        title: "Welcome to HopChat",
-        body: "Direct messaging that runs entirely on your local network, no cloud, no servers, no accounts required."
+        title: String(localized: "Welcome to HopChat"),
+        body: String(localized: "Private messaging for the people you actually know. Set-up takes one SMS and about a minute.")
     ),
-    Slide(
+    OnboardingSlide(
         id: 1,
-        icon: "server.rack",
-        color: .purple,
-        title: "No Server in the Middle",
-        body: "Most apps route your messages through a company's servers. HopChat connects you directly to the people on your WiFi. Your messages never leave the local network."
+        icon: "checkmark.message.fill",
+        color: .indigo,
+        title: String(localized: "Verify Your Number Once"),
+        body: String(localized: "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the HopChat server only for that check.")
     ),
-    Slide(
+    OnboardingSlide(
         id: 2,
-        icon: "point.3.connected.trianglepath.dotted",
-        color: .orange,
-        title: "A Network That Finds Itself",
-        body: "HopChat uses a Distributed Hash Table (DHT), the same idea behind BitTorrent. Every device holds a slice of a shared contact directory. Lookups hop across devices until the right person is found, with no central coordinator."
-    ),
-    Slide(
-        id: 3,
         icon: "lock.shield.fill",
         color: .green,
-        title: "Private by Design",
-        body: "Every message is end-to-end encrypted with Curve25519. No sign-ups, no ads, nothing stored in the cloud. Your conversations exist only on the devices that exchanged them."
+        title: String(localized: "Encrypted End to End"),
+        body: String(localized: "Every message is encrypted and signed on your device before it leaves. Only the people in the conversation hold the keys that open it.")
+    ),
+    OnboardingSlide(
+        id: 3,
+        icon: "arrow.triangle.branch",
+        color: .orange,
+        title: String(localized: "Two Ways to Arrive"),
+        body: String(localized: "On the same Wi-Fi, messages hop straight from device to device. Otherwise a relay holds them sealed until you pick them up — the people running it cannot read them.")
+    ),
+    OnboardingSlide(
+        id: 4,
+        icon: "number.square.fill",
+        color: .purple,
+        title: String(localized: "Check Your Contacts"),
+        body: String(localized: "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, HopChat warns you before you send anything.")
+    ),
+    OnboardingSlide(
+        id: 5,
+        icon: "iphone.and.arrow.forward",
+        color: .teal,
+        title: String(localized: "Stays on Your Device"),
+        body: String(localized: "Messages, photos and contacts live on your iPhone. Nothing readable is kept off it, and deleting your account wipes all of it.")
     ),
 ]
 
-// MARK: - Main View
+// MARK: - Onboarding
 
 struct OnboardingView: View {
-    @Binding var hasSeenOnboarding: Bool
+
+    @AppStorage(AppConfig.Keys.hasSeenOnboarding) private var hasSeenOnboarding = false
+    @AppStorage(AppConfig.Keys.hasAcceptedTerms) private var hasAcceptedTerms = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var page = 0
 
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            Color(.systemBackground).ignoresSafeArea()
-
-            // Slide carousel
-            TabView(selection: $page) {
-                ForEach(slides) { slide in
-                    SlideView(slide: slide)
-                        .tag(slide.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            // Tint the page dots to match the current slide colour
-            .onAppear { UIPageControl.appearance().currentPageIndicatorTintColor = UIColor(slides[page].color) }
-            .onChange(of: page) { _, new in
-                UIPageControl.appearance().currentPageIndicatorTintColor = UIColor(slides[new].color)
-            }
-
-            // Bottom actions
-            VStack(spacing: 14) {
-                if page == slides.count - 1 {
-                    Button {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            hasSeenOnboarding = true
-                        }
-                    } label: {
-                        Text("Get Started")
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(slides[page].color)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                } else {
-                    Button {
-                        withAnimation { page += 1 }
-                    } label: {
-                        Text("Next")
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(slides[page].color)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-
-                    Button("Skip") { hasSeenOnboarding = true }
-                        .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 52)
-            .animation(.easeInOut(duration: 0.2), value: page)
-        }
-    }
-}
-
-// MARK: - Single Slide
-
-private struct SlideView: View {
-    let slide: Slide
-    @State private var appeared = false
+    /// Index of the terms page, which always comes last.
+    private var termsPage: Int { onboardingSlides.count }
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer()
-
-            // Icon bubble
-            ZStack {
-                Circle()
-                    .fill(slide.color.opacity(0.12))
-                    .frame(width: 140, height: 140)
-
-                Circle()
-                    .fill(slide.color.opacity(0.18))
-                    .frame(width: 108, height: 108)
-
-                Image(systemName: slide.icon)
-                    .font(.system(size: 48, weight: .medium))
-                    .foregroundStyle(slide.color)
+            TabView(selection: $page) {
+                ForEach(onboardingSlides) { slide in
+                    OnboardingSlideView(slide: slide, reduceMotion: reduceMotion)
+                        .tag(slide.id)
+                }
+                TermsPage(onAccept: finish)
+                    .tag(termsPage)
             }
-            .scaleEffect(appeared ? 1 : 0.6)
-            .opacity(appeared ? 1 : 0)
-            .animation(.spring(response: 0.55, dampingFraction: 0.7).delay(0.05), value: appeared)
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .interactive))
 
-            Spacer().frame(height: 40)
+            if page < termsPage {
+                VStack(spacing: 12) {
+                    Button {
+                        advance()
+                    } label: {
+                        Text("Next")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 28)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("onboarding.next")
 
-            // Text
-            VStack(spacing: 14) {
-                Text(slide.title)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.primary)
-
-                Text(slide.body)
-                    .font(.system(size: 16))
-                    .multilineTextAlignment(.center)
+                    Button {
+                        withAnimation { page = termsPage }
+                    } label: {
+                        Text("Skip")
+                            .font(.subheadline)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("onboarding.skip")
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .frame(maxWidth: 700)
             }
-            .padding(.horizontal, 32)
-            .opacity(appeared ? 1 : 0)
-            .offset(y: appeared ? 0 : 12)
-            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.15), value: appeared)
+        }
+        .background(Color(.systemBackground))
+        .frame(maxWidth: .infinity)
+    }
 
-            Spacer()
+    private func advance() {
+        let next = min(page + 1, termsPage)
+        if reduceMotion {
+            page = next
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) { page = next }
         }
-        .onAppear {
-            appeared = false
-            // Small delay so the animation plays even when swiping quickly
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                appeared = true
-            }
-        }
-        .onDisappear { appeared = false }
+    }
+
+    private func finish() {
+        hasAcceptedTerms = true
+        hasSeenOnboarding = true
+        Log.ui.info("Onboarding completed and terms accepted")
     }
 }
 
-#Preview {
-    OnboardingView(hasSeenOnboarding: .constant(false))
+// MARK: - Slide
+
+private struct OnboardingSlideView: View {
+    let slide: OnboardingSlide
+    let reduceMotion: Bool
+
+    @State private var appeared = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 28) {
+                Spacer(minLength: 24)
+
+                ZStack {
+                    Circle()
+                        .fill(slide.color.opacity(0.14))
+                        .frame(width: 148, height: 148)
+                    Image(systemName: slide.icon)
+                        .font(.system(size: 54, weight: .medium))
+                        .foregroundStyle(slide.color)
+                        .accessibilityHidden(true)
+                }
+                .scaleEffect(reduceMotion ? 1 : (appeared ? 1 : 0.7))
+                .opacity(appeared || reduceMotion ? 1 : 0)
+                .accessibilityHidden(true)
+
+                VStack(spacing: 14) {
+                    Text(slide.title)
+                        .font(.system(.title, design: .rounded).weight(.bold))
+                        .multilineTextAlignment(.center)
+
+                    Text(slide.body)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 28)
+                .accessibilityElement(children: .combine)
+
+                Spacer(minLength: 48)
+            }
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
+        }
+        .onAppear {
+            guard !reduceMotion else { appeared = true; return }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { appeared = true }
+        }
+        .onDisappear { appeared = reduceMotion }
+    }
 }
+
+// MARK: - Terms page
+
+private struct TermsPage: View {
+
+    let onAccept: () -> Void
+
+    @State private var agreed = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.largeTitle)
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+
+                    Text("Before You Start")
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+                }
+
+                Text("HopChat has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility.")
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(alignment: .leading, spacing: 14) {
+                    TermsPoint(icon: "flag.fill",
+                               text: Text("You can report a message or a contact from any chat. Reports are reviewed and accounts can be removed."))
+                    TermsPoint(icon: "hand.raised.fill",
+                               text: Text("You can block anyone. A blocked contact cannot reach you again."))
+                    TermsPoint(icon: "person.badge.shield.checkmark.fill",
+                               text: Text("Harassment, threats, and illegal or abusive content are not allowed and there is no appeal for the worst of them."))
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Link(destination: AppConfig.termsURL) {
+                        Label("Terms of Service (EULA)", systemImage: "arrow.up.right.square")
+                            .font(.body)
+                            .frame(minHeight: 44)
+                    }
+                    Link(destination: AppConfig.privacyURL) {
+                        Label("Privacy Policy", systemImage: "arrow.up.right.square")
+                            .font(.body)
+                            .frame(minHeight: 44)
+                    }
+                }
+
+                Toggle(isOn: $agreed) {
+                    Text("I have read and agree to the Terms of Service and the Privacy Policy, and I accept the zero-tolerance policy for abusive content.")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .toggleStyle(.switch)
+                .padding(.vertical, 4)
+                .accessibilityIdentifier("onboarding.termsToggle")
+
+                Button {
+                    onAccept()
+                } label: {
+                    Text("I Agree — Continue")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 28)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!agreed)
+                .accessibilityIdentifier("onboarding.agree")
+
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+private struct TermsPoint: View {
+    let icon: String
+    let text: Text
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: icon)
+                .font(.callout)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 22)
+                .accessibilityHidden(true)
+            text
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+#Preview { OnboardingView() }
+#Preview("Dark") { OnboardingView().preferredColorScheme(.dark) }

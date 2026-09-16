@@ -2,9 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Standard bundle keys -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.hopchat.relay-fetch</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>HopChat</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -14,13 +19,38 @@
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
-	<string>$(PACKAGE_TYPE)</string>
+	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER).verify</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hopchat</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-
-	<!-- Scene lifecycle -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_hopchat._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>HopChat uses the camera to scan contact verification QR codes and to take photos you send in a chat.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>HopChat uses Face ID to unlock the app when you turn on app lock.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>HopChat uses the local network to deliver your encrypted messages directly to nearby HopChat users. Messages are also delivered through our relay server over the internet.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>HopChat saves photos you receive in a chat to your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -30,17 +60,20 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-
-	<!-- Blank launch screen -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>UILaunchScreen</key>
-	<dict/>
-
-	<!-- Interface orientations -->
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>LaunchLogo</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -48,22 +81,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-
-	<!-- Background modes: voip keeps NWListener alive when app is backgrounded -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>voip</string>
-	</array>
-
-	<!-- Local network access (required iOS 14+) -->
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>HopChat uses your local network to discover and connect with nearby users without going through a central server.</string>
-
-	<!-- Bonjour service types this app publishes/browses (required iOS 14+) -->
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_hopchat._udp</string>
 	</array>
 </dict>
 </plist>

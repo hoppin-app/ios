@@ -1,311 +1,416 @@
 //
-//  KeychainHelper.swift
-//  HopChat-1
-//
-//  Created by Rodrigo Loução on 26/02/2026.
-//
-//
 //  TextRoomView.swift
 //  HopChat-1
 //
-//  Live chat room. Messages come in via NotificationCenter (from KademliaProtocol)
-//  and are persisted/read from ConversationStore.
+//  One conversation — 1:1 or group, same view. Identified only by its
+//  `conversationID` (a phone number, or "group:<uuid>").
+//
+//  Security surface, which is the point of this screen:
+//   • An unacknowledged key change for any participant pins a `KeyChangeBanner`
+//     above the composer and disables sending, because the service will throw
+//     `keyChangeUnacknowledged` anyway — better to say so than to fail silently.
+//   • `isEncryptionReady(for:)` false → an explicit "can't encrypt yet" state
+//     rather than messages that quietly never leave.
+//   • `connectionState != .online` → an offline note; messages still queue.
 //
 
 import SwiftUI
+import UIKit
+
+// MARK: - Row model
+
+private enum ChatRowItem: Identifiable {
+    case day(Date)
+    case message(StoredMessage)
+
+    var id: String {
+        switch self {
+        case .day(let date):    return "day-\(Int(date.timeIntervalSince1970))"
+        case .message(let msg): return msg.id
+        }
+    }
+}
+
+// MARK: - View
 
 struct TextRoomView: View {
-    let contact:  Contact
-    let myPhone:  String
+
+    let conversationID: String
+
+    init(conversationID: String) {
+        self.conversationID = conversationID
+    }
+
+    /// Convenience for callers that already have the contact in hand.
+    init(contact: Contact) {
+        self.conversationID = ConversationStore.conversationID(peer: contact.phone)
+    }
 
     @StateObject private var store = ConversationStore.shared
-    @StateObject private var kad   = KademliaService.shared
-    @State private var messageText    = ""
-    @State private var isSending      = false
-    @State private var lastTypingSent = Date.distantPast  // throttle typing indicators
-    @FocusState private var isFocused: Bool
+    @StateObject private var kad = KademliaService.shared
+    @ObservedObject private var trust = TrustStore.shared
 
-    private var isContactTyping: Bool {
-        kad.typingPeers.contains(contact.phone)
+    @State private var draft = ""
+    @State private var fullScreenImage: URL?
+    @State private var showGroupDetail = false
+    @State private var showContactDetail = false
+    @State private var pendingDeleteForEveryone: StoredMessage?
+
+    // MARK: Derived state
+
+    private var isGroup: Bool { ConversationStore.groupID(from: conversationID) != nil }
+    private var group: ChatGroup? {
+        ConversationStore.groupID(from: conversationID).flatMap { store.group(id: $0) }
+    }
+    private var contact: Contact? {
+        isGroup ? nil : store.contact(for: conversationID)
     }
 
     private var messages: [StoredMessage] {
-        store.thread(with: contact.phone, myPhone: myPhone)
+        store.messages[conversationID] ?? []
     }
+
+    private var participants: [String] {
+        if let group { return group.members.filter { $0 != kad.myPhone } }
+        return [conversationID]
+    }
+
+    /// Participants whose signing key changed and the user hasn't reviewed.
+    private var keyChangePhones: [String] {
+        participants.filter { trust.pendingKeyChanges.contains($0) }
+    }
+
+    private var isEncryptionReady: Bool {
+        kad.isEncryptionReady(for: conversationID)
+    }
+
+    private var isSendBlocked: Bool {
+        !keyChangePhones.isEmpty || (group?.isActive == false)
+    }
+
+    private var title: String {
+        ConversationNaming.title(for: conversationID, store: store)
+    }
+
+    private var subtitle: String? {
+        if let group {
+            return group.isActive
+                ? String(localized: "\(group.members.count) members")
+                : String(localized: "You left this group")
+        }
+        return kad.presenceMap[conversationID]?.label
+    }
+
+    private var rows: [ChatRowItem] {
+        var out: [ChatRowItem] = []
+        var lastDay: Date?
+        let calendar = Calendar.current
+        for message in messages {
+            let day = calendar.startOfDay(for: message.timestamp)
+            if lastDay != day {
+                out.append(.day(day))
+                lastDay = day
+            }
+            out.append(.message(message))
+        }
+        return out
+    }
+
+    private var isTyping: Bool { kad.typingPeers.contains(conversationID) }
+
+    // MARK: Body
 
     var body: some View {
         VStack(spacing: 0) {
-            // Error banner
-            if let error = kad.lastError {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(error)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.primary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.orange.opacity(0.12))
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-
-            Divider()
-
-            // MARK: Messages
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        if messages.isEmpty {
-                            Text("No messages yet.\nSay hello! 👋")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.top, 60)
-                        }
-                        ForEach(messages) { msg in
-                            MessageBubble(message: msg)
-                                .id(msg.id)
-                        }
-                        if isContactTyping {
-                            TypingBubble()
-                                .id("typing")
-                                .transition(.scale(scale: 0.85, anchor: .bottomLeading)
-                                    .combined(with: .opacity))
-                        }
-                    }
-                    .padding(.bottom, 8)
-                    .padding(.top, 16)
-                }
-                .onChange(of: messages.count) { _, _ in
-                    if let last = messages.last {
-                        withAnimation(.easeInOut) { proxy.scrollTo(last.id, anchor: .bottom) }
-                    }
-                }
-                .onChange(of: isContactTyping) { _, typing in
-                    if typing {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            proxy.scrollTo("typing", anchor: .bottom)
-                        }
-                    }
-                }
-                .onAppear {
-                    if let last = messages.last {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
-            }
-
-            Divider()
-
-            // MARK: Input Bar
-            HStack(spacing: 12) {
-                TextField("Message", text: $messageText, axis: .vertical)
-                    .font(.system(size: 16))
-                    .lineLimit(5)
-                    .focused($isFocused)
-
-                if !messageText.isEmpty {
-                    Button(action: sendMessage) {
-                        if isSending {
-                            ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: "arrow.up")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .padding(8)
-                    .background(.blue, in: Circle())
-                    .disabled(isSending)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 24))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            messageList
+            banners
+            ChatComposer(text: $draft,
+                         isSendBlocked: isSendBlocked,
+                         blockedReason: blockedReason,
+                         placeholder: String(localized: "Message"),
+                         onSend: send,
+                         onImage: sendImage,
+                         onTyping: notifyTyping)
         }
         .background(Color(.systemBackground))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    ZStack {
-                        Circle().fill(Color(.systemGray4)).frame(width: 34, height: 34)
-                        Text(avatarInitials).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
-                    }
-                    Text(contact.name.uppercased()).font(.system(size: 10, weight: .semibold))
-                }
+        .toolbar { ToolbarItem(placement: .principal) { header } }
+        .sheet(item: $fullScreenImage) { url in
+            FullScreenImageViewer(url: url)
+        }
+        .sheet(isPresented: $showGroupDetail) {
+            if let group {
+                NavigationStack { GroupDetailView(groupID: group.id) }
             }
         }
-        // Mark all messages as read whenever this view is visible or receives new ones
+        // TODO(people agent): `ContactDetailSheet` lives in Views/PeopleView.swift.
+        // If that type is renamed, update this call site.
+        .sheet(isPresented: $showContactDetail) {
+            if let contact {
+                ContactDetailSheet(contact: contact)
+            }
+        }
+        .alert("Delete for everyone?",
+               isPresented: Binding(get: { pendingDeleteForEveryone != nil },
+                                    set: { if !$0 { pendingDeleteForEveryone = nil } })) {
+            Button("Delete", role: .destructive) {
+                if let message = pendingDeleteForEveryone {
+                    Task { await kad.deleteForEveryone(messageID: message.id,
+                                                       conversationID: conversationID) }
+                }
+                pendingDeleteForEveryone = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDeleteForEveryone = nil }
+        } message: {
+            Text("Everyone in this chat will see that the message was deleted.")
+        }
         .onAppear {
-            store.markThreadRead(with: contact.phone, myPhone: myPhone)
+            NotificationService.shared.activeConversationID = conversationID
+            kad.markRead(conversationID: conversationID)
+            store.showTabBar = false
         }
-        .onReceive(NotificationCenter.default.publisher(for: .incomingChatMessage)) { _ in
-            store.markThreadRead(with: contact.phone, myPhone: myPhone)
+        .onDisappear {
+            if NotificationService.shared.activeConversationID == conversationID {
+                NotificationService.shared.activeConversationID = nil
+            }
+            store.showTabBar = true
         }
-        // Send typing indicator — at most once every 1.5 s while the user is typing
-        .onChange(of: messageText) { _, newValue in
-            guard !newValue.isEmpty else { return }
-            let now = Date()
-            guard now.timeIntervalSince(lastTypingSent) >= 1.5 else { return }
-            lastTypingSent = now
-            kad.sendTypingIndicator(toPhone: contact.phone)
-        }
-    }
-
-    // MARK: - Send
-
-    private func sendMessage() {
-        let text = messageText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        messageText = ""
-        isSending   = true
-
-        Task {
-            await kad.send(body: text, toPhone: contact.phone)
-            isSending = false
+        .onChange(of: messages.count) { _, _ in
+            // New mail while the thread is open counts as read.
+            kad.markRead(conversationID: conversationID)
         }
     }
 
-    private var avatarInitials: String {
-        let parts = contact.name.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init)
-        return parts.isEmpty ? String(contact.name.prefix(2)).uppercased() : parts.joined()
-    }
-}
+    // MARK: Header
 
-// MARK: - Message Bubble
-
-struct MessageBubble: View {
-    let message: StoredMessage
-
-    @State private var opacity:  Double  = 0
-    @State private var offsetY:  CGFloat = 20
-
-    private var timeString: String {
-        let f = DateFormatter(); f.timeStyle = .short; return f.string(from: message.timestamp)
-    }
-
-    var body: some View {
-        VStack(alignment: message.isFromMe ? .trailing : .leading, spacing: 2) {
-            HStack {
-                if message.isFromMe { Spacer(minLength: 60) }
-
-                VStack(alignment: message.isFromMe ? .trailing : .leading, spacing: 4) {
-                    Text(message.translatedBody ?? message.body)
-                        .font(.system(size: 16))
-                        .foregroundStyle(message.isFromMe ? .white : .primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(message.isFromMe ? Color.blue : Color(.systemGray5),
-                                    in: BubbleShape(isFromMe: message.isFromMe))
-
-                    if message.translatedBody != nil {
-                        Label("Translated", systemImage: "character.bubble")
-                            .font(.system(size: 10))
+    private var header: some View {
+        Button {
+            if isGroup {
+                showGroupDetail = true
+            } else if contact != nil {
+                showContactDetail = true
+            }
+        } label: {
+            HStack(spacing: 10) {
+                AvatarView(name: title,
+                           imageURL: ConversationNaming.avatarURL(for: conversationID, store: store),
+                           size: 32)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
-                .opacity(opacity)
-                .offset(y: offsetY)
-                .onAppear {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                        opacity = 1; offsetY = 0
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text([title, subtitle].compactMap { $0 }.joined(separator: ", ")))
+        .accessibilityHint(Text(isGroup ? "Opens group details" : "Opens contact details"))
+        .accessibilityAddTraits(.isButton)
+    }
+
+    // MARK: Messages
+
+    private var messageList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    if messages.isEmpty {
+                        emptyThread
+                    }
+
+                    ForEach(rows) { row in
+                        switch row {
+                        case .day(let date):
+                            DaySeparator(date: date)
+                        case .message(let message):
+                            bubble(for: message)
+                                .id(message.id)
+                        }
+                    }
+
+                    if isTyping {
+                        TypingBubble(name: isGroup ? nil : title)
+                            .id("typing")
                     }
                 }
-
-                if !message.isFromMe { Spacer(minLength: 60) }
+                .padding(.vertical, 12)
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
-
-            HStack(spacing: 4) {
-                if message.isFromMe { Spacer() }
-                Text(timeString)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                if message.isFromMe {
-                    Image(systemName: message.delivered ? "checkmark.circle.fill" : "clock")
-                        .font(.system(size: 11))
-                        .foregroundStyle(message.delivered ? .blue : .secondary)
-                }
+            .defaultScrollAnchor(.bottom)
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: messages.last?.id) { _, id in
+                guard let id else { return }
+                proxy.scrollTo(id, anchor: .bottom)
             }
-            .padding(.horizontal, 6)
-        }
-        .padding(.horizontal, 16)
-    }
-}
-
-// MARK: - Typing Bubble
-
-struct TypingBubble: View {
-    @State private var animate = false
-
-    var body: some View {
-        HStack(spacing: 5) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle()
-                    .fill(Color(.systemGray3))
-                    .frame(width: 8, height: 8)
-                    .offset(y: animate ? -4 : 4)
-                    .animation(
-                        .easeInOut(duration: 0.45)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(i) * 0.15),
-                        value: animate
-                    )
+            .onChange(of: isTyping) { _, typing in
+                if typing { proxy.scrollTo("typing", anchor: .bottom) }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Color(.systemGray5), in: BubbleShape(isFromMe: false))
-        .padding(.leading, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear { animate = true }
-        .onDisappear { animate = false }
     }
-}
 
-// MARK: - Bubble Shape
-
-struct BubbleShape: Shape {
-    let isFromMe: Bool
-    let radius: CGFloat = 18
-
-    func path(in rect: CGRect) -> Path {
-        let r = radius
-        let w = rect.width
-        let h = rect.height
-        let tl: CGFloat = isFromMe ? r : 4
-        let tr: CGFloat = isFromMe ? 4 : r
-        let br: CGFloat = r
-        let bl: CGFloat = r
-
-        var path = Path()
-        path.move(to: CGPoint(x: tl, y: 0))
-        path.addLine(to: CGPoint(x: w - tr, y: 0))
-        path.addArc(center: CGPoint(x: w - tr, y: tr), radius: tr,
-                    startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
-        path.addLine(to: CGPoint(x: w, y: h - br))
-        path.addArc(center: CGPoint(x: w - br, y: h - br), radius: br,
-                    startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
-        path.addLine(to: CGPoint(x: bl, y: h))
-        path.addArc(center: CGPoint(x: bl, y: h - bl), radius: bl,
-                    startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
-        path.addLine(to: CGPoint(x: 0, y: tl))
-        path.addArc(center: CGPoint(x: tl, y: tl), radius: tl,
-                    startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
-        path.closeSubpath()
-        return path
-    }
-}
-
-#Preview {
-    NavigationStack {
-        TextRoomView(
-            contact: Contact(phone: "+351912345678", name: "Alex Rivera",
-                             ip: "192.168.1.5", port: 4001, addedAt: Date()),
-            myPhone: "+351987654321"
+    private func bubble(for message: StoredMessage) -> some View {
+        ChatMessageBubble(
+            message: message,
+            senderName: (isGroup && !message.isFromMe)
+                ? ConversationNaming.name(for: message.fromPhone, store: store)
+                : nil,
+            imageURL: message.imageFilename.map { store.imageURL($0) },
+            onTapImage: { fullScreenImage = $0 },
+            onRetry: { retry(message) }
         )
+        .contextMenu { menu(for: message) }
     }
+
+    @ViewBuilder
+    private func menu(for message: StoredMessage) -> some View {
+        if !message.isDeleted, message.kind == .text, !message.body.isEmpty {
+            Button {
+                UIPasteboard.general.string = message.translatedBody ?? message.body
+            } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
+
+        if message.isFromMe, message.status == .failed {
+            Button {
+                retry(message)
+            } label: {
+                Label("Retry", systemImage: "arrow.clockwise")
+            }
+        }
+
+        Button(role: .destructive) {
+            store.deleteMessageLocally(messageID: message.id, conversationID: conversationID)
+        } label: {
+            Label("Delete for me", systemImage: "trash")
+        }
+
+        if message.isFromMe, !message.isDeleted {
+            Button(role: .destructive) {
+                pendingDeleteForEveryone = message
+            } label: {
+                Label("Delete for everyone", systemImage: "trash.slash")
+            }
+        }
+    }
+
+    private var emptyThread: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text("Messages here are end-to-end encrypted.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Text("Say hello to start the conversation.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 32)
+        .padding(.top, 48)
+        .padding(.bottom, 24)
+    }
+
+    // MARK: Banners
+
+    @ViewBuilder
+    private var banners: some View {
+        if let phone = keyChangePhones.first {
+            KeyChangeBanner(
+                phone: ConversationNaming.name(for: phone, store: store),
+                onVerify: {
+                    if isGroup {
+                        showGroupDetail = true
+                    } else {
+                        showContactDetail = true
+                    }
+                },
+                onAccept: {
+                    Task { await kad.acceptKeyChange(phone: phone) }
+                }
+            )
+        } else if group?.isActive == false {
+            inlineNote(icon: "rectangle.portrait.and.arrow.right",
+                       text: String(localized: "You left this group."),
+                       tint: .secondary)
+        } else if !isEncryptionReady {
+            inlineNote(icon: "lock.trianglebadge.exclamationmark",
+                       text: String(localized: "Can't encrypt yet — verifying \(title)'s keys."),
+                       tint: .orange)
+        } else if kad.connectionState != .online {
+            inlineNote(icon: "wifi.slash",
+                       text: String(localized: "Messages will send when you're back online."),
+                       tint: .secondary)
+        }
+    }
+
+    private func inlineNote(icon: String, text: String, tint: Color) -> some View {
+        Label {
+            Text(text)
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: icon)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .overlay(alignment: .top) { Divider() }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var blockedReason: String? {
+        if !keyChangePhones.isEmpty {
+            return String(localized: "Review the security code change before sending.")
+        }
+        if group?.isActive == false {
+            return String(localized: "You can't send messages to a group you've left.")
+        }
+        return nil
+    }
+
+    // MARK: Actions
+
+    private func send() {
+        let body = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty, !isSendBlocked else { return }
+        draft = ""
+        Task { await kad.sendText(body, to: conversationID) }
+    }
+
+    private func sendImage(_ jpeg: Data) {
+        guard !isSendBlocked else { return }
+        Task { await kad.sendImage(jpeg, to: conversationID) }
+    }
+
+    private func retry(_ message: StoredMessage) {
+        Task { await kad.retry(messageID: message.id, conversationID: conversationID) }
+    }
+
+    private func notifyTyping() {
+        guard UserDefaults.standard.bool(forKey: AppConfig.Keys.sendTypingIndicators) else { return }
+        kad.userIsTyping(in: conversationID)
+    }
+}
+
+// MARK: - URL as a sheet item
+
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
 }
