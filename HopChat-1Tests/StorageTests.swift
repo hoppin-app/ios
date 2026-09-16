@@ -582,6 +582,56 @@ struct StoreTranslationTests {
     }
 }
 
+@MainActor
+@Suite("ConversationStore — archive")
+struct StoreArchiveTests {
+
+    @Test("chats and groups archive together and survive a reload")
+    func archiveMany() async {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.addContact(Contact(phone: "+14155552671", name: "Ana"))
+        store.upsertGroup(ChatGroup(id: "g1", name: "Team", members: ["+14155552671"], admins: []))
+        let groupCID = ConversationStore.conversationID(group: "g1")
+
+        store.setArchived(true, for: ["+14155552671", groupCID, "+14155550000"])
+        #expect(store.isArchived("+14155552671"))
+        #expect(store.isArchived(groupCID))
+        // Someone not saved yet gets an entry to hold the flag.
+        #expect(store.isArchived("+14155550000"))
+
+        await store.flush()
+        let reloaded = makeStore(temp.url)
+        #expect(reloaded.isArchived("+14155552671"))
+        #expect(reloaded.isArchived(groupCID))
+
+        reloaded.setArchived(false, for: ["+14155552671", groupCID])
+        #expect(reloaded.isArchived("+14155552671") == false)
+        #expect(reloaded.isArchived(groupCID) == false)
+    }
+
+    @Test("unarchiving an unknown chat creates nothing")
+    func unarchiveUnknown() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.setArchived(false, for: ["+14155559999"])
+        #expect(store.contact(for: "+14155559999") == nil)
+    }
+
+    @Test("group updates from other members keep the chat archived")
+    func groupUpdateKeepsArchive() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        let group = ChatGroup(id: "g1", name: "Team", members: ["+14155552671"], admins: [])
+        store.upsertGroup(group)
+        store.setArchived(true, for: [ConversationStore.conversationID(group: "g1")])
+        var renamed = group
+        renamed.name = "Team 2"
+        store.upsertGroup(renamed)
+        #expect(store.isArchived(ConversationStore.conversationID(group: "g1")))
+    }
+}
+
 @Suite("Translation — language detection")
 struct LanguageDetectionTests {
 

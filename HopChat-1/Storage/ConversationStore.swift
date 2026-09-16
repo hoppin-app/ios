@@ -339,6 +339,7 @@ final class ConversationStore: ObservableObject {
             // Group updates arrive from other members; the translate choice
             // is ours and only changes through `setTranslateLanguage`.
             g.translateLanguage = groups[idx].translateLanguage
+            g.isArchived = groups[idx].isArchived
             guard groups[idx] != g else { return }
             groups[idx] = g
         } else {
@@ -379,6 +380,41 @@ final class ConversationStore: ObservableObject {
             contacts.append(contact)
             persistContacts()
         }
+    }
+
+    // MARK: - Archive
+
+    func isArchived(_ conversationID: String) -> Bool {
+        if let gid = ConversationStore.groupID(from: conversationID) {
+            return group(id: gid)?.isArchived ?? false
+        }
+        return contact(for: conversationID)?.isArchived ?? false
+    }
+
+    /// Archives or unarchives several conversations with one write per file.
+    func setArchived(_ archived: Bool, for conversationIDs: [String]) {
+        var contactsChanged = false
+        var groupsChanged = false
+        let value: Bool? = archived ? true : nil
+        for conversationID in conversationIDs {
+            if let gid = ConversationStore.groupID(from: conversationID) {
+                guard let idx = groups.firstIndex(where: { $0.id == gid }),
+                      groups[idx].isArchived != value else { continue }
+                groups[idx].isArchived = value
+                groupsChanged = true
+            } else if let idx = contacts.firstIndex(where: { $0.phone == conversationID }) {
+                guard contacts[idx].isArchived != value else { continue }
+                contacts[idx].isArchived = value
+                contactsChanged = true
+            } else if archived {
+                var contact = Contact(phone: conversationID, name: conversationID)
+                contact.isArchived = true
+                contacts.append(contact)
+                contactsChanged = true
+            }
+        }
+        if contactsChanged { persistContacts() }
+        if groupsChanged { persistGroups() }
     }
 
     /// Drops every translation in a thread (auto-translate turned off or
@@ -586,6 +622,7 @@ final class ConversationStore: ObservableObject {
                 merged.avatarFilename = merged.avatarFilename ?? old.avatarFilename
                 merged.isBlocked = merged.isBlocked || old.isBlocked
                 merged.translateLanguage = merged.translateLanguage ?? old.translateLanguage
+                merged.isArchived = merged.isArchived ?? old.isArchived
                 merged.addedAt = min(merged.addedAt, old.addedAt)
                 contacts[newIdx] = merged
             } else {

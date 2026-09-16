@@ -29,11 +29,15 @@ struct SettingsPrivacyView: View {
 
     var body: some View {
         Form {
-            receiptsSection
-            appLockSection
-            blockedSection
-            relaySection
+            Group {
+                receiptsSection
+                appLockSection
+                blockedSection
+                relaySection
+            }
+            .glassListRows()
         }
+        .lavaBackground()
         .navigationTitle(Text("Privacy & Security"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { appLockOn = lock.isEnabled }
@@ -174,42 +178,46 @@ struct SettingsBlockedContactsView: View {
 
     var body: some View {
         List {
-            if blocked.isEmpty {
-                Section {
-                    Text("You haven't blocked anyone.")
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Section {
-                    ForEach(blocked) { contact in
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(contact.name)
-                                if contact.name != contact.phone {
-                                    Text(contact.phone)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .fixedSize(horizontal: false, vertical: true)
-
-                            Spacer(minLength: 12)
-
-                            Button("Unblock") {
-                                kad.unblock(phone: contact.phone)
-                                Log.ui.info("Unblocked a contact")
-                            }
-                            .buttonStyle(.bordered)
-                            .frame(minHeight: 44)
-                            .accessibilityLabel(Text("Unblock \(contact.name)"))
-                        }
-                        .padding(.vertical, 2)
+            Group {
+                if blocked.isEmpty {
+                    Section {
+                        Text("You haven't blocked anyone.")
+                            .foregroundStyle(.secondary)
                     }
-                } footer: {
-                    Text("Blocked people cannot send you messages, and are not told that they are blocked.")
+                } else {
+                    Section {
+                        ForEach(blocked) { contact in
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(contact.name)
+                                    if contact.name != contact.phone {
+                                        Text(contact.phone)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .fixedSize(horizontal: false, vertical: true)
+
+                                Spacer(minLength: 12)
+
+                                Button("Unblock") {
+                                    kad.unblock(phone: contact.phone)
+                                    Log.ui.info("Unblocked a contact")
+                                }
+                                .buttonStyle(.bordered)
+                                .frame(minHeight: 44)
+                                .accessibilityLabel(Text("Unblock \(contact.name)"))
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    } footer: {
+                        Text("Blocked people cannot send you messages, and are not told that they are blocked.")
+                    }
                 }
             }
+            .glassListRows()
         }
+        .lavaBackground()
         .navigationTitle(Text("Blocked"))
         .navigationBarTitleDisplayMode(.inline)
     }

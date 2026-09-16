@@ -24,6 +24,8 @@ nonisolated struct Contact: Codable, Identifiable, Hashable, Sendable {
     /// Auto-translate incoming messages in this chat into this language
     /// code (e.g. "en"); nil = off. Local-only, never sent.
     var translateLanguage: String? = nil
+    /// Hidden from the main chat list (local-only).
+    var isArchived: Bool? = nil
 
     init(phone: String,
          name: String,
@@ -62,6 +64,8 @@ nonisolated struct ChatGroup: Codable, Identifiable, Hashable, Sendable {
     var isActive: Bool = true
     /// Local-only auto-translate target for this group chat; nil = off.
     var translateLanguage: String? = nil
+    /// Hidden from the main chat list (local-only).
+    var isArchived: Bool? = nil
 
     init(id: String,
          name: String,

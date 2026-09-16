@@ -4,6 +4,8 @@
 //
 //  `ChatListView` — the Chats tab. Lists 1:1 threads *and* groups, newest
 //  activity first, with search, unread badges, presence, and swipe actions.
+//  The ⋯ menu selects several chats (archive / read / delete together) or
+//  marks everything read; archived chats live behind an "Archived" row.
 //
 //  Performance note: the whole list is derived in a single pass over
 //  `store.messages` (see `conversations`), so no row calls `store.thread(...)`
@@ -27,6 +29,7 @@ struct ConversationSummary: Identifiable, Equatable {
     let sortDate: Date
     let unread: Int
     let isBlocked: Bool
+    let isArchived: Bool
     let searchHaystack: String
 }
 
@@ -80,28 +83,57 @@ struct ChatListView: View {
     @State private var conversationToDelete: ConversationSummary?
     @State private var groupToLeave: ConversationSummary?
 
+    @State private var isSelecting = false
+    @State private var selection: Set<String> = []
+    @State private var showingArchived = false
+    @State private var confirmBulkDelete = false
+
     var body: some View {
         NavigationStack(path: $path) {
             Group {
-                if conversations.isEmpty {
+                if visibleConversations.isEmpty && archivedCount == 0 && !showingArchived {
                     emptyState
                 } else {
                     list
                 }
             }
             .lavaBackground()
-            .navigationTitle(Text("Chats"))
+            .navigationTitle(showingArchived ? Text("Archived") : Text("Chats"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) { leadingToolbar }
                 ToolbarItem(placement: .principal) { connectionBadge }
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showCompose = true
-                    } label: {
-                        Image(systemName: "square.and.pencil")
+                    if isSelecting {
+                        Button {
+                            let all = Set(visibleConversations.map(\.id))
+                            selection = selection == all ? [] : all
+                        } label: {
+                            Text(selection.count == visibleConversations.count && !selection.isEmpty
+                                 ? "Deselect All" : "Select All")
+                        }
+                    } else {
+                        Button {
+                            showCompose = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
+                        .accessibilityLabel(Text("New conversation"))
                     }
-                    .accessibilityLabel(Text("New conversation"))
                 }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isSelecting { selectionBar }
+            }
+            .alert(Text("Delete \(selection.count) chats?"), isPresented: $confirmBulkDelete) {
+                Button("Delete", role: .destructive) {
+                    for id in selection { store.deleteConversation(id) }
+                    Log.ui.info("Deleted \(selection.count, privacy: .public) conversations")
+                    endSelecting()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Messages in these chats will be removed from this device. This can't be undone.")
             }
             .searchable(text: $searchText, prompt: Text("Search chats"))
             .navigationDestination(for: String.self) { conversationID in
@@ -151,6 +183,140 @@ struct ChatListView: View {
         }
     }
 
+    // MARK: Menu and selection
+
+    @ViewBuilder
+    private var leadingToolbar: some View {
+        if isSelecting {
+            Button {
+                endSelecting()
+            } label: {
+                Text("Done").fontWeight(.semibold)
+            }
+        } else {
+            if showingArchived {
+                Button {
+                    withAnimation { showingArchived = false }
+                } label: {
+                    Image(systemName: "chevron.backward")
+                }
+                .accessibilityLabel(Text("Back to chats"))
+            }
+
+            Menu {
+                Button {
+                    withAnimation { isSelecting = true }
+                    store.showTabBar = false
+                } label: {
+                    Label("Select Chats", systemImage: "checkmark.circle")
+                }
+                .disabled(visibleConversations.isEmpty)
+
+                Button {
+                    kad.markAllRead()
+                } label: {
+                    Label("Read All", systemImage: "envelope.open")
+                }
+                .disabled(store.totalUnreadCount == 0)
+
+                if !showingArchived {
+                    Button {
+                        withAnimation { showingArchived = true }
+                    } label: {
+                        Label("Archived Chats", systemImage: "archivebox")
+                    }
+                    .disabled(archivedCount == 0)
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(minWidth: 44, minHeight: 44)
+            }
+            .accessibilityLabel(Text("More"))
+        }
+    }
+
+    private var selectionBar: some View {
+        let empty = selection.isEmpty
+        let hasUnread = visibleConversations.contains { selection.contains($0.id) && $0.unread > 0 }
+        return HStack {
+            Button {
+                store.setArchived(!showingArchived, for: Array(selection))
+                endSelecting()
+            } label: {
+                Label(showingArchived ? "Unarchive" : "Archive",
+                      systemImage: showingArchived ? "tray.and.arrow.up" : "archivebox")
+            }
+            .disabled(empty)
+
+            Spacer()
+
+            Button {
+                for id in selection { kad.markRead(conversationID: id) }
+                endSelecting()
+            } label: {
+                Label("Read", systemImage: "envelope.open")
+            }
+            .disabled(empty || !hasUnread)
+
+            Spacer()
+
+            Button(role: .destructive) {
+                confirmBulkDelete = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .disabled(empty)
+        }
+        .labelStyle(.titleAndIcon)
+        .font(.subheadline.weight(.semibold))
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private func endSelecting() {
+        withAnimation {
+            isSelecting = false
+            selection = []
+        }
+        store.showTabBar = true
+    }
+
+    private var archivedRow: some View {
+        Button {
+            withAnimation { showingArchived = true }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "archivebox.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 52)
+                Text("Archived")
+                    .font(.body.weight(.semibold))
+                Spacer()
+                if archivedUnread > 0 {
+                    Text("\(archivedUnread)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(.blue, in: Capsule())
+                }
+                Text("\(archivedCount)")
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.forward")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Archived chats, \(archivedCount)"))
+    }
+
     // MARK: Navigation
 
     private func open(_ conversationID: String) {
@@ -163,15 +329,44 @@ struct ChatListView: View {
 
     private var list: some View {
         List {
-            ForEach(conversations) { conversation in
-                ZStack {
-                    NavigationLink(value: conversation.id) { EmptyView() }
-                        .opacity(0)
-                    ChatListRow(conversation: conversation,
-                                presence: conversation.peerPhone.flatMap { kad.presenceMap[$0] })
-                }
+            if !showingArchived, !isSelecting, archivedCount > 0, searchText.isEmpty {
+                archivedRow
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
+            }
+
+            if visibleConversations.isEmpty, showingArchived {
+                Text("No archived chats")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .listRowBackground(Color.clear)
+            }
+
+            ForEach(visibleConversations) { conversation in
+                row(for: conversation)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        store.setArchived(!conversation.isArchived, for: [conversation.id])
+                    } label: {
+                        if conversation.isArchived {
+                            Label("Unarchive", systemImage: "tray.and.arrow.up")
+                        } else {
+                            Label("Archive", systemImage: "archivebox")
+                        }
+                    }
+                    .tint(.indigo)
+
+                    if conversation.unread > 0 {
+                        Button {
+                            kad.markRead(conversationID: conversation.id)
+                        } label: {
+                            Label("Read", systemImage: "envelope.open")
+                        }
+                        .tint(.blue)
+                    }
+                }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
                         conversationToDelete = conversation
@@ -200,6 +395,42 @@ struct ChatListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+    }
+
+    /// Opens the chat normally; in select mode the same tap toggles a checkmark.
+    /// (A `List(selection:)` would swallow the taps that open chats.)
+    @ViewBuilder
+    private func row(for conversation: ConversationSummary) -> some View {
+        let content = ChatListRow(conversation: conversation,
+                                  presence: conversation.peerPhone.flatMap { kad.presenceMap[$0] })
+        if isSelecting {
+            let isSelected = selection.contains(conversation.id)
+            Button {
+                if isSelected {
+                    selection.remove(conversation.id)
+                } else {
+                    selection.insert(conversation.id)
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundStyle(isSelected ? Color.blue : Color.secondary)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    content
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        } else {
+            // Hidden link keeps the row free of the disclosure chevron.
+            ZStack {
+                NavigationLink(value: conversation.id) { EmptyView() }
+                    .opacity(0)
+                content
+            }
+        }
     }
 
     // MARK: Connection badge
@@ -250,6 +481,22 @@ struct ChatListView: View {
 
     // MARK: Derivation
 
+    /// What the list shows: the archive or everything else.
+    private var visibleConversations: [ConversationSummary] {
+        conversations.filter { $0.isArchived == showingArchived }
+    }
+
+    private var archivedCount: Int {
+        store.contacts.filter { $0.isArchived == true && store.messages[$0.phone]?.isEmpty == false }.count
+            + store.groups.filter { $0.isArchived == true }.count
+    }
+
+    private var archivedUnread: Int {
+        store.contacts.filter { $0.isArchived == true }.reduce(0) { $0 + store.unreadCount($1.phone) }
+            + store.groups.filter { $0.isArchived == true }
+                .reduce(0) { $0 + store.unreadCount(ConversationStore.conversationID(group: $1.id)) }
+    }
+
     /// Single pass over the store: every thread plus every active group.
     private var conversations: [ConversationSummary] {
         var summaries: [ConversationSummary] = []
@@ -296,6 +543,7 @@ struct ChatListView: View {
             sortDate: last?.timestamp ?? contact?.addedAt ?? .distantPast,
             unread: store.unreadCount(phone),
             isBlocked: contact?.isBlocked ?? false,
+            isArchived: contact?.isArchived ?? false,
             searchHaystack: [title, phone, last?.body ?? ""].joined(separator: " ")
         )
     }
@@ -314,6 +562,7 @@ struct ChatListView: View {
             sortDate: last?.timestamp ?? group.createdAt,
             unread: store.unreadCount(conversationID),
             isBlocked: false,
+            isArchived: group.isArchived ?? false,
             searchHaystack: [group.name, last?.body ?? ""].joined(separator: " ")
         )
     }

@@ -36,7 +36,10 @@ nonisolated enum AppConfig {
             return UserDefaults.standard.bool(forKey: "hopchat.dev.allowPlaintext")
         }
         let env = ProcessInfo.processInfo.environment["HOPCHAT_DEV_ALLOW_PLAINTEXT"] ?? ""
-        return ["1", "true", "yes"].contains(env.lowercased())
+        let allowed = ["1", "true", "yes"].contains(env.lowercased())
+        // Remembered for home-screen launches, like `devOverride`.
+        if allowed { UserDefaults.standard.set(true, forKey: "hopchat.dev.allowPlaintext") }
+        return allowed
         #else
         return false
         #endif
@@ -90,13 +93,20 @@ nonisolated enum AppConfig {
     /// DEBUG-only override lookup: a value set on the device (Developer screen)
     /// wins; otherwise an environment variable from the Xcode scheme
     /// (Product ▸ Scheme ▸ Edit Scheme ▸ Run ▸ Arguments). Compiled out of Release.
+    ///
+    /// Scheme variables only exist when Xcode launches the app, so the first
+    /// one seen is copied to the device. Opening the app from the home screen
+    /// then keeps talking to the same dev server. To change it later, use the
+    /// Developer screen.
     private static func devOverride(_ defaultsKey: String, env: String) -> String? {
         let stored = (UserDefaults.standard.string(forKey: defaultsKey) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if !stored.isEmpty { return stored }
         let fromEnv = (ProcessInfo.processInfo.environment[env] ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return fromEnv.isEmpty ? nil : fromEnv
+        guard !fromEnv.isEmpty else { return nil }
+        UserDefaults.standard.set(fromEnv, forKey: defaultsKey)
+        return fromEnv
     }
     #endif
 
@@ -141,6 +151,9 @@ nonisolated enum AppConfig {
         static let notificationsPreview = "hopchat.notifications.showPreview"
         static let notificationsSound   = "hopchat.notifications.sound"
         static let animatedBackground = "hopchat.appearance.animatedBackground"
+        static let peopleSort         = "hopchat.people.sort"
+        static let backgroundTheme    = "hopchat.appearance.backgroundTheme"
+        static let backgroundCustomColors = "hopchat.appearance.customColors"
         static let appLockEnabled     = "hopchat.appLock.enabled"
         static let appLockTimeout     = "hopchat.appLock.timeout"
         static let hasSeenOnboarding  = "hopchat.hasSeenOnboarding"
@@ -168,7 +181,8 @@ nonisolated enum AppConfig {
         [Keys.displayName, Keys.autoTranslate, Keys.translateLang,
          Keys.sendReadReceipts, Keys.sendTypingIndicators,
          Keys.notificationsEnabled, Keys.notificationsPreview, Keys.notificationsSound,
-         Keys.appLockEnabled, Keys.appLockTimeout, Keys.animatedBackground,
+         Keys.appLockEnabled, Keys.appLockTimeout, Keys.animatedBackground, Keys.peopleSort,
+         Keys.backgroundTheme, Keys.backgroundCustomColors,
          Keys.hasSeenOnboarding, Keys.hasAcceptedTerms, Keys.legacyPhone]
     }
 }

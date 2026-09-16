@@ -76,8 +76,14 @@ nonisolated enum PhoneNumber {
             // Drop one national trunk prefix "0" (Italy keeps it).
             if region != "IT", national.hasPrefix("0") {
                 national = String(national.dropFirst())
+                s = "+" + code + national
+            } else if national.hasPrefix(code), national.count - code.count >= 8 {
+                // The country code typed without "+" ("351912345678"): prefixing
+                // it again would produce "+351351912345678".
+                s = "+" + national
+            } else {
+                s = "+" + code + national
             }
-            s = "+" + code + national
         }
 
         // Everything after "+" must be digits.

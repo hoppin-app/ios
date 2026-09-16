@@ -49,13 +49,16 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                profileSection
-                privacySection
-                translateSection
-                appearanceSection
-                accountSection
-                aboutSection
-                developerSection
+                Group {
+                    profileSection
+                    privacySection
+                    translateSection
+                    appearanceSection
+                    accountSection
+                    aboutSection
+                    developerSection
+                }
+                .glassListRows()
             }
             .listStyle(.insetGrouped)
             .lavaBackground()
@@ -121,6 +124,11 @@ struct SettingsView: View {
 
     private var appearanceSection: some View {
         Section {
+            NavigationLink {
+                BackgroundThemeView()
+            } label: {
+                Label("Background colours", systemImage: "paintpalette")
+            }
             Toggle(isOn: $animatedBackground) {
                 Text("Animated background")
             }

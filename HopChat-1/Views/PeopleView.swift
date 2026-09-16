@@ -73,6 +73,28 @@ struct ContactVerificationBadge: View {
 
 // MARK: - People
 
+/// How the contact list is ordered (persisted as `hopchat.people.sort`).
+enum PeopleSort: String, CaseIterable, Identifiable {
+    case name, recent, online
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .name:   return String(localized: "Name")
+        case .recent: return String(localized: "Recently Added")
+        case .online: return String(localized: "Online First")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .name:   return "textformat"
+        case .recent: return "clock"
+        case .online: return "circle.fill"
+        }
+    }
+}
+
 struct PeopleView: View {
 
     @StateObject private var store = ConversationStore.shared
@@ -86,53 +108,81 @@ struct PeopleView: View {
     @State private var importedContact: ImportedContact?
     @State private var prefill: ContactPrefill?
     @State private var showBlocked = false
+    @AppStorage(AppConfig.Keys.peopleSort) private var sortRaw = PeopleSort.name.rawValue
+
+    private var sort: PeopleSort { PeopleSort(rawValue: sortRaw) ?? .name }
 
     var body: some View {
         NavigationStack {
             List {
-                if !pendingKeyChangeContacts.isEmpty {
-                    Section {
-                        ForEach(pendingKeyChangeContacts) { contact in
-                            contactRow(contact)
-                        }
-                    } header: {
-                        Text("Needs your attention")
-                    } footer: {
-                        Text("The security code for these contacts changed. Review it before sending anything else.")
-                    }
-                }
-
-                Section {
-                    if activeContacts.isEmpty {
-                        emptyRow
-                    } else {
-                        ForEach(activeContacts) { contact in
-                            contactRow(contact)
-                        }
-                    }
-                } header: {
-                    if !activeContacts.isEmpty { Text("Contacts") }
-                }
-
-                if !blockedContacts.isEmpty {
-                    Section {
-                        DisclosureGroup(isExpanded: $showBlocked) {
-                            ForEach(blockedContacts) { contact in
+                Group {
+                    if !pendingKeyChangeContacts.isEmpty {
+                        Section {
+                            ForEach(pendingKeyChangeContacts) { contact in
                                 contactRow(contact)
                             }
-                        } label: {
-                            Text("Blocked (\(blockedContacts.count))")
+                        } header: {
+                            Text("Needs your attention")
+                        } footer: {
+                            Text("The security code for these contacts changed. Review it before sending anything else.")
                         }
-                    } footer: {
-                        Text("Blocked people can't reach you. Their messages are dropped.")
+                    }
+
+                    Section {
+                        if activeContacts.isEmpty {
+                            emptyRow
+                        } else {
+                            ForEach(activeContacts) { contact in
+                                contactRow(contact)
+                            }
+                        }
+                    } header: {
+                        if !activeContacts.isEmpty { Text("Contacts") }
+                    }
+
+                    if !blockedContacts.isEmpty {
+                        Section {
+                            DisclosureGroup(isExpanded: $showBlocked) {
+                                ForEach(blockedContacts) { contact in
+                                    contactRow(contact)
+                                }
+                            } label: {
+                                Text("Blocked (\(blockedContacts.count))")
+                            }
+                        } footer: {
+                            Text("Blocked people can't reach you. Their messages are dropped.")
+                        }
                     }
                 }
+                .glassListRows()
             }
             .listStyle(.insetGrouped)
             .lavaBackground()
             .navigationTitle("People")
             .searchable(text: $searchText, prompt: Text("Search contacts"))
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Picker(selection: $sortRaw) {
+                            ForEach(PeopleSort.allCases) { option in
+                                Label(option.title, systemImage: option.symbol).tag(option.rawValue)
+                            }
+                        } label: {
+                            Label("Sort By", systemImage: "arrow.up.arrow.down")
+                        }
+                        .pickerStyle(.menu)
+
+                        ShareLink(item: AppConfig.inviteURL,
+                                  subject: Text("Join me on HopChat"),
+                                  message: Text("I'm using HopChat for private, end-to-end encrypted messages. Get it here:")) {
+                            Label("Invite a Friend", systemImage: "square.and.arrow.up")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel(Text("More"))
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button {
@@ -219,8 +269,24 @@ struct PeopleView: View {
     }
 
     private var matching: [Contact] {
-        let all = store.contacts.sorted {
+        let byName: (Contact, Contact) -> Bool = {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+        let all: [Contact]
+        switch sort {
+        case .name:
+            all = store.contacts.sorted(by: byName)
+        case .recent:
+            all = store.contacts.sorted { $0.addedAt != $1.addedAt ? $0.addedAt > $1.addedAt : byName($0, $1) }
+        case .online:
+            let rank: (Contact) -> Int = {
+                switch kad.presenceMap[$0.phone] ?? .offline {
+                case .online: return 0
+                case .recently: return 1
+                case .offline: return 2
+                }
+            }
+            all = store.contacts.sorted { rank($0) != rank($1) ? rank($0) < rank($1) : byName($0, $1) }
         }
         let query = searchText.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return all }

@@ -23,30 +23,34 @@ struct SettingsNotificationsView: View {
 
     var body: some View {
         Form {
-            permissionSection
+            Group {
+                permissionSection
 
-            Section {
-                Toggle(isOn: $notificationsEnabled) {
-                    Text("Message notifications")
-                }
-                .accessibilityHint(Text("Shows a notification when a message arrives while HopChat is closed"))
+                Section {
+                    Toggle(isOn: $notificationsEnabled) {
+                        Text("Message notifications")
+                    }
+                    .accessibilityHint(Text("Shows a notification when a message arrives while HopChat is closed"))
 
-                Toggle(isOn: $showPreview) {
-                    Text("Show preview")
-                }
-                .disabled(!notificationsEnabled)
-                .accessibilityHint(Text("Includes the sender's name and message text in the notification"))
+                    Toggle(isOn: $showPreview) {
+                        Text("Show preview")
+                    }
+                    .disabled(!notificationsEnabled)
+                    .accessibilityHint(Text("Includes the sender's name and message text in the notification"))
 
-                Toggle(isOn: $playSound) {
-                    Text("Play sound")
+                    Toggle(isOn: $playSound) {
+                        Text("Play sound")
+                    }
+                    .disabled(!notificationsEnabled)
+                } header: {
+                    Text("In HopChat")
+                } footer: {
+                    Text("With previews off, notifications say only that a new message arrived.")
                 }
-                .disabled(!notificationsEnabled)
-            } header: {
-                Text("In HopChat")
-            } footer: {
-                Text("With previews off, notifications say only that a new message arrived.")
             }
+            .glassListRows()
         }
+        .lavaBackground()
         .navigationTitle(Text("Notifications"))
         .navigationBarTitleDisplayMode(.inline)
         .task { await refreshStatus() }

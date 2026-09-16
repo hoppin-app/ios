@@ -191,12 +191,10 @@ final class KademliaService: ObservableObject {
         AppConfig.registerDefaults()
         migrateLegacyPhoneIfNeeded()
 
-        guard isServerKeyUsable else {
-            Log.net.error("Pinned server key is missing or invalid — refusing to start")
-            connectionState = .error(String(localized: "Server key not configured"))
-            return
-        }
-
+        // Load the local identity first: whether this device is registered
+        // doesn't depend on reaching (or being configured for) the server.
+        // A misconfigured server used to leave `isRegistered` false and send
+        // registered users back to SMS verification.
         do {
             try crypto.ensureKeysLoaded()
         } catch {
@@ -205,17 +203,27 @@ final class KademliaService: ObservableObject {
             return
         }
 
-        guard let certificate = crypto.certificate else {
+        if let certificate = crypto.certificate {
+            myPhone = certificate.phone
+            isRegistered = true
+        } else {
             isRegistered = false
             myPhone = ""
+        }
+
+        guard isServerKeyUsable else {
+            Log.net.error("Pinned server key is missing or invalid — refusing to connect")
+            connectionState = .error(String(localized: "Server key not configured"))
+            return
+        }
+
+        guard let certificate = crypto.certificate else {
             connectionState = .offline
             Log.net.info("No identity certificate yet — waiting for SMS verification")
             return
         }
 
         isRunning = true
-        myPhone = certificate.phone
-        isRegistered = true
         routing = RoutingTable(localID: NodeID.from(phone: certificate.phone))
         connectionState = .connecting
 
@@ -1198,6 +1206,12 @@ final class KademliaService: ObservableObject {
     private func sendDeliveryReceipt(for messageID: String, to sender: String, groupID: String?) async {
         let payload = ChatPayload(kind: .deliveryReceipt, refIDs: [messageID], groupID: groupID)
         _ = await sendPayload(payload, to: sender, envelopeID: UUID().uuidString)
+    }
+
+    /// Marks every conversation with unread messages as read.
+    func markAllRead() {
+        let unread = store.messages.keys.filter { store.unreadCount($0) > 0 }
+        for conversationID in unread { markRead(conversationID: conversationID) }
     }
 
     func markRead(conversationID: String) {

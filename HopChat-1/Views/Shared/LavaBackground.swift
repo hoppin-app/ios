@@ -20,6 +20,8 @@ import SwiftUI
 struct LavaBackground: View {
 
     @AppStorage(AppConfig.Keys.animatedBackground) private var animated = true
+    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.aurora.rawValue
+    @AppStorage(AppConfig.Keys.backgroundCustomColors) private var customHex = ""
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -70,7 +72,14 @@ struct LavaBackground: View {
         (isDark ? Color.black.opacity(0.28) : Color.white.opacity(0.35))
     }
 
+    /// Palette for this mode: as chosen in dark mode, lightened to pastels in light mode.
+    private var palette: [Color] {
+        let base = BackgroundTheme.current(from: themeRaw).colors(customHex: customHex)
+        return isDark ? base : base.map { $0.mix(with: .white, by: 0.45) }
+    }
+
     private func draw(in context: inout GraphicsContext, size: CGSize, time: TimeInterval) {
+        let palette = self.palette
         context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(baseColor))
 
         let unit = min(size.width, size.height)
@@ -84,7 +93,7 @@ struct LavaBackground: View {
                 // Radius breathes a little, which makes neighbours merge and split.
                 let r = unit * blob.radius * (1 + 0.12 * sin(t * 1.9 + blob.phase))
                 let rect = CGRect(x: x - r, y: y - r * 1.1, width: r * 2, height: r * 2.2)
-                let color = isDark ? blob.dark : blob.light
+                let color = palette[blob.paletteIndex % palette.count]
                 layer.fill(Path(ellipseIn: rect),
                            with: .color(color.opacity(isDark ? 0.75 : 0.55)))
             }
@@ -94,8 +103,7 @@ struct LavaBackground: View {
     // MARK: Blobs
 
     private struct Blob {
-        let dark: Color
-        let light: Color
+        let paletteIndex: Int
         /// Fraction of the short side.
         let radius: CGFloat
         /// Seconds for one horizontal swing.
@@ -107,17 +115,13 @@ struct LavaBackground: View {
         let amplitude: CGSize
     }
 
+    /// Each blob takes one colour from the chosen palette.
     private static let blobs: [Blob] = [
-        Blob(dark: Color(red: 0.36, green: 0.16, blue: 0.85), light: Color(red: 0.62, green: 0.52, blue: 1.00),
-             radius: 0.55, period: 34, ratio: 0.63, phase: 0.0, amplitude: CGSize(width: 0.35, height: 0.38)),
-        Blob(dark: Color(red: 0.90, green: 0.20, blue: 0.55), light: Color(red: 1.00, green: 0.58, blue: 0.76),
-             radius: 0.45, period: 27, ratio: 0.81, phase: 2.1, amplitude: CGSize(width: 0.40, height: 0.33)),
-        Blob(dark: Color(red: 0.98, green: 0.45, blue: 0.14), light: Color(red: 1.00, green: 0.76, blue: 0.52),
-             radius: 0.38, period: 41, ratio: 1.27, phase: 4.0, amplitude: CGSize(width: 0.30, height: 0.42)),
-        Blob(dark: Color(red: 0.08, green: 0.45, blue: 0.95), light: Color(red: 0.52, green: 0.76, blue: 1.00),
-             radius: 0.50, period: 30, ratio: 0.52, phase: 5.3, amplitude: CGSize(width: 0.38, height: 0.30)),
-        Blob(dark: Color(red: 0.10, green: 0.75, blue: 0.70), light: Color(red: 0.55, green: 0.92, blue: 0.86),
-             radius: 0.32, period: 23, ratio: 1.12, phase: 1.2, amplitude: CGSize(width: 0.33, height: 0.40)),
+        Blob(paletteIndex: 0, radius: 0.55, period: 34, ratio: 0.63, phase: 0.0, amplitude: CGSize(width: 0.35, height: 0.38)),
+        Blob(paletteIndex: 1, radius: 0.45, period: 27, ratio: 0.81, phase: 2.1, amplitude: CGSize(width: 0.40, height: 0.33)),
+        Blob(paletteIndex: 2, radius: 0.38, period: 41, ratio: 1.27, phase: 4.0, amplitude: CGSize(width: 0.30, height: 0.42)),
+        Blob(paletteIndex: 3, radius: 0.50, period: 30, ratio: 0.52, phase: 5.3, amplitude: CGSize(width: 0.38, height: 0.30)),
+        Blob(paletteIndex: 4, radius: 0.32, period: 23, ratio: 1.12, phase: 1.2, amplitude: CGSize(width: 0.33, height: 0.40)),
     ]
 }
 
@@ -137,4 +141,12 @@ extension View {
 
 #Preview("Light") {
     LavaBackground().preferredColorScheme(.light)
+}
+
+extension View {
+    /// Frosted-glass rows for grouped lists and forms shown over the lava
+    /// backdrop. Apply to the list *content* (row backgrounds are per row).
+    func glassListRows() -> some View {
+        listRowBackground(Rectangle().fill(.ultraThinMaterial))
+    }
 }

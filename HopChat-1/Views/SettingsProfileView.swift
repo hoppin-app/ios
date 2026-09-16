@@ -85,73 +85,77 @@ struct SettingsProfileView: View {
 
     var body: some View {
         Form {
-            Section {
-                VStack(spacing: 14) {
-                    AvatarView(name: displayName.isEmpty ? "?" : displayName,
-                               imageURL: avatarURL,
-                               size: 96)
-                        .accessibilityLabel(Text(avatarURL == nil
-                                                 ? "No profile photo"
-                                                 : "Your profile photo"))
+            Group {
+                Section {
+                    VStack(spacing: 14) {
+                        AvatarView(name: displayName.isEmpty ? "?" : displayName,
+                                   imageURL: avatarURL,
+                                   size: 96)
+                            .accessibilityLabel(Text(avatarURL == nil
+                                                     ? "No profile photo"
+                                                     : "Your profile photo"))
 
-                    PhotosPicker(selection: $pickedItem, matching: .images, photoLibrary: .shared()) {
-                        Text(avatarURL == nil ? "Add photo" : "Change photo")
-                            .font(.body)
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .disabled(isBusy)
-
-                    if avatarURL != nil {
-                        Button(role: .destructive) {
-                            removePhoto()
-                        } label: {
-                            Text("Remove photo")
+                        PhotosPicker(selection: $pickedItem, matching: .images, photoLibrary: .shared()) {
+                            Text(avatarURL == nil ? "Add photo" : "Change photo")
                                 .font(.body)
                                 .frame(minWidth: 44, minHeight: 44)
                         }
                         .disabled(isBusy)
+
+                        if avatarURL != nil {
+                            Button(role: .destructive) {
+                                removePhoto()
+                            } label: {
+                                Text("Remove photo")
+                                    .font(.body)
+                                    .frame(minWidth: 44, minHeight: 44)
+                            }
+                            .disabled(isBusy)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+
+                Section {
+                    TextField("Your name", text: $editedName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .focused($nameFocused)
+                        .submitLabel(.done)
+                        .onSubmit { save() }
+                        .accessibilityLabel(Text("Display name"))
+                } header: {
+                    Text("Name")
+                } footer: {
+                    Text("Your name and photo are sent, encrypted, to people in your contacts. They are never stored on the relay server.")
+                }
+
+                Section {
+                    LabeledContent {
+                        Text(kad.myPhone.isEmpty ? String(localized: "Not verified") : kad.myPhone)
+                            .foregroundStyle(kad.myPhone.isEmpty ? .secondary : .primary)
+                    } label: {
+                        Text("Phone number")
+                    }
+                    .accessibilityElement(children: .combine)
+                } header: {
+                    Text("Verified number")
+                } footer: {
+                    Text("This is the number your contacts see. Change it from Settings › Account.")
+                }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.red)
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
             }
-
-            Section {
-                TextField("Your name", text: $editedName)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .focused($nameFocused)
-                    .submitLabel(.done)
-                    .onSubmit { save() }
-                    .accessibilityLabel(Text("Display name"))
-            } header: {
-                Text("Name")
-            } footer: {
-                Text("Your name and photo are sent, encrypted, to people in your contacts. They are never stored on the relay server.")
-            }
-
-            Section {
-                LabeledContent {
-                    Text(kad.myPhone.isEmpty ? String(localized: "Not verified") : kad.myPhone)
-                        .foregroundStyle(kad.myPhone.isEmpty ? .secondary : .primary)
-                } label: {
-                    Text("Phone number")
-                }
-                .accessibilityElement(children: .combine)
-            } header: {
-                Text("Verified number")
-            } footer: {
-                Text("This is the number your contacts see. Change it from Settings › Account.")
-            }
-
-            if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
-            }
+            .glassListRows()
         }
+        .lavaBackground()
         .navigationTitle(Text("Profile"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
