@@ -121,6 +121,66 @@ nonisolated func statusDescription(_ status: MessageStatus) -> String {
     }
 }
 
+// MARK: - Reply preview
+
+/// What a quoted reply shows: who wrote the original and a one-line snippet.
+struct ReplyPreview: Equatable {
+    let messageID: String
+    let author: String
+    let snippet: String
+    let isImage: Bool
+    /// The original isn't on this device (deleted, or sent before we joined).
+    let isMissing: Bool
+}
+
+/// The quote block used inside a bubble and above the composer.
+struct ReplyQuote: View {
+    let preview: ReplyPreview
+    var onDarkBubble = false
+
+    private var accent: Color {
+        onDarkBubble ? .white : AvatarView.color(for: preview.author)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(accent)
+                .frame(width: 3)
+            VStack(alignment: .leading, spacing: 2) {
+                if !preview.isMissing {
+                    Text(preview.author)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                }
+                Label {
+                    Text(preview.snippet)
+                        .lineLimit(2)
+                } icon: {
+                    if preview.isImage { Image(systemName: "photo") }
+                }
+                .labelStyle(ReplySnippetLabelStyle(showsIcon: preview.isImage))
+                .font(.caption)
+                .italic(preview.isMissing)
+                .foregroundStyle(onDarkBubble ? Color.white.opacity(0.85) : .secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct ReplySnippetLabelStyle: LabelStyle {
+    let showsIcon: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            if showsIcon { configuration.icon }
+            configuration.title
+        }
+    }
+}
+
 // MARK: - Bubble
 
 struct ChatMessageBubble: View {
@@ -130,9 +190,17 @@ struct ChatMessageBubble: View {
     let senderName: String?
     /// Local file URL for an image message, resolved by the parent.
     let imageURL: URL?
+    /// The message this one replies to, when it is a reply.
+    var replyPreview: ReplyPreview? = nil
+    /// Only the newest message in a thread shows its time under the bubble;
+    /// the rest reveal theirs with a left swipe.
+    var showsFooter = true
+    /// The user tapped "Show original" on a translated message.
+    var showsOriginal = false
 
     var onTapImage: (URL) -> Void = { _ in }
     var onRetry: () -> Void = {}
+    var onTapReply: (String) -> Void = { _ in }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -150,13 +218,32 @@ struct ChatMessageBubble: View {
                         .padding(.horizontal, 6)
                 }
 
-                content
-                    .padding(.horizontal, message.kind == .image && !message.isDeleted ? 0 : 14)
-                    .padding(.vertical, message.kind == .image && !message.isDeleted ? 0 : 10)
-                    .background(bubbleFill, in: BubbleShape(isFromMe: isMine))
-                    .clipShape(BubbleShape(isFromMe: isMine))
+                VStack(alignment: .leading, spacing: 0) {
+                    if let replyPreview, !message.isDeleted {
+                        Button {
+                            onTapReply(replyPreview.messageID)
+                        } label: {
+                            ReplyQuote(preview: replyPreview, onDarkBubble: isMine)
+                                .padding(8)
+                                .background(quoteFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(replyPreview.isMissing)
+                        .padding(.horizontal, 6)
+                        .padding(.top, 6)
+                        .padding(.bottom, isPlainImage ? 6 : 0)
+                    }
 
-                footer
+                    content
+                        .padding(.horizontal, isPlainImage ? 0 : 14)
+                        .padding(.vertical, isPlainImage ? 0 : 10)
+                }
+                .background(bubbleFill, in: BubbleShape(isFromMe: isMine))
+                .clipShape(BubbleShape(isFromMe: isMine))
+
+                if showsFooter || (isMine && message.status == .failed) {
+                    footer
+                }
             }
 
             if !isMine { Spacer(minLength: 48) }
@@ -194,7 +281,7 @@ struct ChatMessageBubble: View {
 
                 if message.translatedBody != nil {
                     Label {
-                        Text("Translated")
+                        Text(showsOriginal ? "Original" : "Translated")
                     } icon: {
                         Image(systemName: "character.bubble")
                     }
@@ -259,8 +346,16 @@ struct ChatMessageBubble: View {
 
     // MARK: Derivations
 
+    private var isPlainImage: Bool {
+        message.kind == .image && !message.isDeleted
+    }
+
+    private var quoteFill: Color {
+        isMine ? Color.white.opacity(0.18) : Color(.systemGray4).opacity(0.6)
+    }
+
     private var displayedBody: String {
-        message.translatedBody ?? message.body
+        showsOriginal ? message.body : (message.translatedBody ?? message.body)
     }
 
     private var bubbleFill: Color {
@@ -280,6 +375,9 @@ struct ChatMessageBubble: View {
         } else {
             parts.append(displayedBody)
             if message.translatedBody != nil { parts.append(String(localized: "Translated")) }
+        }
+        if let replyPreview, !message.isDeleted, !replyPreview.isMissing {
+            parts.append(String(localized: "Reply to \(replyPreview.author): \(replyPreview.snippet)"))
         }
         parts.append(ChatFormatters.time(message.timestamp))
         if isMine { parts.append(statusDescription(message.status)) }

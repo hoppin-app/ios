@@ -501,6 +501,113 @@ struct StoreContactTests {
 // MARK: - Seen envelopes
 
 @MainActor
+@Suite("ConversationStore — per-chat translation")
+struct StoreTranslationTests {
+
+    @Test("the language is stored per contact and survives a reload")
+    func perContact() async {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.addContact(Contact(phone: "+14155552671", name: "Ana"))
+        store.addContact(Contact(phone: "+14155550000", name: "Rui"))
+
+        store.setTranslateLanguage("pt", for: "+14155552671")
+        #expect(store.translateLanguage(for: "+14155552671") == "pt")
+        #expect(store.translateLanguage(for: "+14155550000") == nil)
+
+        await store.flush()
+        let reloaded = makeStore(temp.url)
+        #expect(reloaded.translateLanguage(for: "+14155552671") == "pt")
+
+        reloaded.setTranslateLanguage(nil, for: "+14155552671")
+        #expect(reloaded.translateLanguage(for: "+14155552671") == nil)
+    }
+
+    @Test("an unsaved sender gets a contact entry to hold the setting")
+    func unsavedSender() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.setTranslateLanguage("en", for: "+14155552671")
+        #expect(store.translateLanguage(for: "+14155552671") == "en")
+        store.setTranslateLanguage(nil, for: "+14155559999")
+        #expect(store.contact(for: "+14155559999") == nil)
+    }
+
+    @Test("group updates from other members don't reset our choice")
+    func groupPreserved() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        let group = ChatGroup(id: "g1", name: "Team", members: ["+14155552671"], admins: [])
+        store.upsertGroup(group)
+        let cid = ConversationStore.conversationID(group: "g1")
+
+        store.setTranslateLanguage("fr", for: cid)
+        var renamed = group
+        renamed.name = "Team 2"
+        store.upsertGroup(renamed)
+
+        #expect(store.group(id: "g1")?.name == "Team 2")
+        #expect(store.translateLanguage(for: cid) == "fr")
+    }
+
+    @Test("clearTranslations drops every translation in one thread only")
+    func clearing() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.appendMessage(message("a"))
+        store.appendMessage(message("b", conversation: "+14155550000", from: "+14155550000"))
+        store.setTranslation(messageID: "a", conversationID: "+14155552671", text: "olá")
+        store.setTranslation(messageID: "b", conversationID: "+14155550000", text: "olá")
+
+        store.clearTranslations(in: "+14155552671")
+        #expect(store.thread("+14155552671").first?.translatedBody == nil)
+        #expect(store.thread("+14155550000").first?.translatedBody == "olá")
+    }
+
+    @Test("contacts saved before per-chat translation still load")
+    func legacyContact() throws {
+        let json = Data(#"{"phone":"+14155552671","name":"Ana","addedAt":0,"isBlocked":false}"#.utf8)
+        let contact = try JSONDecoder().decode(Contact.self, from: json)
+        #expect(contact.translateLanguage == nil)
+    }
+
+    @Test("a number change carries the setting to the new number")
+    func numberChange() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.addContact(Contact(phone: "+14155552671", name: "Ana"))
+        store.setTranslateLanguage("de", for: "+14155552671")
+        store.renameConversation(from: "+14155552671", to: "+14155550000")
+        #expect(store.translateLanguage(for: "+14155550000") == "de")
+    }
+}
+
+@Suite("Translation — language detection")
+struct LanguageDetectionTests {
+
+    @Test("clear sentences are identified")
+    func detects() {
+        #expect(TranslationService.detectLanguage("Olá, como estás? Vamos jantar amanhã à noite?",
+                                                  minimumConfidence: 0.5) == "pt")
+        #expect(TranslationService.detectLanguage("Hello, how are you doing today? Want to grab dinner?",
+                                                  minimumConfidence: 0.5) == "en")
+    }
+
+    @Test("empty or meaningless text is not guessed")
+    func undetermined() {
+        #expect(TranslationService.detectLanguage("", minimumConfidence: 0.5) == nil)
+        #expect(TranslationService.detectLanguage("12345 !!!", minimumConfidence: 0.5) == nil)
+    }
+
+    @Test("regional variants count as the same language", arguments: [
+        ("pt", "pt-PT", true), ("zh-Hans", "zh", true), ("en_GB", "EN", true), ("pt", "es", false),
+    ])
+    func same(a: String, b: String, expected: Bool) {
+        #expect(TranslationService.sameLanguage(a, b) == expected)
+    }
+}
+
+@MainActor
 @Suite("ConversationStore — seen-envelope set")
 struct StoreSeenTests {
 

@@ -252,6 +252,42 @@ struct RelayIntegrationTests {
         #expect(read, "Alice never saw the read receipt")
     }
 
+    @Test("a reply keeps its link to the original on both devices", .timeLimit(.minutes(2)))
+    func replyRoundTrip() async throws {
+        guard let world = try World.make() else {
+            withKnownIssue(ServerInfo.skipComment) { Issue.record("integration server absent") }
+            return
+        }
+
+        let alice = try await world.party("alice", phone: alicePhone)
+        let bob = try await world.party("bob", phone: bobPhone)
+        defer { alice.stop(); bob.stop() }
+        await world.drain(alice)
+        await world.drain(bob)
+
+        _ = try await alice.service.addContact(phone: bobPhone, name: "Bob")
+        let original = "question \(UUID().uuidString.prefix(8))"
+        await alice.service.sendText(original, to: bobPhone)
+
+        let arrived = await waitUntil(timeout: 45) {
+            bob.store.thread(alicePhone).contains { $0.body == original }
+        }
+        #expect(arrived, "the original never reached Bob")
+        let originalID = try #require(bob.store.thread(alicePhone).first { $0.body == original }?.id)
+        // Both sides store the message under the same id — replies depend on it.
+        #expect(alice.store.thread(bobPhone).contains { $0.id == originalID })
+
+        let answer = "answer \(UUID().uuidString.prefix(8))"
+        await bob.service.sendText(answer, to: alicePhone, replyingTo: originalID)
+        #expect(bob.store.thread(alicePhone).first { $0.body == answer }?.replyToID == originalID)
+
+        let replied = await waitUntil(timeout: 45) {
+            alice.store.thread(bobPhone).contains { $0.body == answer }
+        }
+        #expect(replied, "the reply never reached Alice")
+        #expect(alice.store.thread(bobPhone).first { $0.body == answer }?.replyToID == originalID)
+    }
+
     @Test("an image within the size limit survives the round trip", .timeLimit(.minutes(2)))
     func imageRoundTrip() async throws {
         guard let world = try World.make() else { return }

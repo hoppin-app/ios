@@ -131,6 +131,8 @@ nonisolated enum AppConfig {
 
     enum Keys {
         static let displayName        = "hopchat.displayName"
+        /// Legacy global translate settings — translation is per chat now
+        /// (stored with the contact/group). Kept so account deletion clears them.
         static let autoTranslate      = "hopchat.autoTranslate"
         static let translateLang      = "hopchat.translateLang"
         static let sendReadReceipts   = "hopchat.sendReadReceipts"
@@ -138,6 +140,7 @@ nonisolated enum AppConfig {
         static let notificationsEnabled = "hopchat.notifications.enabled"
         static let notificationsPreview = "hopchat.notifications.showPreview"
         static let notificationsSound   = "hopchat.notifications.sound"
+        static let animatedBackground = "hopchat.appearance.animatedBackground"
         static let appLockEnabled     = "hopchat.appLock.enabled"
         static let appLockTimeout     = "hopchat.appLock.timeout"
         static let hasSeenOnboarding  = "hopchat.hasSeenOnboarding"
@@ -154,6 +157,7 @@ nonisolated enum AppConfig {
             Keys.notificationsEnabled: true,
             Keys.notificationsPreview: true,
             Keys.notificationsSound: true,
+            Keys.animatedBackground: true,
             Keys.appLockEnabled: false,
             Keys.appLockTimeout: 0,
         ])
@@ -164,7 +168,7 @@ nonisolated enum AppConfig {
         [Keys.displayName, Keys.autoTranslate, Keys.translateLang,
          Keys.sendReadReceipts, Keys.sendTypingIndicators,
          Keys.notificationsEnabled, Keys.notificationsPreview, Keys.notificationsSound,
-         Keys.appLockEnabled, Keys.appLockTimeout,
+         Keys.appLockEnabled, Keys.appLockTimeout, Keys.animatedBackground,
          Keys.hasSeenOnboarding, Keys.hasAcceptedTerms, Keys.legacyPhone]
     }
 }

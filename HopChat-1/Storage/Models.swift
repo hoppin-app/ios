@@ -21,6 +21,9 @@ nonisolated struct Contact: Codable, Identifiable, Hashable, Sendable {
     var profileName: String? = nil
     var lanIP: String? = nil
     var lanPort: UInt16? = nil
+    /// Auto-translate incoming messages in this chat into this language
+    /// code (e.g. "en"); nil = off. Local-only, never sent.
+    var translateLanguage: String? = nil
 
     init(phone: String,
          name: String,
@@ -57,6 +60,8 @@ nonisolated struct ChatGroup: Codable, Identifiable, Hashable, Sendable {
     var admins: [String]
     var createdAt: Date
     var isActive: Bool = true
+    /// Local-only auto-translate target for this group chat; nil = off.
+    var translateLanguage: String? = nil
 
     init(id: String,
          name: String,
@@ -133,6 +138,8 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
     var isDeleted: Bool = false
     var attempts: Int = 0
     var lastAttemptAt: Date? = nil
+    /// Id of the message this one replies to, in the same conversation.
+    var replyToID: String? = nil
 
     init(id: String = UUID().uuidString,
          conversationID: String,
@@ -148,7 +155,8 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
          translatedBody: String? = nil,
          isDeleted: Bool = false,
          attempts: Int = 0,
-         lastAttemptAt: Date? = nil) {
+         lastAttemptAt: Date? = nil,
+         replyToID: String? = nil) {
         self.id = id
         self.conversationID = conversationID
         self.fromPhone = fromPhone
@@ -164,6 +172,7 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
         self.isDeleted = isDeleted
         self.attempts = attempts
         self.lastAttemptAt = lastAttemptAt
+        self.replyToID = replyToID
     }
 
     /// Counts toward an unread badge.
@@ -188,7 +197,8 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
                       translatedBody: translatedBody,
                       isDeleted: isDeleted,
                       attempts: attempts,
-                      lastAttemptAt: lastAttemptAt)
+                      lastAttemptAt: lastAttemptAt,
+                      replyToID: replyToID)
     }
 }
 

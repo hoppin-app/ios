@@ -30,6 +30,9 @@ struct ChatComposer: View {
     var isSendBlocked: Bool = false
     var blockedReason: String? = nil
     var placeholder: String = String(localized: "Message")
+    /// The message being replied to, shown above the field.
+    var replyContext: ReplyPreview? = nil
+    var onCancelReply: () -> Void = {}
 
     var onSend: () -> Void
     var onImage: (Data) -> Void
@@ -57,6 +60,10 @@ struct ChatComposer: View {
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20)
+            }
+
+            if let replyContext {
+                replyBar(replyContext)
             }
 
             HStack(alignment: .bottom, spacing: 10) {
@@ -113,7 +120,7 @@ struct ChatComposer: View {
                     .padding(.bottom, 4)
             }
         }
-        .background(Color(.systemBackground))
+        .background(.bar)
         .overlay(alignment: .top) { Divider() }
         .onChange(of: text) { _, newValue in
             guard !newValue.isEmpty, !isSendBlocked else { return }
@@ -123,10 +130,42 @@ struct ChatComposer: View {
             lastTypingPing = now
             onTyping()
         }
+        .onChange(of: replyContext?.messageID) { _, id in
+            if id != nil { isFocused = true }
+        }
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }
             Task { await prepare(item) }
         }
+    }
+
+    // MARK: Reply bar
+
+    private func replyBar(_ preview: ReplyPreview) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .font(.footnote)
+                .foregroundStyle(.blue)
+                .accessibilityHidden(true)
+
+            ReplyQuote(preview: preview)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Replying to \(preview.author): \(preview.snippet)"))
+
+            Button(action: onCancelReply) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Cancel reply"))
+        }
+        .padding(.leading, 20)
+        .padding(.trailing, 8)
+        .padding(.top, 6)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     // MARK: Photo handling

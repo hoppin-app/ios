@@ -44,6 +44,8 @@ nonisolated struct ChatPayload: Codable, Equatable {
     var newPhone: String?
     /// Number change — must carry the same signing key as the sender's cert.
     var newCertificate: String?
+    /// Text/image: id of the message being replied to.
+    var replyToID: String?
     /// Sender clock, unix seconds.
     var sentAt: Int64
 
@@ -59,6 +61,7 @@ nonisolated struct ChatPayload: Codable, Equatable {
          avatarJPEGBase64: String? = nil,
          newPhone: String? = nil,
          newCertificate: String? = nil,
+         replyToID: String? = nil,
          sentAt: Int64 = Int64(Date().timeIntervalSince1970)) {
         self.kind = kind
         self.text = text
@@ -72,6 +75,7 @@ nonisolated struct ChatPayload: Codable, Equatable {
         self.avatarJPEGBase64 = avatarJPEGBase64
         self.newPhone = newPhone
         self.newCertificate = newCertificate
+        self.replyToID = replyToID
         self.sentAt = sentAt
     }
 
@@ -150,6 +154,7 @@ nonisolated struct ChatPayload: Codable, Equatable {
         case .numberChange:
             guard let p = newPhone, !p.isEmpty, newCertificate != nil else { return false }
         }
+        if let replyToID, replyToID.isEmpty || replyToID.utf8.count > 64 { return false }
         if isGroupPayload && groupID == nil { return false }
         return true
     }

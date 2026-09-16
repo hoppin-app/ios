@@ -401,7 +401,7 @@ final class KademliaService: ObservableObject {
 
     // MARK: - Sending
 
-    func sendText(_ text: String, to conversationID: String) async {
+    func sendText(_ text: String, to conversationID: String, replyingTo replyToID: String? = nil) async {
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty, isRegistered else { return }
 
@@ -413,12 +413,13 @@ final class KademliaService: ObservableObject {
                                     kind: .text,
                                     body: body,
                                     status: .pending,
-                                    isFromMe: true)
+                                    isFromMe: true,
+                                    replyToID: replyToID)
         guard store.appendMessage(message) else { return }
         await deliverStoredMessage(messageID: messageID, conversationID: conversationID)
     }
 
-    func sendImage(_ jpeg: Data, to conversationID: String) async {
+    func sendImage(_ jpeg: Data, to conversationID: String, replyingTo replyToID: String? = nil) async {
         guard isRegistered, !jpeg.isEmpty else { return }
         guard jpeg.count <= ChatPayload.maxImageBytes else {
             lastError = String(localized: "That image is too large to send.")
@@ -443,7 +444,8 @@ final class KademliaService: ObservableObject {
                                     body: "",
                                     imageFilename: filename,
                                     status: .pending,
-                                    isFromMe: true)
+                                    isFromMe: true,
+                                    replyToID: replyToID)
         guard store.appendMessage(message) else { return }
         await deliverStoredMessage(messageID: messageID, conversationID: conversationID)
     }
@@ -462,7 +464,8 @@ final class KademliaService: ObservableObject {
         case .text:
             payload = ChatPayload(kind: isGroup ? .groupText : .text,
                                   text: message.body,
-                                  groupID: groupID)
+                                  groupID: groupID,
+                                  replyToID: message.replyToID)
         case .image:
             guard let filename = message.imageFilename,
                   let data = try? Data(contentsOf: store.imageURL(filename)) else {
@@ -471,7 +474,8 @@ final class KademliaService: ObservableObject {
             }
             payload = ChatPayload(kind: isGroup ? .groupImage : .image,
                                   imageJPEGBase64: data.base64EncodedString(),
-                                  groupID: groupID)
+                                  groupID: groupID,
+                                  replyToID: message.replyToID)
         case .system:
             return
         }
@@ -1013,7 +1017,8 @@ final class KademliaService: ObservableObject {
                                     timestamp: Date(timeIntervalSince1970: TimeInterval(payload.sentAt)),
                                     status: .delivered,
                                     isFromMe: false,
-                                    isRead: false)
+                                    isRead: false,
+                                    replyToID: payload.replyToID)
 
         // Persist first — never block receipt or storage on translation.
         // A duplicate id means we already have it: finished, safe to ack.
@@ -1030,11 +1035,12 @@ final class KademliaService: ObservableObject {
         // Delivery receipt, after the message is safely stored.
         await sendDeliveryReceipt(for: envelopeID, to: sender, groupID: payload.groupID)
 
-        // Translation runs afterwards, with a 10 s ceiling.
-        if kind == .text, !body.isEmpty {
+        // Translation runs afterwards, with a 10 s ceiling, only in chats
+        // where the user turned it on.
+        if kind == .text, !body.isEmpty, let language = store.translateLanguage(for: conversationID) {
             Task { [weak self] in
                 guard let self else { return }
-                let translated = await self.translate(body)
+                let translated = await self.translate(body, to: language)
                 guard let translated, !translated.isEmpty else { return }
                 self.store.setTranslation(messageID: envelopeID,
                                           conversationID: conversationID,
@@ -1044,9 +1050,9 @@ final class KademliaService: ObservableObject {
         return .accepted
     }
 
-    private func translate(_ body: String) async -> String? {
+    private func translate(_ body: String, to language: String) async -> String? {
         await withTaskGroup(of: String?.self) { group in
-            group.addTask { await TranslationService.shared.autoTranslate(body: body) }
+            group.addTask { await TranslationService.shared.translate(text: body, to: language) }
             group.addTask {
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
                 return nil
@@ -1056,6 +1062,40 @@ final class KademliaService: ObservableObject {
             return result
         }
     }
+
+    /// Turns auto-translate on (with a language) or off for one chat.
+    /// Existing translations are dropped; when turning on, the most recent
+    /// incoming messages are translated right away. That request comes from
+    /// the user, so it may show the system's language-download sheet once.
+    func setAutoTranslate(_ language: String?, for conversationID: String) async {
+        guard store.translateLanguage(for: conversationID) != language else { return }
+        store.setTranslateLanguage(language, for: conversationID)
+        store.clearTranslations(in: conversationID)
+        guard let language else { return }
+
+        let recent = store.thread(conversationID)
+            .filter { !$0.isFromMe && !$0.isDeleted && $0.kind == .text && !$0.body.isEmpty }
+            .suffix(Self.translateBackfillLimit)
+        // At most one download prompt per source language, even if declined.
+        var prompted: Set<String> = []
+        for message in recent.reversed() {
+            // Stop if the user changed their mind meanwhile.
+            guard store.translateLanguage(for: conversationID) == language else { return }
+            var interactive = false
+            if let source = TranslationService.detectLanguage(message.body, minimumConfidence: 0.3),
+               !TranslationService.sameLanguage(source, language) {
+                interactive = prompted.insert(source).inserted
+            }
+            let translated = await TranslationService.shared.translate(text: message.body,
+                                                                       to: language,
+                                                                       interactive: interactive)
+            if let translated, !translated.isEmpty {
+                store.setTranslation(messageID: message.id, conversationID: conversationID, text: translated)
+            }
+        }
+    }
+
+    private static let translateBackfillLimit = 30
 
     private func applyReceipt(_ payload: ChatPayload, from sender: String, status: MessageStatus) {
         let conversationID = payload.groupID.map(ConversationStore.conversationID(group:))

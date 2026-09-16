@@ -56,6 +56,22 @@ struct TextRoomView: View {
     @State private var showContactDetail = false
     @State private var pendingDeleteForEveryone: StoredMessage?
 
+    // Swipe right on a bubble → reply; swipe left anywhere → reveal every time.
+    @State private var replyingToID: String?
+    @State private var replySwipeID: String?
+    @State private var replySwipeOffset: CGFloat = 0
+    @State private var timeReveal: CGFloat = 0
+    @State private var scrollTarget: String?
+    @State private var fluid = FluidScrollModel()
+    /// Translated messages the user flipped back to the original text.
+    @State private var showingOriginal: Set<String> = []
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private static let replyThreshold: CGFloat = 56
+    private static let replyMaxOffset: CGFloat = 80
+    private static let timeRevealWidth: CGFloat = 72
+
     // MARK: Derived state
 
     private var isGroup: Bool { ConversationStore.groupID(from: conversationID) != nil }
@@ -128,13 +144,18 @@ struct TextRoomView: View {
                          isSendBlocked: isSendBlocked,
                          blockedReason: blockedReason,
                          placeholder: String(localized: "Message"),
+                         replyContext: replyingToID.map { replyPreview(for: $0) },
+                         onCancelReply: { withAnimation(.snappy) { replyingToID = nil } },
                          onSend: send,
                          onImage: sendImage,
                          onTyping: notifyTyping)
         }
-        .background(Color(.systemBackground))
+        .lavaBackground()
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .principal) { header } }
+        .toolbar {
+            ToolbarItem(placement: .principal) { header }
+            ToolbarItem(placement: .topBarTrailing) { translateMenu }
+        }
         .sheet(item: $fullScreenImage) { url in
             FullScreenImageViewer(url: url)
         }
@@ -210,12 +231,47 @@ struct TextRoomView: View {
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
+            .background(Color.clear)
         }
         .buttonStyle(.plain)
+        .background(Color.clear)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text([title, subtitle].compactMap { $0 }.joined(separator: ", ")))
         .accessibilityHint(Text(isGroup ? "Opens group details" : "Opens contact details"))
         .accessibilityAddTraits(.isButton)
+    }
+
+    // MARK: Translate menu
+
+    private var translateLanguage: String? {
+        store.translateLanguage(for: conversationID)
+    }
+
+    private var translateMenu: some View {
+        Menu {
+            Picker(selection: Binding(
+                get: { translateLanguage },
+                set: { language in
+                    showingOriginal.removeAll()
+                    Task { await kad.setAutoTranslate(language, for: conversationID) }
+                }
+            )) {
+                Label("Off", systemImage: "nosign").tag(String?.none)
+                ForEach(TranslateLanguage.all) { language in
+                    Text("\(language.flag) \(language.name)").tag(Optional(language.code))
+                }
+            } label: {
+                Text("Auto-translate")
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "translate")
+                .symbolVariant(translateLanguage == nil ? .none : .circle.fill)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .accessibilityLabel(Text("Auto-translate"))
+        .accessibilityValue(Text(translateLanguage.map { TranslateLanguage.name(for: $0) }
+                                 ?? String(localized: "Off")))
     }
 
     // MARK: Messages
@@ -233,13 +289,15 @@ struct TextRoomView: View {
                         case .day(let date):
                             DaySeparator(date: date)
                         case .message(let message):
-                            bubble(for: message)
+                            swipeableRow(for: message)
+                                .fluidScrollRow(fluid)
                                 .id(message.id)
                         }
                     }
 
                     if isTyping {
                         TypingBubble(name: isGroup ? nil : title)
+                            .fluidScrollRow(fluid)
                             .id("typing")
                     }
                 }
@@ -248,10 +306,16 @@ struct TextRoomView: View {
                 .frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.bottom)
+            .fluidScrollSource(fluid, enabled: !reduceMotion)
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.last?.id) { _, id in
                 guard let id else { return }
                 proxy.scrollTo(id, anchor: .bottom)
+            }
+            .onChange(of: scrollTarget) { _, id in
+                guard let id else { return }
+                withAnimation { proxy.scrollTo(id, anchor: .center) }
+                scrollTarget = nil
             }
             .onChange(of: isTyping) { _, typing in
                 if typing { proxy.scrollTo("typing", anchor: .bottom) }
@@ -266,19 +330,155 @@ struct TextRoomView: View {
                 ? ConversationNaming.name(for: message.fromPhone, store: store)
                 : nil,
             imageURL: message.imageFilename.map { store.imageURL($0) },
+            replyPreview: message.replyToID.map { replyPreview(for: $0) },
+            showsFooter: message.id == messages.last?.id,
+            showsOriginal: showingOriginal.contains(message.id),
             onTapImage: { fullScreenImage = $0 },
-            onRetry: { retry(message) }
+            onRetry: { retry(message) },
+            onTapReply: { scrollTarget = $0 }
         )
         .contextMenu { menu(for: message) }
     }
 
+    /// A bubble plus both swipe behaviours. The reply arrow sits behind the
+    /// bubble and fades in as it's dragged right; the time label waits just
+    /// past the trailing edge and slides in as the whole row moves left.
+    private func swipeableRow(for message: StoredMessage) -> some View {
+        let offset = replySwipeID == message.id ? replySwipeOffset : 0
+        let progress = min(offset / Self.replyThreshold, 1)
+
+        return ZStack(alignment: .leading) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .padding(8)
+                .background(Color(.tertiarySystemFill), in: Circle())
+                .scaleEffect(0.6 + 0.4 * progress)
+                .opacity(progress)
+                .padding(.leading, 14)
+                .accessibilityHidden(true)
+
+            bubble(for: message)
+                .offset(x: offset)
+        }
+        .offset(x: -timeReveal)
+        .overlay(alignment: .trailing) {
+            revealedTime(for: message)
+                .frame(width: Self.timeRevealWidth - 8, alignment: .leading)
+                .offset(x: Self.timeRevealWidth - timeReveal)
+                .opacity(timeReveal / Self.timeRevealWidth)
+        }
+        .contentShape(Rectangle())
+        .gesture(HorizontalPanGesture(
+            onChange: { dragChanged($0, on: message) },
+            onEnd: { dragEnded($0, on: message) }
+        ))
+        .accessibilityAction(named: Text("Reply")) { startReply(to: message) }
+    }
+
+    private func revealedTime(for message: StoredMessage) -> some View {
+        HStack(spacing: 3) {
+            Text(ChatFormatters.time(message.timestamp))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize()
+            if message.isFromMe {
+                MessageStatusIcon(status: message.status)
+                    .font(.system(size: 8))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func canReply(to message: StoredMessage) -> Bool {
+        !message.isDeleted && message.kind != .system && !isSendBlocked
+    }
+
+    private func dragChanged(_ x: CGFloat, on message: StoredMessage) {
+        if x < 0 {
+            // Left: rubber-band past the reveal width.
+            let pull = -x
+            let width = Self.timeRevealWidth
+            timeReveal = pull <= width ? pull : width + (pull - width) * 0.15
+            replySwipeOffset = 0
+        } else {
+            timeReveal = 0
+            guard canReply(to: message) else { return }
+            let damped = x <= Self.replyThreshold ? x : Self.replyThreshold + (x - Self.replyThreshold) * 0.3
+            let newOffset = min(damped, Self.replyMaxOffset)
+            if replySwipeOffset < Self.replyThreshold, newOffset >= Self.replyThreshold {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+            replySwipeID = message.id
+            replySwipeOffset = newOffset
+        }
+    }
+
+    private func dragEnded(_ x: CGFloat, on message: StoredMessage) {
+        let triggered = replySwipeID == message.id && replySwipeOffset >= Self.replyThreshold
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            replySwipeOffset = 0
+            timeReveal = 0
+        }
+        if triggered { startReply(to: message) }
+    }
+
+    private func startReply(to message: StoredMessage) {
+        guard canReply(to: message) else { return }
+        withAnimation(.snappy) { replyingToID = message.id }
+    }
+
+    private func replyPreview(for id: String) -> ReplyPreview {
+        guard let original = messages.first(where: { $0.id == id }), !original.isDeleted else {
+            return ReplyPreview(messageID: id,
+                                author: "",
+                                snippet: String(localized: "Original message unavailable"),
+                                isImage: false,
+                                isMissing: true)
+        }
+        let author = original.isFromMe
+            ? String(localized: "You")
+            : ConversationNaming.name(for: original.fromPhone, store: store)
+        let isImage = original.kind == .image
+        return ReplyPreview(messageID: id,
+                            author: author,
+                            snippet: isImage ? String(localized: "Photo") : (original.translatedBody ?? original.body),
+                            isImage: isImage,
+                            isMissing: false)
+    }
+
     @ViewBuilder
     private func menu(for message: StoredMessage) -> some View {
+        if canReply(to: message) {
+            Button {
+                startReply(to: message)
+            } label: {
+                Label("Reply", systemImage: "arrowshape.turn.up.left")
+            }
+        }
+
         if !message.isDeleted, message.kind == .text, !message.body.isEmpty {
             Button {
-                UIPasteboard.general.string = message.translatedBody ?? message.body
+                UIPasteboard.general.string = showingOriginal.contains(message.id)
+                    ? message.body
+                    : (message.translatedBody ?? message.body)
             } label: {
                 Label("Copy", systemImage: "doc.on.doc")
+            }
+        }
+
+        if message.translatedBody != nil, !message.isDeleted {
+            let original = showingOriginal.contains(message.id)
+            Button {
+                if original {
+                    showingOriginal.remove(message.id)
+                } else {
+                    showingOriginal.insert(message.id)
+                }
+            } label: {
+                Label(original ? "Show translation" : "Show original",
+                      systemImage: "character.bubble")
             }
         }
 
@@ -391,12 +591,16 @@ struct TextRoomView: View {
         let body = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty, !isSendBlocked else { return }
         draft = ""
-        Task { await kad.sendText(body, to: conversationID) }
+        let replyTo = replyingToID
+        replyingToID = nil
+        Task { await kad.sendText(body, to: conversationID, replyingTo: replyTo) }
     }
 
     private func sendImage(_ jpeg: Data) {
         guard !isSendBlocked else { return }
-        Task { await kad.sendImage(jpeg, to: conversationID) }
+        let replyTo = replyingToID
+        replyingToID = nil
+        Task { await kad.sendImage(jpeg, to: conversationID, replyingTo: replyTo) }
     }
 
     private func retry(_ message: StoredMessage) {

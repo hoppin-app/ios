@@ -14,14 +14,24 @@
 //  The rules now:
 //   • Every continuation is stored in `continuations` and removed *before* it
 //     is resumed, so it resumes exactly once, whatever path gets there first.
-//   • Every request carries a 10 s timeout task.
+//   • Every request carries a timeout task (10 s; 2 min when the user may be
+//     looking at a download sheet).
 //   • The bridge disappearing flushes the whole queue with `nil`.
 //   • `KademliaService` persists first and translates afterwards, so nothing
 //     here can ever block receiving.
+//   • Auto-translate is per chat. Background requests never cause system UI:
+//     the source language is detected on-device first, and a request only
+//     goes to the bridge when both language models are already installed.
+//     The old per-message pop-up came from handing Apple's framework
+//     text it couldn't identify (short messages like "Ola"), which makes it
+//     ask the user. Only a request the user started (turning translation on
+//     in a chat) may show the model-download sheet.
 //
 
 import Foundation
 import Combine
+import NaturalLanguage
+import Translation
 import os
 
 @MainActor
@@ -37,6 +47,7 @@ final class TranslationService: ObservableObject {
     struct PendingRequest: Identifiable, Equatable {
         let id: UUID
         let text: String
+        let sourceLang: String
         let targetLang: String
 
         nonisolated static func == (lhs: PendingRequest, rhs: PendingRequest) -> Bool {
@@ -54,23 +65,61 @@ final class TranslationService: ObservableObject {
 
     // MARK: - Public API
 
-    /// Translates `body` using the user's auto-translate settings.
-    /// Returns `nil` when disabled, unavailable, timed out, or failed —
+    /// Translates `text` into `targetLangCode`.
+    /// Returns `nil` when the text is already in that language, its language
+    /// can't be told, the models aren't available, or anything fails —
     /// callers treat `nil` as "show the original".
-    func autoTranslate(body: String) async -> String? {
-        let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: AppConfig.Keys.autoTranslate) else { return nil }
-        let lang = defaults.string(forKey: AppConfig.Keys.translateLang) ?? "en"
-        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+    ///
+    /// - Parameter interactive: the user asked for this just now, so the
+    ///   system may show its model-download sheet. Background requests pass
+    ///   `false` and never produce UI.
+    func translate(text: String, to targetLangCode: String, interactive: Bool = false) async -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        return await translate(text: trimmed, to: lang)
+
+        guard let source = Self.detectLanguage(trimmed,
+                                               minimumConfidence: interactive ? 0.3 : 0.5) else {
+            Log.ui.debug("Translation skipped: language not identified")
+            return nil
+        }
+        guard !Self.sameLanguage(source, targetLangCode) else { return nil }
+
+        let status = await LanguageAvailability().status(from: Locale.Language(identifier: source),
+                                                         to: Locale.Language(identifier: targetLangCode))
+        switch status {
+        case .installed:
+            break
+        case .supported where interactive:
+            break   // the bridge will ask to download
+        default:
+            Log.ui.debug("Translation skipped: \(source, privacy: .public)→\(targetLangCode, privacy: .public) not installed")
+            return nil
+        }
+
+        let request = PendingRequest(id: UUID(), text: trimmed,
+                                     sourceLang: source, targetLang: targetLangCode)
+        return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            enqueue(request, continuation: continuation, timeout: interactive ? 120 : Self.requestTimeout)
+        }
     }
 
-    func translate(text: String, to targetLangCode: String) async -> String? {
-        let request = PendingRequest(id: UUID(), text: text, targetLang: targetLangCode)
-        return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
-            enqueue(request, continuation: continuation)
+    // MARK: - Language detection
+
+    nonisolated static func detectLanguage(_ text: String, minimumConfidence: Double) -> String? {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+        guard let (language, confidence) = recognizer.languageHypotheses(withMaximum: 1).first,
+              language != .undetermined,
+              confidence >= minimumConfidence else { return nil }
+        return language.rawValue
+    }
+
+    /// "pt" vs "pt-PT", "zh-Hans" vs "zh" count as the same language.
+    nonisolated static func sameLanguage(_ a: String, _ b: String) -> Bool {
+        func base(_ code: String) -> String {
+            String(code.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first ?? "")
         }
+        return base(a) == base(b)
     }
 
     // MARK: - Bridge callbacks
@@ -105,12 +154,13 @@ final class TranslationService: ObservableObject {
     // MARK: - Queue plumbing
 
     private func enqueue(_ request: PendingRequest,
-                         continuation: CheckedContinuation<String?, Never>) {
+                         continuation: CheckedContinuation<String?, Never>,
+                         timeout: TimeInterval) {
         continuations[request.id] = continuation
         timeouts[request.id] = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(TranslationService.requestTimeout * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            Log.ui.debug("Translation request timed out after \(TranslationService.requestTimeout, privacy: .public)s")
+            Log.ui.debug("Translation request timed out after \(timeout, privacy: .public)s")
             self?.finish(request.id, with: nil)
         }
 

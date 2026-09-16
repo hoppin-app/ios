@@ -89,7 +89,7 @@ struct ChatListView: View {
                     list
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .lavaBackground()
             .navigationTitle(Text("Chats"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -171,6 +171,7 @@ struct ChatListView: View {
                                 presence: conversation.peerPhone.flatMap { kad.presenceMap[$0] })
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) {
                         conversationToDelete = conversation

@@ -44,8 +44,7 @@ struct SettingsView: View {
     @StateObject private var store = ConversationStore.shared
 
     @AppStorage(AppConfig.Keys.displayName)   private var displayName   = ""
-    @AppStorage(AppConfig.Keys.autoTranslate) private var autoTranslate = false
-    @AppStorage(AppConfig.Keys.translateLang) private var translateLang = "en"
+    @AppStorage(AppConfig.Keys.animatedBackground) private var animatedBackground = true
 
     var body: some View {
         NavigationStack {
@@ -53,11 +52,13 @@ struct SettingsView: View {
                 profileSection
                 privacySection
                 translateSection
+                appearanceSection
                 accountSection
                 aboutSection
                 developerSection
             }
             .listStyle(.insetGrouped)
+            .lavaBackground()
             .navigationTitle(Text("Settings"))
         }
     }
@@ -116,25 +117,31 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Appearance
+
+    private var appearanceSection: some View {
+        Section {
+            Toggle(isOn: $animatedBackground) {
+                Text("Animated background")
+            }
+        } header: {
+            Text("Appearance")
+        } footer: {
+            Text("The background also stays still with Reduce Motion or Low Power Mode on.")
+        }
+    }
+
     // MARK: - Translate
 
     private var translateSection: some View {
         Section {
-            Toggle(isOn: $autoTranslate) {
-                Text("Auto-translate messages")
+            Label {
+                Text("Auto-translate is set per chat: open a chat and tap \(Image(systemName: "translate")) at the top.")
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "translate")
             }
-            .accessibilityHint(Text("Translates incoming messages into your chosen language on this device"))
-
-            if autoTranslate {
-                Picker(selection: $translateLang) {
-                    ForEach(TranslateLanguage.all) { language in
-                        Text("\(language.flag) \(language.name)").tag(language.code)
-                    }
-                } label: {
-                    Text("Translate into")
-                }
-                .pickerStyle(.navigationLink)
-            }
+            .foregroundStyle(.secondary)
         } header: {
             Text("Translate")
         } footer: {

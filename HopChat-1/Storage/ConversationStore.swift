@@ -334,7 +334,11 @@ final class ConversationStore: ObservableObject {
     // MARK: - Groups
 
     func upsertGroup(_ g: ChatGroup) {
+        var g = g
         if let idx = groups.firstIndex(where: { $0.id == g.id }) {
+            // Group updates arrive from other members; the translate choice
+            // is ours and only changes through `setTranslateLanguage`.
+            g.translateLanguage = groups[idx].translateLanguage
             guard groups[idx] != g else { return }
             groups[idx] = g
         } else {
@@ -346,6 +350,45 @@ final class ConversationStore: ObservableObject {
 
     func group(id: String) -> ChatGroup? {
         groups.first { $0.id == id }
+    }
+
+    // MARK: - Per-chat translation
+
+    /// Target language for auto-translating this conversation, or nil when off.
+    func translateLanguage(for conversationID: String) -> String? {
+        if let gid = ConversationStore.groupID(from: conversationID) {
+            return group(id: gid)?.translateLanguage
+        }
+        return contact(for: conversationID)?.translateLanguage
+    }
+
+    func setTranslateLanguage(_ language: String?, for conversationID: String) {
+        if let gid = ConversationStore.groupID(from: conversationID) {
+            guard let idx = groups.firstIndex(where: { $0.id == gid }),
+                  groups[idx].translateLanguage != language else { return }
+            groups[idx].translateLanguage = language
+            persistGroups()
+        } else if let idx = contacts.firstIndex(where: { $0.phone == conversationID }) {
+            guard contacts[idx].translateLanguage != language else { return }
+            contacts[idx].translateLanguage = language
+            persistContacts()
+        } else if let language {
+            // Someone who messaged us but isn't saved yet.
+            var contact = Contact(phone: conversationID, name: conversationID)
+            contact.translateLanguage = language
+            contacts.append(contact)
+            persistContacts()
+        }
+    }
+
+    /// Drops every translation in a thread (auto-translate turned off or
+    /// switched to another language).
+    func clearTranslations(in conversationID: String) {
+        guard var thread = messages[conversationID],
+              thread.contains(where: { $0.translatedBody != nil }) else { return }
+        for i in thread.indices { thread[i].translatedBody = nil }
+        messages[conversationID] = thread
+        persistThread(conversationID)
     }
 
     // MARK: - Messages
@@ -542,6 +585,7 @@ final class ConversationStore: ObservableObject {
                 merged.profileName = merged.profileName ?? old.profileName
                 merged.avatarFilename = merged.avatarFilename ?? old.avatarFilename
                 merged.isBlocked = merged.isBlocked || old.isBlocked
+                merged.translateLanguage = merged.translateLanguage ?? old.translateLanguage
                 merged.addedAt = min(merged.addedAt, old.addedAt)
                 contacts[newIdx] = merged
             } else {

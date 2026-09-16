@@ -409,6 +409,35 @@ struct ChatPayloadTests {
         #expect(ChatPayload.decode(Data("{}".utf8)) == nil)
     }
 
+    @Test("reply ids round-trip and older payloads without one still decode")
+    func replyField() throws {
+        let reply = ChatPayload(kind: .text, text: "yes", replyToID: "M-1", sentAt: 1_790_000_600)
+        let decoded = try #require(ChatPayload.decode(try reply.encoded()))
+        #expect(decoded.replyToID == "M-1")
+        #expect(decoded.isWellFormed)
+
+        let legacy = Data(#"{"kind":"text","text":"hi","sentAt":1790000600}"#.utf8)
+        #expect(try #require(ChatPayload.decode(legacy)).replyToID == nil)
+
+        #expect(ChatPayload(kind: .text, text: "x", replyToID: "").isWellFormed == false)
+        #expect(ChatPayload(kind: .text, text: "x",
+                            replyToID: String(repeating: "a", count: 65)).isWellFormed == false)
+    }
+
+    @Test("stored messages saved before replies existed still load")
+    func legacyStoredMessage() throws {
+        let message = StoredMessage(conversationID: "+351912345678", fromPhone: "+351912345678",
+                                    toPhone: "+351911111111", body: "hi", isFromMe: false,
+                                    replyToID: "M-1")
+        var json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(message)) as? [String: Any])
+        #expect(json["replyToID"] as? String == "M-1")
+        json.removeValue(forKey: "replyToID")
+        let old = try JSONDecoder().decode(StoredMessage.self,
+                                           from: try JSONSerialization.data(withJSONObject: json))
+        #expect(old.replyToID == nil)
+        #expect(old.body == "hi")
+    }
+
     @Test("image and avatar limits match the contract")
     func limits() {
         #expect(ChatPayload.maxImageBytes == 600 * 1024)

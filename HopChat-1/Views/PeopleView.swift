@@ -129,6 +129,7 @@ struct PeopleView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .lavaBackground()
             .navigationTitle("People")
             .searchable(text: $searchText, prompt: Text("Search contacts"))
             .toolbar {

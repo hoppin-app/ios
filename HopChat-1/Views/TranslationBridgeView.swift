@@ -3,7 +3,9 @@
 //  HopChat-1
 //
 //  Invisible 0×0 view that owns the `TranslationSession` lifecycle. Embed once
-//  near the root of the hierarchy.
+//  near the root of the hierarchy. One request per run of `translationTask`;
+//  the next request re-runs it (new language pair → new configuration, same
+//  pair → `invalidate()`).
 //
 //  Every exit path tells `TranslationService`, so no request is left waiting:
 //  success, failure, and the view disappearing all resolve the continuation.
@@ -21,8 +23,6 @@ struct TranslationBridgeView: View {
     @ObservedObject private var service = TranslationService.shared
 
     @State private var config: TranslationSession.Configuration?
-    @State private var readySession: TranslationSession?
-    @State private var readyConfig: TranslationSession.Configuration?
 
     var body: some View {
         Color.clear
@@ -32,18 +32,16 @@ struct TranslationBridgeView: View {
                 processNext()
             }
             .onDisappear {
-                readySession = nil
-                readyConfig = nil
                 config = nil
                 service.bridgeDidDisappear()
             }
             .onChange(of: service.pendingRequest?.id) { _, _ in
                 processNext()
             }
+            // The session is only valid inside this closure, so it is never
+            // stored; every request runs the task again.
             .translationTask(config) { session in
-                readySession = session
-                readyConfig = config
-                await processWithSession(session)
+                await process(with: session)
             }
     }
 
@@ -52,20 +50,25 @@ struct TranslationBridgeView: View {
     private func processNext() {
         guard let request = service.pendingRequest else { return }
         let needed = TranslationSession.Configuration(
-            source: nil,
+            source: Locale.Language(identifier: request.sourceLang),
             target: Locale.Language(identifier: request.targetLang)
         )
-        if let session = readySession, readyConfig == needed {
-            Task { await processWithSession(session) }
+        if config?.source == needed.source, config?.target == needed.target {
+            // Same language pair: re-run the task with the existing configuration.
+            config?.invalidate()
         } else {
-            // Triggers `.translationTask` to vend a fresh session.
             config = needed
         }
     }
 
-    private func processWithSession(_ session: TranslationSession) async {
-        guard let request = service.pendingRequest else { return }
+    private func process(with session: TranslationSession) async {
+        guard let request = service.pendingRequest,
+              config?.source == Locale.Language(identifier: request.sourceLang),
+              config?.target == Locale.Language(identifier: request.targetLang) else { return }
         do {
+            // No-op when the models are installed; otherwise the system asks
+            // to download them (only interactive requests get this far).
+            try await session.prepareTranslation()
             let response = try await session.translate(request.text)
             service.complete(request: request, result: response.targetText)
         } catch {
