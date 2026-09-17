@@ -83,6 +83,22 @@ struct IngestAcceptedTests {
         #expect(pair.bob.store.thread(pair.alice.phone).count == 1)
     }
 
+    @Test("a message delivered directly and then again via the relay is stored once, as direct")
+    func directThenRelayStoresOnce() async throws {
+        let pair = try await Pair.make()
+        try pair.pinAliceOnBob()
+        let envelope = try EnvelopeFactory.text("both paths", from: pair.alice, to: pair.bob,
+                                                timestamp: pair.now)
+
+        #expect(await pair.bob.service.processIncoming(envelope, viaLAN: true) == .accepted)
+        // The sender's LAN ack got lost, so it also went through the relay.
+        #expect(await pair.bob.service.processIncoming(envelope, viaLAN: false) == .accepted,
+                "the relay copy must be acked, not requeued")
+        let thread = pair.bob.store.thread(pair.alice.phone)
+        #expect(thread.count == 1)
+        #expect(thread.first?.route == .direct)
+    }
+
     @Test("a first-contact envelope pins the sender and is accepted")
     func firstContactIsAccepted() async throws {
         let pair = try await Pair.make()      // nothing pinned yet

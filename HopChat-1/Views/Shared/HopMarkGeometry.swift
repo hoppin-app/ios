@@ -11,7 +11,7 @@ import CoreGraphics
 enum HopMarkGeometry {
     static let canvas: CGFloat = 1024
 
-    /// The pen path: bubble body from the ball, round the left, into the
+    /// The pen path: bubble body from the gap, round the left, into the
     /// tail, then up the trail. Used to "draw" the mark.
     static let centerline: [CGPoint] = [
         CGPoint(x: 722.0, y: 388.0),
@@ -160,8 +160,6 @@ enum HopMarkGeometry {
     /// Widest stroke in the mark, so a mask this wide uncovers all of it.
     static let maxStrokeWidth: CGFloat = 88
 
-    static let ballCenter = CGPoint(x: 770, y: 398)
-    static let ballRadius: CGFloat = 56
-    /// Where the trail ends, just under the ball.
+    /// Where the pen path (the trail) ends, in the gap.
     static let trailEnd = CGPoint(x: 768, y: 478)
 }

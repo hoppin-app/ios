@@ -37,6 +37,7 @@ struct HopChat_1App: App {
 
         case .active:
             AppLock.shared.appWillEnterForeground()
+            Task { await KademliaService.shared.sceneDidBecomeActive() }
 
         case .inactive:
             break

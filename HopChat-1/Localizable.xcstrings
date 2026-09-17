@@ -1,6 +1,36 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Settings ▸ HopChat ▸ Local Network. Messages still arrive through the relay meanwhile." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definições ▸ HopChat ▸ Rede local. Entretanto, as mensagens continuam a chegar pelo relay."
+          }
+        }
+      }
+    },
+    "Local Network" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rede local"
+          }
+        }
+      }
+    },
+    "Nearby delivery is off. HopChat can't reach people on the same Wi-Fi until you allow Local Network access." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A entrega por perto está desligada. O HopChat não consegue chegar a pessoas na mesma rede Wi-Fi até permitires o acesso à rede local."
+          }
+        }
+      }
+    },
     "Sent directly" : {
       "localizations" : {
         "pt-PT" : {

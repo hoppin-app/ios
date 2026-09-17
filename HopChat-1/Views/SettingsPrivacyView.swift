@@ -13,6 +13,7 @@ struct SettingsPrivacyView: View {
 
     @StateObject private var lock = AppLock.shared
     @StateObject private var store = ConversationStore.shared
+    @StateObject private var kad = KademliaService.shared
 
     @AppStorage(AppConfig.Keys.sendReadReceipts)     private var readReceipts = true
     @AppStorage(AppConfig.Keys.sendTypingIndicators) private var typingIndicators = true
@@ -30,6 +31,9 @@ struct SettingsPrivacyView: View {
     var body: some View {
         Form {
             Group {
+                if kad.localNetworkDenied {
+                    localNetworkSection
+                }
                 receiptsSection
                 appLockSection
                 blockedSection
@@ -44,6 +48,31 @@ struct SettingsPrivacyView: View {
         .onChange(of: appLockOn) { _, wanted in
             guard wanted != lock.isEnabled else { return }
             Task { await applyAppLock(wanted) }
+        }
+    }
+
+    // MARK: - Local network
+
+    private var localNetworkSection: some View {
+        Section {
+            Label {
+                Text("Nearby delivery is off. HopChat can't reach people on the same Wi-Fi until you allow Local Network access.")
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "wifi.exclamationmark")
+                    .foregroundStyle(.orange)
+            }
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Text("Open Settings")
+            }
+        } header: {
+            Text("Local Network")
+        } footer: {
+            Text("Settings ▸ HopChat ▸ Local Network. Messages still arrive through the relay meanwhile.")
         }
     }
 

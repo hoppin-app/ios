@@ -211,4 +211,104 @@ struct LANDeliveryTests {
         }
         #expect(arrived)
     }
+
+    @Test("the keep-alive ping is answered and keeps both sides online")
+    func keepAlive() async throws {
+        let pair = try await LANPair.make(alicePhone: "+351910000041",
+                                          bobPhone: "+351910000042")
+        defer { pair.stop() }
+
+        guard try await pair.discover() else {
+            withKnownIssue(LANPair.skipComment) { Issue.record("Bonjour unavailable") }
+            return
+        }
+
+        await pair.alice.service.pingLANPeers()
+        await pair.bob.service.pingLANPeers()
+        #expect(pair.alice.service.presenceMap[pair.bob.phone] == .online)
+        #expect(pair.bob.service.presenceMap[pair.alice.phone] == .online)
+    }
+
+    @Test("returning to the foreground keeps direct delivery working")
+    func foregroundRefresh() async throws {
+        let pair = try await LANPair.make(alicePhone: "+351910000051",
+                                          bobPhone: "+351910000052")
+        defer { pair.stop() }
+
+        guard try await pair.discover() else {
+            withKnownIssue(LANPair.skipComment) { Issue.record("Bonjour unavailable") }
+            return
+        }
+
+        // Both apps "come back": Bonjour restarts and peers are re-checked.
+        await pair.alice.service.sceneDidBecomeActive()
+        await pair.bob.service.sceneDidBecomeActive()
+        let stillOnline = await waitUntil(timeout: 15, interval: 0.2) {
+            pair.alice.service.presenceMap[pair.bob.phone] == .online
+                && pair.bob.service.presenceMap[pair.alice.phone] == .online
+        }
+        #expect(stillOnline)
+
+        await pair.alice.service.sendText("after the refresh",
+                                          to: ConversationStore.conversationID(peer: pair.bob.phone))
+        let sent = try #require(pair.alice.store
+            .thread(ConversationStore.conversationID(peer: pair.bob.phone))
+            .last { $0.isFromMe })
+        let arrived = await waitUntil(timeout: 10) {
+            pair.bobThread.contains { $0.id == sent.id && $0.route == .direct }
+        }
+        #expect(arrived)
+    }
+
+    @Test("a peer that stops answering is skipped instead of timing out on every send")
+    func silentPeerIsSkipped() async throws {
+        let pair = try await LANPair.make(alicePhone: "+351910000061",
+                                          bobPhone: "+351910000062")
+        defer { pair.stop() }
+
+        guard try await pair.discover() else {
+            withKnownIssue(LANPair.skipComment) { Issue.record("Bonjour unavailable") }
+            return
+        }
+
+        // Bob's app goes quiet (suspended / walked away) while alice still
+        // lists him as nearby, so her direct attempt has to time out.
+        pair.bob.stop()
+        let conversation = ConversationStore.conversationID(peer: pair.bob.phone)
+
+        let clock = ContinuousClock()
+        let first = await clock.measure {
+            await pair.alice.service.sendText("one", to: conversation)
+        }
+        let second = await clock.measure {
+            await pair.alice.service.sendText("two", to: conversation)
+        }
+        // Both sends also fail against the unreachable relay; only the first
+        // pays the LAN timeout (3 s) on top of that.
+        #expect(first - second > .seconds(2),
+                "first send \(first), second \(second) — the silent peer wasn't skipped")
+    }
+
+    @Test("a blocked sender's sends fail fast — the refusal isn't a timeout")
+    func blockedPeerFailsFast() async throws {
+        let pair = try await LANPair.make(alicePhone: "+351910000071",
+                                          bobPhone: "+351910000072")
+        defer { pair.stop() }
+
+        guard try await pair.discover() else {
+            withKnownIssue(LANPair.skipComment) { Issue.record("Bonjour unavailable") }
+            return
+        }
+
+        pair.bob.service.block(phone: pair.alice.phone)
+        let conversation = ConversationStore.conversationID(peer: pair.bob.phone)
+        await pair.alice.service.sendText("one", to: conversation)
+        await pair.alice.service.sendText("two", to: conversation)
+
+        // Nothing leaks through, and alice learns nothing beyond "not delivered yet".
+        #expect(pair.bobThread.isEmpty)
+        let queued = pair.alice.store.thread(conversation).filter { $0.isFromMe }
+        #expect(queued.count == 2)
+        #expect(queued.allSatisfy { $0.status == .pending && $0.route == nil })
+    }
 }

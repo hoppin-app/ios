@@ -105,12 +105,12 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var didStartService = false
-    @State private var splashLanded = false
+    @State private var splashFinished = false
     @State private var splashDismissed = false
 
     private var needsOnboarding: Bool { !hasSeenOnboarding || !hasAcceptedTerms }
-    /// The animated launch continues until the service is up and the ball has
-    /// landed. First launch goes straight to onboarding instead.
+    /// The animated launch continues until the service is up and the logo has
+    /// finished drawing. First launch goes straight to onboarding instead.
     private var showsSplash: Bool { !splashDismissed && !needsOnboarding }
     private var coverForPrivacy: Bool { appLock.isEnabled && scenePhase != .active }
 
@@ -120,7 +120,7 @@ struct ContentView: View {
                 .environmentObject(service)
 
             if showsSplash {
-                HopSplashView { splashLanded = true }
+                HopSplashView { splashFinished = true }
                     .transition(.opacity)
                     .zIndex(0.5)
             }
@@ -136,7 +136,7 @@ struct ContentView: View {
                     .zIndex(2)
             }
         }
-        .onChange(of: didStartService && splashLanded) { _, ready in
+        .onChange(of: didStartService && splashFinished) { _, ready in
             guard ready else { return }
             withAnimation(.easeInOut(duration: 0.45)) { splashDismissed = true }
         }

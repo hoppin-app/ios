@@ -4,8 +4,8 @@
 //
 //  The animated continuation of the (plain navy) launch screen: the lava
 //  fades in while the mark is drawn like a pen stroke — from the top, round
-//  the bubble, into the tail and up the trail — and the message ball pops out
-//  of the end of the trail into its place.
+//  the bubble, into the tail and up the trail — finishing with a soft pulse
+//  of light where the trail ends.
 //
 //  The drawing reveals the real, variable-width mark through a mask: a wide
 //  round-capped stroke along the mark's centreline, trimmed to the progress.
@@ -16,21 +16,20 @@ import SwiftUI
 
 struct HopSplashView: View {
 
-    /// Called once the ball has landed (immediately under Reduce Motion).
+    /// Called once the drawing has finished (immediately under Reduce Motion).
     var onFinished: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showLava = false
     @State private var drawn: CGFloat = 0
     @State private var showTip = false
-    @State private var ballOut = false
-    @State private var pulse = false
+    @State private var pulseVisible = false
+    @State private var burst = false
 
     static let markSize: CGFloat = 140
     private static let drawDuration = 1.05
 
     private var unit: CGFloat { Self.markSize / HopMarkGeometry.canvas }
-    private var ballDiameter: CGFloat { HopMarkGeometry.ballRadius * 2 * unit }
 
     var body: some View {
         ZStack {
@@ -60,7 +59,7 @@ struct HopSplashView: View {
                     .shadow(color: Color(red: 0.45, green: 0.5, blue: 1), radius: 16)
                     .opacity(showTip ? 1 : 0)
 
-                ball
+                endPulse
             }
             .frame(width: Self.markSize, height: Self.markSize)
         }
@@ -70,21 +69,19 @@ struct HopSplashView: View {
         .task { await run() }
     }
 
-    // MARK: Ball
+    // MARK: End pulse
 
-    /// Pops out of the trail's end and springs up into its resting place.
-    private var ball: some View {
-        let center = ballOut ? HopMarkGeometry.ballCenter : HopMarkGeometry.trailEnd
+    /// A soft ring of light that swells and fades where the pen lifts off.
+    private var endPulse: some View {
+        let size: CGFloat = 26
+        let end = HopMarkGeometry.trailEnd
         return Circle()
-            .fill(RadialGradient(colors: [.white, Color(red: 1, green: 0.75, blue: 0.95)],
-                                 center: .center, startRadius: 0, endRadius: ballDiameter / 2))
-            .frame(width: ballDiameter, height: ballDiameter)
-            .shadow(color: Color(red: 1, green: 0.35, blue: 0.85).opacity(pulse ? 0.95 : 0.6),
-                    radius: pulse ? 14 : 8)
-            .scaleEffect(ballOut ? 1 : 0.1)
-            .opacity(ballOut ? 1 : 0)
-            .offset(x: center.x * unit - ballDiameter / 2,
-                    y: center.y * unit - ballDiameter / 2)
+            .fill(RadialGradient(colors: [.white, Color(red: 0.6, green: 0.7, blue: 1).opacity(0)],
+                                 center: .center, startRadius: 0, endRadius: size / 2))
+            .frame(width: size, height: size)
+            .scaleEffect(burst ? 2.6 : 0.4)
+            .opacity(pulseVisible ? (burst ? 0 : 1) : 0)
+            .offset(x: end.x * unit - size / 2, y: end.y * unit - size / 2)
     }
 
     // MARK: Sequence
@@ -93,7 +90,6 @@ struct HopSplashView: View {
         if reduceMotion {
             showLava = true
             drawn = 1
-            ballOut = true
             onFinished()
             return
         }
@@ -104,12 +100,13 @@ struct HopSplashView: View {
         withAnimation(.timingCurve(0.45, 0.05, 0.25, 1, duration: Self.drawDuration)) { drawn = 1 }
         try? await Task.sleep(for: .seconds(Self.drawDuration - 0.05))
 
-        withAnimation(.easeOut(duration: 0.2)) { showTip = false }
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.55)) { ballOut = true }
         UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-        try? await Task.sleep(for: .milliseconds(250))
-        withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
-        try? await Task.sleep(for: .milliseconds(300))
+        withAnimation(.easeOut(duration: 0.25)) { showTip = false }
+        // Show the glow at full strength for a frame, then swell and fade it.
+        pulseVisible = true
+        try? await Task.sleep(for: .milliseconds(16))
+        withAnimation(.easeOut(duration: 0.6)) { burst = true }
+        try? await Task.sleep(for: .milliseconds(450))
         onFinished()
     }
 }

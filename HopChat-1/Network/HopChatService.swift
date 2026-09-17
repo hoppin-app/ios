@@ -144,6 +144,8 @@ final class KademliaService: ObservableObject {
     /// Conversation IDs where someone is typing.
     @Published private(set) var typingPeers: Set<String> = []
     @Published private(set) var presenceMap: [String: PresenceStatus] = [:]
+    /// The user turned off Local Network access, so nearby delivery can't work.
+    @Published private(set) var localNetworkDenied = false
     @Published var lastError: String?
 
     /// Legacy v1 phone number found in UserDefaults, kept only as a prefill
@@ -162,6 +164,11 @@ final class KademliaService: ObservableObject {
     private var retryTask: Task<Void, Never>?
     private var maintenanceTask: Task<Void, Never>?
     private var lanKeepAliveTask: Task<Void, Never>?
+    /// Peers that didn't answer a direct send (asleep, gone, or they blocked
+    /// us — which must stay invisible). Until this passes, sends go straight to
+    /// the relay instead of waiting out the LAN timeout every time. Cleared as
+    /// soon as the peer is heard from again.
+    private var lanSilentUntil: [String: Date] = [:]
     private var pathMonitor: NWPathMonitor?
     private var pathDebounce: Task<Void, Never>?
 
@@ -558,7 +565,8 @@ final class KademliaService: ObservableObject {
         }
 
         // 1. Authenticated LAN peer — direct, no server involved.
-        if let peer = routing.peer(for: phone), peer.isOnline() {
+        if let peer = routing.peer(for: phone), peer.isOnline(),
+           (lanSilentUntil[phone] ?? .distantPast) <= Date() {
             var wire = WireMessage(type: .directEnvelope,
                                    senderPhone: myPhone,
                                    senderPort: lanPort,
@@ -572,6 +580,7 @@ final class KademliaService: ObservableObject {
                 touchPeer(phone)
                 return .direct
             }
+            lanSilentUntil[phone] = Date().addingTimeInterval(Self.lanSilencePeriod)
         }
 
         // 2. Typing indicators are LAN-only — never relayed (contract §4).
@@ -1609,7 +1618,7 @@ final class KademliaService: ObservableObject {
             }
         }
 
-        node.onFailure = { _ in
+        node.onFailure = { [weak self] _ in
             Task { @MainActor [weak self] in self?.lanPort = 0 }
         }
 
@@ -1623,6 +1632,9 @@ final class KademliaService: ObservableObject {
         }
 
         let discovery = BonjourDiscovery()
+        discovery.onLocalNetworkDenied = { [weak self] denied in
+            self?.localNetworkDenied = denied
+        }
         discovery.onPeerFound = { [weak self] advertisement in
             Task { @MainActor [weak self] in
                 await self?.sayHello(to: advertisement)
@@ -1770,6 +1782,7 @@ final class KademliaService: ObservableObject {
         let peer = LANPeer(phone: phone, ip: ip, port: port,
                            certificateJSON: certificateJSON, lastSeen: Date())
         routing.add(peer)
+        lanSilentUntil[phone] = nil
         store.updateLAN(phone: phone, ip: ip, port: port)
         lastHeardFrom[phone] = now
         updatePresence()
@@ -1789,6 +1802,23 @@ final class KademliaService: ObservableObject {
     }
 
     static let lanKeepAliveInterval: TimeInterval = 60
+    static let lanSilencePeriod: TimeInterval = 5 * 60
+
+    /// Called when the app returns to the foreground. iOS suspends the LAN
+    /// listener and Bonjour in the background; bring them back and re-check
+    /// peers so presence and direct delivery recover right away.
+    func sceneDidBecomeActive() async {
+        guard isRunning, enableLAN else { return }
+        if let node = lanNode, node.isListening {
+            bonjour?.refresh()
+        } else {
+            Log.net.info("LAN listener gone after background — restarting")
+            stopLAN()
+            startLAN()
+        }
+        await pingLANPeers()
+        await retryPending()
+    }
 
     func pingLANPeers() async {
         guard isRegistered, let node = lanNode else { return }
@@ -1810,6 +1840,7 @@ final class KademliaService: ObservableObject {
     }
 
     private func touchPeer(_ phone: String) {
+        lanSilentUntil[phone] = nil
         guard let peer = routing.peer(for: phone) else { return }
         routing.add(LANPeer(phone: peer.phone, ip: peer.ip, port: peer.port,
                             certificateJSON: peer.certificateJSON, lastSeen: Date()))

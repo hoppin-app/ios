@@ -34,12 +34,16 @@ final class BonjourDiscovery: NSObject {
 
     var onPeerFound: ((Advertisement) -> Void)?
     var onPeerLost: ((Advertisement) -> Void)?
+    /// `true` when iOS refuses local-network access (the user declined the
+    /// Local Network prompt); `false` once browsing works.
+    var onLocalNetworkDenied: ((Bool) -> Void)?
 
     private var browser: NWBrowser?
     private var netService: NetService?
     private var published = false
     private var browsing = false
     private var known: Set<String> = []
+    private var publishedPort: UInt16 = 0
 
     // MARK: - Publish
 
@@ -65,6 +69,7 @@ final class BonjourDiscovery: NSObject {
         service.publish()
         netService = service
         published = true
+        publishedPort = port
         Log.net.info("Bonjour publishing on port \(port, privacy: .public)")
     }
 
@@ -87,7 +92,17 @@ final class BonjourDiscovery: NSObject {
             case .ready:
                 Log.net.debug("Bonjour browsing")
                 // A healthy browser earns back the full retry budget.
-                Task { @MainActor [weak self] in self?.browseRestartAttempts = 0 }
+                Task { @MainActor [weak self] in
+                    self?.browseRestartAttempts = 0
+                    self?.onLocalNetworkDenied?(false)
+                }
+            case .waiting(let error):
+                // iOS parks the browser here (rather than failing it) when
+                // Local Network access is off for the app.
+                if case .dns(let code) = error, code == DNSServiceErrorType(kDNSServiceErr_PolicyDenied) {
+                    Log.net.error("Bonjour browse blocked: Local Network access denied")
+                    Task { @MainActor [weak self] in self?.onLocalNetworkDenied?(true) }
+                }
             default:
                 break
             }
@@ -148,6 +163,23 @@ final class BonjourDiscovery: NSObject {
         }
     }
 
+    // MARK: - Refresh
+
+    /// Coming back to the foreground: iOS may have torn down the browser and
+    /// the advertisement while the app was suspended. Start both afresh; every
+    /// peer is reported again, which re-runs the hello.
+    func refresh() {
+        guard browsing else { return }
+        browser?.stateUpdateHandler = nil
+        browser?.browseResultsChangedHandler = nil
+        browser?.cancel()
+        browser = nil
+        known.removeAll()
+        browseRestartAttempts = 0
+        startBrowsing()
+        if publishedPort != 0 { publish(port: publishedPort) }
+    }
+
     // MARK: - Stop
 
     private func stopPublishing() {
@@ -155,6 +187,7 @@ final class BonjourDiscovery: NSObject {
         netService?.delegate = nil
         netService = nil
         published = false
+        publishedPort = 0
     }
 
     func stop() {

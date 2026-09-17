@@ -94,9 +94,9 @@ final class NotificationService {
     /// Removes delivered notifications for one conversation (called when the
     /// user opens it).
     func clearNotifications(for conversationID: String) {
-        let center = UNUserNotificationCenter.current()
-        center.getDeliveredNotifications { delivered in
-            let ids = delivered
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let ids = await center.deliveredNotifications()
                 .filter { $0.request.content.threadIdentifier == conversationID }
                 .map(\.request.identifier)
             guard !ids.isEmpty else { return }
