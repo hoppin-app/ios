@@ -120,6 +120,14 @@ nonisolated enum MessageStatus: Int, Codable, Comparable, Sendable {
     }
 }
 
+/// How a message travelled. Local-only; set when it was sent or received.
+nonisolated enum MessageRoute: String, Codable, Sendable {
+    /// Phone to phone on the local network (Wi-Fi or peer-to-peer Wi-Fi).
+    case direct
+    /// Through the encrypted relay.
+    case relay
+}
+
 nonisolated enum MessageKind: String, Codable, Sendable {
     case text, image, system
 }
@@ -144,6 +152,8 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
     var lastAttemptAt: Date? = nil
     /// Id of the message this one replies to, in the same conversation.
     var replyToID: String? = nil
+    /// How it travelled (nil until sent, and for messages from older versions).
+    var route: MessageRoute? = nil
 
     init(id: String = UUID().uuidString,
          conversationID: String,
@@ -160,7 +170,8 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
          isDeleted: Bool = false,
          attempts: Int = 0,
          lastAttemptAt: Date? = nil,
-         replyToID: String? = nil) {
+         replyToID: String? = nil,
+         route: MessageRoute? = nil) {
         self.id = id
         self.conversationID = conversationID
         self.fromPhone = fromPhone
@@ -177,6 +188,7 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
         self.attempts = attempts
         self.lastAttemptAt = lastAttemptAt
         self.replyToID = replyToID
+        self.route = route
     }
 
     /// Counts toward an unread badge.
@@ -202,7 +214,8 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
                       isDeleted: isDeleted,
                       attempts: attempts,
                       lastAttemptAt: lastAttemptAt,
-                      replyToID: replyToID)
+                      replyToID: replyToID,
+                      route: route)
     }
 }
 

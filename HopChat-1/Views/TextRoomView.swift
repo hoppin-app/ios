@@ -133,6 +133,15 @@ struct TextRoomView: View {
         return out
     }
 
+    /// Reachable directly on the local network right now.
+    private var allParticipantsNearby: Bool {
+        !participants.isEmpty && participants.allSatisfy { kad.presenceMap[$0] == .online }
+    }
+
+    private var anyParticipantNearby: Bool {
+        participants.contains { kad.presenceMap[$0] == .online }
+    }
+
     private var isTyping: Bool { kad.typingPeers.contains(conversationID) }
 
     // MARK: Body
@@ -404,6 +413,9 @@ struct TextRoomView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .fixedSize()
+            if message.route == .direct {
+                DirectRouteIcon().font(.system(size: 8))
+            }
             if message.isFromMe {
                 MessageStatusIcon(status: message.status)
                     .font(.system(size: 8))
@@ -573,9 +585,19 @@ struct TextRoomView: View {
                        text: String(localized: "Can't encrypt yet — verifying \(title)'s keys."),
                        tint: .orange)
         } else if kad.connectionState != .online {
-            inlineNote(icon: "wifi.slash",
-                       text: String(localized: "Messages will send when you're back online."),
-                       tint: .secondary)
+            if allParticipantsNearby {
+                inlineNote(icon: "dot.radiowaves.left.and.right",
+                           text: String(localized: "No internet — sending directly over this network."),
+                           tint: .secondary)
+            } else if anyParticipantNearby {
+                inlineNote(icon: "wifi.exclamationmark",
+                           text: String(localized: "No internet — nearby members get messages now, the rest when you're back online."),
+                           tint: .secondary)
+            } else {
+                inlineNote(icon: "wifi.slash",
+                           text: String(localized: "Messages will send when you're back online."),
+                           tint: .secondary)
+            }
         }
     }
 

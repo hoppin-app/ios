@@ -57,6 +57,9 @@ final class BonjourDiscovery: NSObject {
                                  name: "hc-\(instanceToken)",
                                  port: Int32(port))
         service.delegate = self
+        // NetService defaults to infrastructure only; without this, peers
+        // browsing over peer-to-peer Wi-Fi (AWDL) never see us.
+        service.includesPeerToPeer = true
         // TXT carries the instance token only — no phone number, no identity.
         service.setTXTRecord(NetService.data(fromTXTRecord: ["t": Data(instanceToken.utf8)]))
         service.publish()
@@ -76,19 +79,21 @@ final class BonjourDiscovery: NSObject {
                                                       domain: AppConfig.bonjourDomain)
         let browser = NWBrowser(for: descriptor, using: parameters)
 
-        browser.stateUpdateHandler = { state in
+        browser.stateUpdateHandler = { [weak self] state in
             switch state {
             case .failed(let error):
                 Log.net.error("Bonjour browse failed: \(error.localizedDescription, privacy: .public)")
                 Task { @MainActor [weak self] in self?.restartBrowsingAfterFailure() }
             case .ready:
                 Log.net.debug("Bonjour browsing")
+                // A healthy browser earns back the full retry budget.
+                Task { @MainActor [weak self] in self?.browseRestartAttempts = 0 }
             default:
                 break
             }
         }
 
-        browser.browseResultsChangedHandler = { results, _ in
+        browser.browseResultsChangedHandler = { [weak self] results, _ in
             Task { @MainActor [weak self] in
                 self?.handle(results: results)
             }

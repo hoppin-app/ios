@@ -459,6 +459,16 @@ final class ConversationStore: ObservableObject {
         }
     }
 
+    /// Records how a message travelled. A direct delivery wins over a relay
+    /// one (a group message may use both; direct is the notable fact).
+    func setRoute(_ route: MessageRoute, messageID: String, conversationID: String) {
+        mutate(messageID: messageID, conversationID: conversationID) { msg in
+            guard msg.route != route, msg.route != .direct else { return false }
+            msg.route = route
+            return true
+        }
+    }
+
     func setTranslation(messageID: String, conversationID: String, text: String?) {
         mutate(messageID: messageID, conversationID: conversationID) { msg in
             guard !msg.isDeleted, msg.translatedBody != text else { return false }

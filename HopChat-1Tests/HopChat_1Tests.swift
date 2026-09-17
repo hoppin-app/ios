@@ -393,10 +393,10 @@ struct SafetyNumberFixtureTests {
 @Suite("Fixtures — phone normalization (§2)")
 struct PhoneFixtureTests {
 
-    @Test("all 12 normalization vectors match")
+    @Test("all 16 normalization vectors match")
     func normalizationVectors() throws {
         let vectors = try Fixtures.require()
-        #expect(vectors.phones.count == 12)
+        #expect(vectors.phones.count == 16)
         for testCase in vectors.phones {
             let normalized = PhoneNumber.normalize(testCase.raw, defaultRegion: testCase.region)
             #expect(normalized == testCase.expected,

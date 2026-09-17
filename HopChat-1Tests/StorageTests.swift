@@ -632,6 +632,40 @@ struct StoreArchiveTests {
     }
 }
 
+@MainActor
+@Suite("ConversationStore — message route")
+struct StoreRouteTests {
+
+    @Test("the route is recorded, direct wins, and it survives a reload")
+    func recordRoute() async {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+        store.appendMessage(message("m1"))
+        #expect(store.thread("+14155552671").first?.route == nil)
+
+        store.setRoute(.relay, messageID: "m1", conversationID: "+14155552671")
+        #expect(store.thread("+14155552671").first?.route == .relay)
+        store.setRoute(.direct, messageID: "m1", conversationID: "+14155552671")
+        #expect(store.thread("+14155552671").first?.route == .direct)
+        // A later relay copy (another group member) doesn't erase "direct".
+        store.setRoute(.relay, messageID: "m1", conversationID: "+14155552671")
+        #expect(store.thread("+14155552671").first?.route == .direct)
+
+        await store.flush()
+        #expect(makeStore(temp.url).thread("+14155552671").first?.route == .direct)
+    }
+
+    @Test("messages saved before routes existed still load")
+    func legacyMessage() throws {
+        var json = try #require(try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(message("m1"))) as? [String: Any])
+        json.removeValue(forKey: "route")
+        let decoded = try JSONDecoder().decode(StoredMessage.self,
+                                               from: try JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.route == nil)
+    }
+}
+
 @Suite("Translation — language detection")
 struct LanguageDetectionTests {
 

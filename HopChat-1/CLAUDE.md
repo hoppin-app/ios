@@ -54,6 +54,16 @@ for each recipient (refuse if a key change is pending) → `CryptoManager.seal`
 AEAD data, Ed25519 signature) → authenticated LAN peer if there is one, else
 `relayDeposit` → `.sent` → delivery receipt `.delivered` → read receipt `.read`.
 Failures stay `.pending`, retry with backoff, and become `.failed` after 7 days.
+Each stored message records its `route` (`.direct` / `.relay`); the UI shows a
+"sent directly" mark for `.direct`.
+
+**LAN** — Bonjour `_hopchat._tcp` + a signed hello; listener, browser, published
+service and outbound connections all allow peer-to-peer Wi-Fi (AWDL), so two
+iPhones can connect even on client-isolated networks (eduroam, hotels). Link-local
+IPv6 peer addresses keep their `%interface` scope end to end. Peers count as online
+for 5 min after last contact; a keep-alive pings recent peers every 60 s. A peer
+that proved its certificate in the LAN exchange is sent to without a server
+certificate lookup, so Wi-Fi with no internet doesn't stall on timeouts.
 
 **Receive** — long-poll `relayFetch` while active, `BGAppRefreshTask`
 (`com.hopchat.relay-fetch`) in the background. Validation order is fixed and

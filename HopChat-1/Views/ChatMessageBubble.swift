@@ -111,6 +111,15 @@ private struct DoubleCheck: View {
     }
 }
 
+/// Marks a message that went phone to phone, with no server involved.
+struct DirectRouteIcon: View {
+    var body: some View {
+        Image(systemName: "dot.radiowaves.left.and.right")
+            .foregroundStyle(.teal)
+            .accessibilityLabel(Text("Sent directly"))
+    }
+}
+
 nonisolated func statusDescription(_ status: MessageStatus) -> String {
     switch status {
     case .pending:   return String(localized: "Sending")
@@ -325,6 +334,10 @@ struct ChatMessageBubble: View {
                 .font(.caption2)
                 .foregroundStyle(Color(.tertiaryLabel))
 
+            if message.route == .direct {
+                DirectRouteIcon().font(.caption2)
+            }
+
             if isMine {
                 MessageStatusIcon(status: message.status)
                     .font(.caption2)
@@ -381,6 +394,7 @@ struct ChatMessageBubble: View {
         }
         parts.append(ChatFormatters.time(message.timestamp))
         if isMine { parts.append(statusDescription(message.status)) }
+        if message.route == .direct { parts.append(String(localized: "Sent directly")) }
         return parts.joined(separator: ", ")
     }
 }

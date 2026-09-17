@@ -257,6 +257,9 @@ nonisolated enum Transport {
             #endif
             let params = NWParameters(tls: nil, tcp: tcpOptions)
             params.allowLocalEndpointReuse = true
+            // Plaintext is only used for LAN-node traffic, which must also work
+            // over peer-to-peer Wi-Fi (AWDL) — the listener and browser opt in too.
+            params.includePeerToPeer = true
             return params
         }
 
@@ -349,6 +352,10 @@ nonisolated enum Transport {
         return ipString(of: endpoint)
     }
 
+    /// IPv4 (and v4-mapped) addresses are returned bare. IPv6 link-local
+    /// addresses keep their `%interface` scope ("fe80::1%awdl0") — without it
+    /// the address is ambiguous and cannot be connected back to;
+    /// `NWEndpoint.Host("fe80::1%awdl0")` restores the interface.
     static func ipString(of endpoint: NWEndpoint) -> String? {
         guard case .hostPort(let host, _) = endpoint else { return nil }
         switch host {
@@ -358,7 +365,11 @@ nonisolated enum Transport {
             if let mapped = address.asIPv4 {
                 return String(describing: mapped).components(separatedBy: "%").first
             }
-            return String(describing: address).components(separatedBy: "%").first
+            let text = String(describing: address)
+            guard address.isLinkLocal else { return text.components(separatedBy: "%").first }
+            if text.contains("%") { return text }
+            if let name = address.interface?.name { return "\(text)%\(name)" }
+            return text
         case .name(let name, _):
             return name
         @unknown default:

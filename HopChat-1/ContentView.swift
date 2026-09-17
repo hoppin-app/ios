@@ -105,14 +105,25 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var didStartService = false
+    @State private var splashLanded = false
+    @State private var splashDismissed = false
 
     private var needsOnboarding: Bool { !hasSeenOnboarding || !hasAcceptedTerms }
+    /// The animated launch continues until the service is up and the ball has
+    /// landed. First launch goes straight to onboarding instead.
+    private var showsSplash: Bool { !splashDismissed && !needsOnboarding }
     private var coverForPrivacy: Bool { appLock.isEnabled && scenePhase != .active }
 
     var body: some View {
         ZStack {
             root
                 .environmentObject(service)
+
+            if showsSplash {
+                HopSplashView { splashLanded = true }
+                    .transition(.opacity)
+                    .zIndex(0.5)
+            }
 
             if appLock.isLocked {
                 LockScreen(appLock: appLock)
@@ -124,6 +135,10 @@ struct ContentView: View {
                 PrivacyCover()
                     .zIndex(2)
             }
+        }
+        .onChange(of: didStartService && splashLanded) { _, ready in
+            guard ready else { return }
+            withAnimation(.easeInOut(duration: 0.45)) { splashDismissed = true }
         }
         .task {
             guard !didStartService else { return }
@@ -137,7 +152,8 @@ struct ContentView: View {
         if needsOnboarding {
             OnboardingView()
         } else if !didStartService && !service.isRegistered {
-            LaunchPlaceholder()
+            // Covered by the splash; matches the launch screen underneath it.
+            Color("LaunchBackground").ignoresSafeArea()
         } else if !service.isRegistered {
             VerificationView()
         } else {
@@ -220,20 +236,6 @@ private struct ConnectionBanner: View {
     }
 }
 
-// MARK: - Launch placeholder
-
-private struct LaunchPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-            Text("Starting HopChat…")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-    }
-}
 
 // MARK: - App lock
 

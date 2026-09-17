@@ -9,6 +9,9 @@
 //  immediately. That is enough to drive `processIncoming` — the whole inbound
 //  validation pipeline — without a network.
 //
+//  `running(...)` is the same registered service left running with the LAN
+//  enabled, for direct phone-to-phone delivery tests with no server at all.
+//
 //  `connected(...)` points a service at the real development bootstrap server
 //  described by `/tmp/hopchat-test-server.json`.
 //
@@ -74,19 +77,62 @@ final class ServiceHarness {
                         trustBacking: KeyValueSecureStore = InMemorySecureStore(),
                         secureStore: KeyValueSecureStore = InMemorySecureStore())
     async throws -> ServiceHarness {
+        let harness = try makeRegistered(phone: phone, serverKey: serverKey, now: now,
+                                         trustBacking: trustBacking, secureStore: secureStore,
+                                         enableLAN: false)
+        harness.service.clock = { now }
+        await harness.service.start()
+        harness.service.stop()             // registered, but no loops running
+        return harness
+    }
+
+    // MARK: - Running (LAN, no server)
+
+    /// A registered service that keeps running — relay, retry and maintenance
+    /// loops, and (by default) the LAN listener plus Bonjour — with its server
+    /// pointed at `deadPort`. Two of these sharing `serverKey` accept each
+    /// other's certificates, so they can only ever talk directly.
+    ///
+    /// Clocks are the wall clock: LAN wire messages are checked for freshness
+    /// against `Date()`, so a pinned clock would make them look stale.
+    /// The caller must `stop()` it (see `LANPair.stop()` in LANDeliveryTests).
+    static func running(phone: String,
+                        serverKey: Curve25519.Signing.PrivateKey,
+                        enableLAN: Bool = true,
+                        trustBacking: KeyValueSecureStore = InMemorySecureStore(),
+                        secureStore: KeyValueSecureStore = InMemorySecureStore())
+    async throws -> ServiceHarness {
+        let harness = try makeRegistered(phone: phone, serverKey: serverKey, now: nil,
+                                         trustBacking: trustBacking, secureStore: secureStore,
+                                         enableLAN: enableLAN)
+        await harness.service.start()
+        return harness
+    }
+
+    /// Identity, trust store, conversation store and service — not started.
+    /// `now == nil` means every component follows the wall clock.
+    private static func makeRegistered(phone: String,
+                                       serverKey: Curve25519.Signing.PrivateKey,
+                                       now fixedNow: Date?,
+                                       trustBacking: KeyValueSecureStore,
+                                       secureStore: KeyValueSecureStore,
+                                       enableLAN: Bool) throws -> ServiceHarness {
         let serverKeyB64 = serverKey.publicKey.rawRepresentation.base64EncodedString()
         let temp = TempDirectory("hopchat-service")
 
+        let clock: @Sendable () -> Date = fixedNow.map(TestClock.fixed) ?? { Date() }
+
         let (crypto, certificate) = try IdentityFactory.makeLocal(phone: phone,
                                                                   serverKey: serverKey,
-                                                                  now: now,
+                                                                  now: fixedNow ?? Date(),
                                                                   store: secureStore)
+        crypto.now = clock
         let trust = TrustStore(store: trustBacking)
-        trust.now = { now }
+        trust.now = clock
         let store = ConversationStore(directory: temp.url,
                                       legacyDefaults: nil,
                                       debounce: .milliseconds(1),
-                                      now: { now })
+                                      now: clock)
 
         let service = KademliaService(
             crypto: crypto,
@@ -100,11 +146,7 @@ final class ServiceHarness {
                              pins: [],
                              serverKeyBase64: serverKeyB64)
             },
-            enableLAN: false)
-        service.clock = { now }
-
-        await service.start()
-        service.stop()                     // registered, but no loops running
+            enableLAN: enableLAN)
 
         return ServiceHarness(service: service, crypto: crypto, trust: trust,
                               store: store, phone: phone, secureStore: secureStore,

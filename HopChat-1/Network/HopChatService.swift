@@ -161,6 +161,7 @@ final class KademliaService: ObservableObject {
     private var relayTask: Task<Void, Never>?
     private var retryTask: Task<Void, Never>?
     private var maintenanceTask: Task<Void, Never>?
+    private var lanKeepAliveTask: Task<Void, Never>?
     private var pathMonitor: NWPathMonitor?
     private var pathDebounce: Task<Void, Never>?
 
@@ -233,6 +234,9 @@ final class KademliaService: ObservableObject {
         relayTask = Task { [weak self] in await self?.relayLoop() }
         retryTask = Task { [weak self] in await self?.retryLoop() }
         maintenanceTask = Task { [weak self] in await self?.maintenanceLoop() }
+        if enableLAN {
+            lanKeepAliveTask = Task { [weak self] in await self?.lanKeepAliveLoop() }
+        }
     }
 
     func stop() {
@@ -241,6 +245,7 @@ final class KademliaService: ObservableObject {
         relayTask?.cancel(); relayTask = nil
         retryTask?.cancel(); retryTask = nil
         maintenanceTask?.cancel(); maintenanceTask = nil
+        lanKeepAliveTask?.cancel(); lanKeepAliveTask = nil
         pathDebounce?.cancel(); pathDebounce = nil
         pathMonitor?.cancel(); pathMonitor = nil
 
@@ -496,15 +501,17 @@ final class KademliaService: ObservableObject {
 
         store.recordAttempt(messageID: messageID, conversationID: conversationID)
 
-        var deliveredToAny = false
+        var routes: [MessageRoute] = []
         for recipient in recipients {
-            if await sendPayload(payload, to: recipient, envelopeID: messageID) {
-                deliveredToAny = true
+            if let route = await sendPayload(payload, to: recipient, envelopeID: messageID) {
+                routes.append(route)
             }
         }
 
-        if deliveredToAny {
+        if !routes.isEmpty {
             store.updateStatus(messageID: messageID, conversationID: conversationID, to: .sent)
+            store.setRoute(routes.contains(.direct) ? .direct : .relay,
+                           messageID: messageID, conversationID: conversationID)
         } else {
             Log.net.debug("Message \(messageID.prefix(8), privacy: .public) still pending — will retry")
         }
@@ -513,27 +520,28 @@ final class KademliaService: ObservableObject {
     /// Seals `payload` for one recipient and delivers it: LAN direct when the
     /// peer is an authenticated LAN peer, otherwise the encrypted relay.
     /// Never sends anything that isn't sealed against a pinned, valid cert.
+    /// Returns the route that accepted it, or nil when nothing did.
     @discardableResult
     private func sendPayload(_ payload: ChatPayload,
                              to phone: String,
-                             envelopeID: String) async -> Bool {
-        guard isRegistered, phone != myPhone else { return false }
-        guard !store.isBlocked(phone) else { return false }
+                             envelopeID: String) async -> MessageRoute? {
+        guard isRegistered, phone != myPhone else { return nil }
+        guard !store.isBlocked(phone) else { return nil }
 
         // Never sign or seal with a degraded (empty) key: the non-throwing
         // accessors return "" while the Keychain is locked.
         guard crypto.isReady else {
             Log.crypto.error("Refusing to send — identity keys unavailable")
             lastError = ServiceError.unavailable.errorDescription
-            return false
+            return nil
         }
 
-        guard let recipientCert = await ensureCertificate(for: phone) else { return false }
+        guard let recipientCert = await ensureCertificate(for: phone) else { return nil }
 
         guard !trust.pendingKeyChanges.contains(phone), !trust.hasPendingKeyChange(phone) else {
             Log.net.error("Refusing to send to \(PhoneNumber.masked(phone), privacy: .private) — unacknowledged key change")
             lastError = ServiceError.keyChangeUnacknowledged.errorDescription
-            return false
+            return nil
         }
 
         let envelope: Envelope
@@ -546,7 +554,7 @@ final class KademliaService: ObservableObject {
                                        timestamp: Int64(now.timeIntervalSince1970))
         } catch {
             Log.crypto.error("Seal failed: \(String(describing: error), privacy: .public)")
-            return false
+            return nil
         }
 
         // 1. Authenticated LAN peer — direct, no server involved.
@@ -562,51 +570,51 @@ final class KademliaService: ObservableObject {
                isAuthenticLANReply(reply, from: phone, txID: wire.txID),
                reply.wireType == .directAck {
                 touchPeer(phone)
-                return true
+                return .direct
             }
         }
 
         // 2. Typing indicators are LAN-only — never relayed (contract §4).
-        guard !payload.isLANOnly else { return false }
+        guard !payload.isLANOnly else { return nil }
 
         // 3. Encrypted store-and-forward relay.
         do {
             try await server.deposit(envelope)
             connectionState = .online
-            return true
+            return .relay
         } catch let error as ServerError {
             Log.net.debug("Relay deposit failed: \(String(describing: error), privacy: .public)")
             guard case .server(let code, _) = error else {
                 connectionState = .offline
-                return false
+                return nil
             }
-            if code == "blocked" { return false }
+            if code == "blocked" { return nil }
             if code == "recipient_not_registered" {
                 // They deleted their account (or changed number). Forget the
                 // cached freshness so the next attempt re-checks the server
                 // instead of re-sealing to a dead certificate.
                 certificateRefreshedAt[phone] = nil
-                return false
+                return nil
             }
             // The server only accepts the phone's *current* serial, so a cert we
             // superseded stops working immediately. Renew and retry exactly once.
             if code == "cert_invalid" || code == "not_registered" {
                 await renewCertificateIfPossible(force: true)
-                guard let resealed = try? reseal(envelope, payload: payload, to: phone) else { return false }
+                guard let resealed = try? reseal(envelope, payload: payload, to: phone) else { return nil }
                 do {
                     try await server.deposit(resealed)
                     connectionState = .online
-                    return true
+                    return .relay
                 } catch {
                     connectionState = .offline
-                    return false
+                    return nil
                 }
             }
             // The server answered, so we are online — the deposit was simply
             // refused (queue_full, too_large, rate_limited, …). Retry later.
-            return false
+            return nil
         } catch {
-            return false
+            return nil
         }
     }
 
@@ -638,8 +646,14 @@ final class KademliaService: ObservableObject {
         let pinned = trust.pinnedCertificate(for: phone)
         let refreshedAt = certificateRefreshedAt[phone]
         let isFresh = refreshedAt.map { now.timeIntervalSince($0) < 24 * 3600 } ?? false
+        // A peer that just proved this certificate in a signed LAN exchange
+        // doesn't need a server round trip — which, with Wi-Fi but no
+        // internet, would only mean waiting for a timeout before every send.
+        let provenOnLAN = routing.peer(for: phone).map {
+            $0.isOnline() && $0.certificateJSON == pinned?.encodedJSON()
+        } ?? false
 
-        if !force, let pinned, isFresh,
+        if !force, let pinned, isFresh || provenOnLAN,
            pinned.isValid(serverKeyBase64: server.serverKeyBase64, now: now) {
             return pinned
         }
@@ -941,7 +955,8 @@ final class KademliaService: ObservableObject {
         switch payload.kind {
         case .text, .image:
             return await receiveMessage(payload, from: sender, envelopeID: envelopeID,
-                                        conversationID: ConversationStore.conversationID(peer: sender))
+                                        conversationID: ConversationStore.conversationID(peer: sender),
+                                        route: viaLAN ? .direct : .relay)
 
         case .groupText, .groupImage:
             guard let groupID = payload.groupID,
@@ -951,7 +966,8 @@ final class KademliaService: ObservableObject {
                 return .rejected
             }
             return await receiveMessage(payload, from: sender, envelopeID: envelopeID,
-                                        conversationID: ConversationStore.conversationID(group: groupID))
+                                        conversationID: ConversationStore.conversationID(group: groupID),
+                                        route: viaLAN ? .direct : .relay)
 
         case .deliveryReceipt:
             applyReceipt(payload, from: sender, status: .delivered)
@@ -990,7 +1006,8 @@ final class KademliaService: ObservableObject {
     private func receiveMessage(_ payload: ChatPayload,
                                 from sender: String,
                                 envelopeID: String,
-                                conversationID: String) async -> IngestOutcome {
+                                conversationID: String,
+                                route: MessageRoute) async -> IngestOutcome {
         ensureContactExists(sender)
 
         var imageFilename: String?
@@ -1026,7 +1043,8 @@ final class KademliaService: ObservableObject {
                                     status: .delivered,
                                     isFromMe: false,
                                     isRead: false,
-                                    replyToID: payload.replyToID)
+                                    replyToID: payload.replyToID,
+                                    route: route)
 
         // Persist first — never block receipt or storage on translation.
         // A duplicate id means we already have it: finished, safe to ack.
@@ -1449,7 +1467,7 @@ final class KademliaService: ObservableObject {
                                   displayName: trimmed,
                                   avatarJPEGBase64: avatarJPEG?.base64EncodedString())
         for contact in store.contacts where !contact.isBlocked {
-            if await sendPayload(payload, to: contact.phone, envelopeID: UUID().uuidString) {
+            if await sendPayload(payload, to: contact.phone, envelopeID: UUID().uuidString) != nil {
                 profileAnnouncedTo.insert(contact.phone)
             }
         }
@@ -1756,6 +1774,39 @@ final class KademliaService: ObservableObject {
         lastHeardFrom[phone] = now
         updatePresence()
         Log.net.debug("Authenticated LAN peer recorded at \(ip, privacy: .private)")
+    }
+
+    /// Nearby peers only count as online for 5 minutes after we last heard
+    /// from them (`LANPeer.isOnline`), and Bonjour only reports changes — so
+    /// without this, two quiet phones on the same Wi-Fi would silently fall
+    /// back to the relay. Pings every recently-seen peer once a minute.
+    private func lanKeepAliveLoop() async {
+        while !Task.isCancelled && isRunning {
+            try? await Task.sleep(for: .seconds(Self.lanKeepAliveInterval))
+            guard !Task.isCancelled, isRunning else { return }
+            await pingLANPeers()
+        }
+    }
+
+    static let lanKeepAliveInterval: TimeInterval = 60
+
+    func pingLANPeers() async {
+        guard isRegistered, let node = lanNode else { return }
+        // Peers gone for longer than this are left to Bonjour to rediscover.
+        // (`lastSeen` is wall-clock time, like `LANPeer.isOnline`.)
+        let recent = routing.allPeers.filter { Date().timeIntervalSince($0.lastSeen) < 15 * 60 }
+        for peer in recent {
+            let ping = sign(WireMessage(type: .ping,
+                                        senderPhone: myPhone,
+                                        senderPort: lanPort,
+                                        certificate: crypto.certificate?.encodedJSON()))
+            if let reply = await node.send(ping, to: peer.ip, port: peer.port, timeout: 3),
+               reply.wireType == .pong,
+               isAuthenticLANReply(reply, from: peer.phone, txID: ping.txID) {
+                touchPeer(peer.phone)
+            }
+        }
+        updatePresence()
     }
 
     private func touchPeer(_ phone: String) {

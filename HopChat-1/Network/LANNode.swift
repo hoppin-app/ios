@@ -110,7 +110,12 @@ nonisolated final class LANNode: @unchecked Sendable {
 
     // MARK: - Outbound
 
-    /// Sends a request to a LAN peer and awaits the reply.
+    /// Sends a request to a LAN peer and awaits the reply. `ip` is a string as
+    /// reported by this node (`sourceIP` / `remoteIP`); IPv6 link-local
+    /// addresses carry their scope ("fe80::1%awdl0"), which
+    /// `NWEndpoint.Host(_:)` parses into the address's interface, so the
+    /// connection goes out on the right link. Outbound parameters include
+    /// peer-to-peer Wi-Fi (see `Transport.makeParameters`).
     func send(_ message: WireMessage,
               to ip: String,
               port: UInt16,
@@ -141,13 +146,16 @@ nonisolated final class LANNode: @unchecked Sendable {
         activeConnections = count + 1
         lock.unlock()
 
-        let finished = NSLock()
-        var isFinished = false
+        // Once-only guard: timeout, state changes, read errors and the reply
+        // path can all race to close; exactly one of them wins.
+        let finished = OSAllocatedUnfairLock(initialState: false)
         let close: @Sendable () -> Void = { [weak self] in
-            finished.lock()
-            if isFinished { finished.unlock(); return }
-            isFinished = true
-            finished.unlock()
+            let first = finished.withLock { done -> Bool in
+                if done { return false }
+                done = true
+                return true
+            }
+            guard first else { return }
             connection.stateUpdateHandler = nil
             connection.cancel()
             guard let self else { return }
@@ -176,8 +184,12 @@ nonisolated final class LANNode: @unchecked Sendable {
 
         let sourceIP = Transport.remoteIP(of: connection) ?? "0.0.0.0"
 
-        // Rate limit per source IP before doing any parsing work.
-        guard bucket.consume(sourceIP) else {
+        // Rate limit per source IP before doing any parsing work. The bucket is
+        // keyed on the address *without* the `%scope` suffix: the scope only
+        // names our receiving interface, so one link-local host reachable over
+        // both en0 and awdl0 shares a single budget.
+        let bucketKey = sourceIP.split(separator: "%", maxSplits: 1).first.map(String.init) ?? sourceIP
+        guard bucket.consume(bucketKey) else {
             Log.net.debug("LAN inbound rate limited from \(sourceIP, privacy: .private)")
             deadline.cancel()
             close()

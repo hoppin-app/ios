@@ -1,6 +1,36 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Sent directly" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviada diretamente"
+          }
+        }
+      }
+    },
+    "No internet — nearby members get messages now, the rest when you're back online." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem internet — os membros por perto recebem já, os restantes quando voltares a estar online."
+          }
+        }
+      }
+    },
+    "No internet — sending directly over this network." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem internet — a enviar diretamente por esta rede."
+          }
+        }
+      }
+    },
     "Aurora" : {
       "localizations" : {
         "pt-PT" : {
