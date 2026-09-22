@@ -459,11 +459,12 @@ final class ConversationStore: ObservableObject {
         }
     }
 
-    /// Records how a message travelled. A direct delivery wins over a relay
-    /// one (a group message may use both; direct is the notable fact).
+    /// Records how a message travelled. A route never downgrades: direct beats
+    /// mesh beats relay (a group message may use several, and a mesh copy is
+    /// re-sent through the relay once there is internet again).
     func setRoute(_ route: MessageRoute, messageID: String, conversationID: String) {
         mutate(messageID: messageID, conversationID: conversationID) { msg in
-            guard msg.route != route, msg.route != .direct else { return false }
+            guard (msg.route?.precedence ?? 0) < route.precedence else { return false }
             msg.route = route
             return true
         }
@@ -536,6 +537,16 @@ final class ConversationStore: ObservableObject {
         messages.values
             .flatMap { $0 }
             .filter { $0.isFromMe && $0.status == .pending && !$0.isDeleted }
+            .sorted { $0.timestamp < $1.timestamp }
+    }
+
+    /// Outgoing messages the Bluetooth mesh accepted but that were never
+    /// confirmed delivered. They are re-sent through the relay as soon as
+    /// there is internet again; the recipient de-duplicates by envelope id.
+    func meshSentAwaitingDelivery() -> [StoredMessage] {
+        messages.values
+            .flatMap { $0 }
+            .filter { $0.isFromMe && $0.route == .mesh && $0.status == .sent && !$0.isDeleted }
             .sorted { $0.timestamp < $1.timestamp }
     }
 

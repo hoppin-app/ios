@@ -117,6 +117,12 @@ struct SettingsView: View {
             } label: {
                 Label("Notifications", systemImage: "bell.badge")
             }
+
+            NavigationLink {
+                SettingsMeshView()
+            } label: {
+                Label("Bluetooth mesh", systemImage: "dot.radiowaves.left.and.right")
+            }
         }
     }
 
@@ -128,6 +134,11 @@ struct SettingsView: View {
                 BackgroundThemeView()
             } label: {
                 Label("Background colours", systemImage: "paintpalette")
+            }
+            NavigationLink {
+                SettingsLanguageView()
+            } label: {
+                Label("Language", systemImage: "character.bubble")
             }
             Toggle(isOn: $animatedBackground) {
                 Text("Animated background")

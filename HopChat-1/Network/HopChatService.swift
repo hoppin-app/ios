@@ -103,7 +103,8 @@ final class KademliaService: ObservableObject {
 
     static let shared = KademliaService(crypto: .shared,
                                         trust: .shared,
-                                        store: .shared)
+                                        store: .shared,
+                                        mesh: MeshNode.shared)
 
     /// BGAppRefresh identifier. Registration and scheduling live in the app
     /// layer; this service only supplies `performBackgroundFetch()`.
@@ -119,12 +120,16 @@ final class KademliaService: ObservableObject {
     private var server: ServerClient
     private let makeServer: (CryptoManager) -> ServerClient
     private let enableLAN: Bool
+    /// The Bluetooth mesh, or nil when this service runs without one (tests,
+    /// and any build that doesn't want a radio).
+    private let mesh: MeshDelivering?
 
     init(crypto: CryptoManager,
          trust: TrustStore,
          store: ConversationStore,
          serverFactory: ((CryptoManager) -> ServerClient)? = nil,
-         enableLAN: Bool = true) {
+         enableLAN: Bool = true,
+         mesh: MeshDelivering? = nil) {
         self.crypto = crypto
         self.trust = trust
         self.store = store
@@ -132,6 +137,7 @@ final class KademliaService: ObservableObject {
         self.makeServer = makeServer
         self.server = makeServer(crypto)
         self.enableLAN = enableLAN
+        self.mesh = mesh
         self.routing = RoutingTable(localID: NodeID.from(phone: crypto.certificate?.phone ?? "unregistered"))
     }
 
@@ -171,6 +177,9 @@ final class KademliaService: ObservableObject {
     private var lanSilentUntil: [String: Date] = [:]
     private var pathMonitor: NWPathMonitor?
     private var pathDebounce: Task<Void, Never>?
+    /// Last thing the path monitor said. Starts optimistic: the mesh only
+    /// takes over once iOS has actually reported that there is no path.
+    private var pathSatisfied = true
 
     private var isRunning = false
     private var lanPort: UInt16 = 0
@@ -260,6 +269,7 @@ final class KademliaService: ObservableObject {
         typingTimers.removeAll()
 
         stopLAN()
+        mesh?.stop()
         routing.removeAll()
         presenceMap = [:]
         typingPeers = []
@@ -515,10 +525,9 @@ final class KademliaService: ObservableObject {
             }
         }
 
-        if !routes.isEmpty {
+        if let best = routes.max(by: { $0.precedence < $1.precedence }) {
             store.updateStatus(messageID: messageID, conversationID: conversationID, to: .sent)
-            store.setRoute(routes.contains(.direct) ? .direct : .relay,
-                           messageID: messageID, conversationID: conversationID)
+            store.setRoute(best, messageID: messageID, conversationID: conversationID)
         } else {
             Log.net.debug("Message \(messageID.prefix(8), privacy: .public) still pending — will retry")
         }
@@ -586,7 +595,14 @@ final class KademliaService: ObservableObject {
         // 2. Typing indicators are LAN-only — never relayed (contract §4).
         guard !payload.isLANOnly else { return nil }
 
-        // 3. Encrypted store-and-forward relay.
+        // 3. No internet at all: hand it to the Bluetooth mesh (contract §9).
+        //    Tried before the relay only while the path is down, so a phone
+        //    with signal never pays the radio's battery cost.
+        if !pathSatisfied, sendOverMesh(envelope, to: recipientCert, payload: payload) {
+            return .mesh
+        }
+
+        // 4. Encrypted store-and-forward relay.
         do {
             try await server.deposit(envelope)
             connectionState = .online
@@ -594,7 +610,10 @@ final class KademliaService: ObservableObject {
         } catch let error as ServerError {
             Log.net.debug("Relay deposit failed: \(String(describing: error), privacy: .public)")
             guard case .server(let code, _) = error else {
+                // The server wasn't reachable at all — the mesh is the last
+                // chance, even if the path monitor still thinks we're online.
                 connectionState = .offline
+                if sendOverMesh(envelope, to: recipientCert, payload: payload) { return .mesh }
                 return nil
             }
             if code == "blocked" { return nil }
@@ -868,7 +887,9 @@ final class KademliaService: ObservableObject {
     /// Validates, decrypts and applies one envelope. `internal` so tests can
     /// drive the pipeline without a network.
     @discardableResult
-    func processIncoming(_ envelope: Envelope, viaLAN: Bool = false) async -> IngestOutcome {
+    func processIncoming(_ envelope: Envelope,
+                         viaLAN: Bool = false,
+                         viaMesh: Bool = false) async -> IngestOutcome {
         // 1. Sender certificate valid and bound to the claimed phone.
         guard let senderCert = IdentityCertificate.decode(envelope.senderCertificate),
               senderCert.isValid(serverKeyBase64: server.serverKeyBase64, now: now),
@@ -948,7 +969,9 @@ final class KademliaService: ObservableObject {
         lastHeardFrom[sender] = now
         updatePresence()
 
-        let outcome = await apply(payload, from: sender, envelopeID: envelope.id, viaLAN: viaLAN)
+        let route: MessageRoute = viaLAN ? .direct : (viaMesh ? .mesh : .relay)
+        let outcome = await apply(payload, from: sender, envelopeID: envelope.id,
+                                  viaLAN: viaLAN, route: route)
         // Mark seen only once we're actually done with it: a deferred envelope
         // must still be accepted when the relay redelivers it.
         if outcome != .retryLater {
@@ -960,12 +983,13 @@ final class KademliaService: ObservableObject {
     private func apply(_ payload: ChatPayload,
                        from sender: String,
                        envelopeID: String,
-                       viaLAN: Bool) async -> IngestOutcome {
+                       viaLAN: Bool,
+                       route: MessageRoute) async -> IngestOutcome {
         switch payload.kind {
         case .text, .image:
             return await receiveMessage(payload, from: sender, envelopeID: envelopeID,
                                         conversationID: ConversationStore.conversationID(peer: sender),
-                                        route: viaLAN ? .direct : .relay)
+                                        route: route)
 
         case .groupText, .groupImage:
             guard let groupID = payload.groupID,
@@ -976,7 +1000,7 @@ final class KademliaService: ObservableObject {
             }
             return await receiveMessage(payload, from: sender, envelopeID: envelopeID,
                                         conversationID: ConversationStore.conversationID(group: groupID),
-                                        route: viaLAN ? .direct : .relay)
+                                        route: route)
 
         case .deliveryReceipt:
             applyReceipt(payload, from: sender, status: .delivered)
@@ -1908,10 +1932,19 @@ final class KademliaService: ObservableObject {
     }
 
     private func applyPathChange(satisfied: Bool) async {
+        pathSatisfied = satisfied
         guard satisfied else {
             connectionState = .offline
+            // No internet: this is exactly what the mesh is for.
+            startMesh()
             return
         }
+
+        // Internet is back. The radio costs battery and has nothing to add
+        // while the relay works, so it stops — and anything the mesh took but
+        // never got a receipt for is re-sent through the relay.
+        mesh?.stop()
+        await resendMeshSent()
 
         let currentIP = localWiFiIP()
         if currentIP != lastLocalIP {
@@ -1924,6 +1957,81 @@ final class KademliaService: ObservableObject {
 
         relayBackoff.reset()
         await retryPending()
+    }
+
+    // MARK: - Bluetooth mesh (contract §9)
+
+    /// Whether the user allows mesh delivery at all.
+    var isMeshEnabled: Bool {
+        UserDefaults.standard.object(forKey: AppConfig.Keys.meshEnabled) as? Bool ?? true
+    }
+
+    /// Turns mesh delivery on or off, and brings the radio in line right away.
+    /// Turning it off while offline means nearby delivery simply stops.
+    func setMeshEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: AppConfig.Keys.meshEnabled)
+        if enabled, isRunning, !pathSatisfied { startMesh() } else if !enabled { mesh?.stop() }
+    }
+
+    /// Starts the radio and points it at our own mail. Idempotent — the node
+    /// ignores a second `start()`.
+    private func startMesh() {
+        guard let mesh, isMeshEnabled, isRegistered else { return }
+        // The hints change daily, so they are asked for per packet rather
+        // than captured once.
+        mesh.hints = { [weak self] in self?.crypto.meshHints() ?? [] }
+        mesh.onEnvelope = { [weak self] packet in
+            guard let self, let mesh = self.mesh,
+                  let envelope = mesh.envelope(from: packet, crypto: self.crypto) else { return false }
+            // Opening it proved it was ours; the rest of the validation is the
+            // same as for relayed mail and happens off this callback.
+            Task { await self.processIncoming(envelope, viaMesh: true) }
+            return true
+        }
+        mesh.start()
+    }
+
+    /// Seals nothing new — the envelope is already sealed end to end — and
+    /// wraps it in an anonymous mesh packet. Returns true when a nearby phone
+    /// took it; false (so the message stays pending) when there is no one in
+    /// range yet.
+    private func sendOverMesh(_ envelope: Envelope,
+                              to recipientCert: IdentityCertificate,
+                              payload: ChatPayload) -> Bool {
+        guard let mesh, isMeshEnabled, payload.isMeshEligible else { return false }
+        // The radio is only brought up by a phone that iOS says has no path.
+        // Reaching here with a path means the *server* is unreachable, which
+        // is not a reason to turn on Bluetooth — but if the radio happens to
+        // be on already, the packet may as well go.
+        if !pathSatisfied { startMesh() }
+        // Bringing it up takes a few seconds, so the first message sent after
+        // going offline usually waits for the retry loop.
+        guard mesh.isRunning, mesh.linkCount > 0 else { return false }
+
+        guard let packet = mesh.packet(for: envelope,
+                                       recipientAgreementKey: recipientCert.agreementKey,
+                                       crypto: crypto,
+                                       ttl: MeshPacket.defaultTTL,
+                                       lifetime: MeshPacket.maxLifetime,
+                                       now: now) else {
+            Log.net.debug("Message too large for the mesh — leaving it for the relay")
+            return false
+        }
+        mesh.send(packet)
+        Log.net.info("Message handed to the Bluetooth mesh")
+        return true
+    }
+
+    /// Re-sends, through the relay, what the mesh accepted but never confirmed.
+    /// The envelope id is unchanged, so a recipient that already got the mesh
+    /// copy discards this one (`hasSeenEnvelope`).
+    private func resendMeshSent() async {
+        guard isRegistered else { return }
+        for message in store.meshSentAwaitingDelivery()
+        where now.timeIntervalSince(message.timestamp) <= 7 * 86_400 {
+            await deliverStoredMessage(messageID: message.id,
+                                       conversationID: message.conversationID)
+        }
     }
 
     // MARK: - Helpers

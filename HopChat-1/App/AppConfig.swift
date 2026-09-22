@@ -156,6 +156,14 @@ nonisolated enum AppConfig {
         static let backgroundCustomColors = "hopchat.appearance.customColors"
         static let appLockEnabled     = "hopchat.appLock.enabled"
         static let appLockTimeout     = "hopchat.appLock.timeout"
+        /// App language override, written through to `AppleLanguages`.
+        /// "" (or absent) means "follow the system".
+        static let appLanguage        = "hopchat.appLanguage"
+        /// On-device typing suggestions in the chat composer (default true).
+        static let typingSuggestions  = "hopchat.typingSuggestions"
+        /// Deliver over the Bluetooth mesh when there is no internet
+        /// (default true). Off means the app only ever uses Wi-Fi and the relay.
+        static let meshEnabled        = "hopchat.mesh.enabled"
         static let hasSeenOnboarding  = "hopchat.hasSeenOnboarding"
         static let hasAcceptedTerms   = "hopchat.hasAcceptedTerms"
         /// Legacy v1 key — migrated away on first v2 launch.
@@ -173,6 +181,8 @@ nonisolated enum AppConfig {
             Keys.animatedBackground: true,
             Keys.appLockEnabled: false,
             Keys.appLockTimeout: 0,
+            Keys.typingSuggestions: true,
+            Keys.meshEnabled: true,
         ])
     }
 
@@ -183,6 +193,7 @@ nonisolated enum AppConfig {
          Keys.notificationsEnabled, Keys.notificationsPreview, Keys.notificationsSound,
          Keys.appLockEnabled, Keys.appLockTimeout, Keys.animatedBackground, Keys.peopleSort,
          Keys.backgroundTheme, Keys.backgroundCustomColors,
+         Keys.appLanguage, Keys.typingSuggestions, Keys.meshEnabled,
          Keys.hasSeenOnboarding, Keys.hasAcceptedTerms, Keys.legacyPhone]
     }
 }

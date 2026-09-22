@@ -156,6 +156,7 @@ struct TextRoomView: View {
                          placeholder: String(localized: "Message"),
                          replyContext: replyingToID.map { replyPreview(for: $0) },
                          onCancelReply: { withAnimation(.snappy) { replyingToID = nil } },
+                         conversationLanguage: translateLanguage,
                          onSend: send,
                          onImage: sendImage,
                          onTyping: notifyTyping)
@@ -288,69 +289,73 @@ struct TextRoomView: View {
 
     private var messageList: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    if messages.isEmpty {
-                        emptyThread
-                    }
-
-                    ForEach(rows) { row in
-                        switch row {
-                        case .day(let date):
-                            DaySeparator(date: date)
-                        case .message(let message):
-                            swipeableRow(for: message)
-                                .fluidScrollRow(fluid)
-                                .id(message.id)
+            ZStack(alignment: .top) {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        if messages.isEmpty {
+                            emptyThread
                         }
-                    }
 
-                    if isTyping {
-                        TypingBubble(name: isGroup ? nil : title)
-                            .fluidScrollRow(fluid)
-                            .id("typing")
-                    }
+                        ForEach(rows) { row in
+                            switch row {
+                            case .day(let date):
+                                DaySeparator(date: date)
+                            case .message(let message):
+                                swipeableRow(for: message)
+                                    .fluidScrollRow(fluid)
+                                    .id(message.id)
+                            }
+                        }
 
-                    // Scroll target for "the very end", below the last row's footer.
-                    Color.clear
-                        .frame(height: 1)
-                        .id(Self.bottomID)
+                        if isTyping {
+                            TypingBubble(name: isGroup ? nil : title)
+                                .fluidScrollRow(fluid)
+                                .id("typing")
+                        }
+
+                        Color.clear
+                            .frame(height: 1)
+                            .id(Self.bottomID)
+                    }
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, 12)
-                .frame(maxWidth: 700)
-                .frame(maxWidth: .infinity)
-            }
-            // Open at the bottom, and stay pinned there while lazily built
-            // rows (photos, translations, replies) settle into their real
-            // heights — estimated heights are what left the thread short
-            // of the last message.
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
-            .fluidScrollSource(fluid, enabled: !reduceMotion)
-            .scrollDismissesKeyboard(.interactively)
-            .task(id: conversationID) {
-                // Once after the first layout pass, and again after images
-                // and translations have had a moment to resolve.
-                await Task.yield()
-                proxy.scrollTo(Self.bottomID, anchor: .bottom)
-                try? await Task.sleep(for: .milliseconds(150))
-                proxy.scrollTo(Self.bottomID, anchor: .bottom)
-            }
-            .onChange(of: messages.last?.id) { _, id in
-                guard id != nil else { return }
-                withAnimation(.easeOut(duration: 0.2)) {
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
+                .defaultScrollAnchor(.bottom, for: .sizeChanges)
+                .fluidScrollSource(fluid, enabled: !reduceMotion)
+                .scrollDismissesKeyboard(.interactively)
+                .task(id: conversationID) {
+                    await Task.yield()
+                    proxy.scrollTo(Self.bottomID, anchor: .bottom)
+                    try? await Task.sleep(for: .milliseconds(150))
                     proxy.scrollTo(Self.bottomID, anchor: .bottom)
                 }
-            }
-            .onChange(of: scrollTarget) { _, id in
-                guard let id else { return }
-                withAnimation { proxy.scrollTo(id, anchor: .center) }
-                scrollTarget = nil
-            }
-            .onChange(of: isTyping) { _, typing in
-                if typing { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+                .onChange(of: messages.last?.id) { _, id in
+                    guard id != nil else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(Self.bottomID, anchor: .bottom)
+                    }
+                }
+                .onChange(of: scrollTarget) { _, id in
+                    guard let id else { return }
+                    withAnimation { proxy.scrollTo(id, anchor: .center) }
+                    scrollTarget = nil
+                }
+                .onChange(of: isTyping) { _, typing in
+                    if typing { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+                }
+
+                topEdgeBlur
             }
         }
+    }
+    
+    private var topEdgeBlur: some View {
+        VariableBlur(maxBlurRadius: 16)
+            .frame(height: 90)
+            .allowsHitTesting(false)
+            .ignoresSafeArea(edges: .top)
     }
 
     private func bubble(for message: StoredMessage) -> some View {
@@ -413,9 +418,7 @@ struct TextRoomView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .fixedSize()
-            if message.route == .direct {
-                DirectRouteIcon().font(.system(size: 8))
-            }
+            RouteIcon(route: message.route).font(.system(size: 8))
             if message.isFromMe {
                 MessageStatusIcon(status: message.status)
                     .font(.system(size: 8))
@@ -582,16 +585,16 @@ struct TextRoomView: View {
                        tint: .secondary)
         } else if !isEncryptionReady {
             inlineNote(icon: "lock.trianglebadge.exclamationmark",
-                       text: String(localized: "Can't encrypt yet — verifying \(title)'s keys."),
+                       text: String(localized: "Can't encrypt yet: verifying \(title)'s keys."),
                        tint: .orange)
         } else if kad.connectionState != .online {
             if allParticipantsNearby {
                 inlineNote(icon: "dot.radiowaves.left.and.right",
-                           text: String(localized: "No internet — sending directly over this network."),
+                           text: String(localized: "Sending directly (P2P)."),
                            tint: .secondary)
             } else if anyParticipantNearby {
                 inlineNote(icon: "wifi.exclamationmark",
-                           text: String(localized: "No internet — nearby members get messages now, the rest when you're back online."),
+                           text: String(localized: "No internet: nearby members get messages now, the rest when you're back online."),
                            tint: .secondary)
             } else {
                 inlineNote(icon: "wifi.slash",
@@ -660,4 +663,17 @@ struct TextRoomView: View {
 
 extension URL: @retroactive Identifiable {
     public var id: String { absoluteString }
+}
+
+
+// MARK: - Scroll edge effect (iOS 26+)
+
+private struct NoTopEdgeEffect: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            content
+        }
+    }
 }

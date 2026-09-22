@@ -126,6 +126,19 @@ nonisolated enum MessageRoute: String, Codable, Sendable {
     case direct
     /// Through the encrypted relay.
     case relay
+    /// Hop by hop over the Bluetooth mesh, with no internet at all.
+    case mesh
+
+    /// Which route is the notable one when a message used more than one — a
+    /// group fan-out that went partly direct, or a mesh copy the relay later
+    /// carried as well. Higher wins; a message's route never downgrades.
+    var precedence: Int {
+        switch self {
+        case .direct: return 3
+        case .mesh:   return 2
+        case .relay:  return 1
+        }
+    }
 }
 
 nonisolated enum MessageKind: String, Codable, Sendable {

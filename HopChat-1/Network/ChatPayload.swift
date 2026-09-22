@@ -103,6 +103,16 @@ nonisolated struct ChatPayload: Codable, Equatable {
     /// Payload kinds that are only ever sent over an authenticated LAN link.
     var isLANOnly: Bool { kind == .typing }
 
+    /// What the Bluetooth mesh will carry (contract §9): text, receipts,
+    /// delete-for-everyone and profile names. Photos are far too big for a
+    /// hop-by-hop radio, and typing indicators stay on the LAN.
+    var isMeshEligible: Bool {
+        switch kind {
+        case .image, .groupImage, .typing: return false
+        default: return true
+        }
+    }
+
     /// Kinds that result in a stored, user-visible message.
     var isStoredMessage: Bool {
         switch kind {

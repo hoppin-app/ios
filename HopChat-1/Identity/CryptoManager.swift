@@ -457,6 +457,87 @@ nonisolated final class CryptoManager: @unchecked Sendable {
         return all.compactMap { Self.agreementPrivate($0)?.publicKey.rawRepresentation.base64EncodedString() }
     }
 
+    // MARK: - Mesh (outer, anonymous layer)
+
+    /// The BLE mesh wraps a sealed envelope in a second layer so the phones
+    /// carrying it learn nothing: a fresh ephemeral key per packet, no sender
+    /// field, and the packet header as authenticated data. Only the recipient
+    /// can open it, and only by trying (there is no address on the wire).
+    ///
+    ///     body = ephemeral public key (32 B) || AES-GCM(payload)
+    ///
+    /// The inner envelope still carries the sender's signature and
+    /// certificate, so authentication is unchanged — it just isn't visible
+    /// until the recipient opens the outer layer.
+    static let meshSalt = Data("HopChat-Mesh-v1".utf8)
+
+    func sealForMesh(_ payload: Data,
+                     recipientAgreementKeyBase64: String,
+                     authenticating header: Data) throws -> Data {
+        guard let raw = Data(base64Encoded: recipientAgreementKeyBase64),
+              let recipient = try? Curve25519.KeyAgreement.PublicKey(rawRepresentation: raw) else {
+            throw CryptoError.invalidKey
+        }
+        let ephemeral = Curve25519.KeyAgreement.PrivateKey()
+        guard let dh = try? ephemeral.sharedSecretFromKeyAgreement(with: recipient) else {
+            throw CryptoError.sealFailed
+        }
+        let ephemeralPublic = ephemeral.publicKey.rawRepresentation
+        let key = Self.meshKey(dh: dh, ephemeralPublic: ephemeralPublic, recipientPublic: raw)
+        guard let box = try? AES.GCM.seal(payload, using: key, authenticating: header),
+              let combined = box.combined else { throw CryptoError.sealFailed }
+        return ephemeralPublic + combined
+    }
+
+    /// Tries to open a mesh body with every agreement key this device still
+    /// holds. `nil` simply means "not ours" — the common case, and not an error.
+    func openMesh(_ body: Data, authenticating header: Data) -> Data? {
+        guard body.count > 32 else { return nil }
+        let ephemeralPublic = body.prefix(32)
+        let box = body.dropFirst(32)
+        guard let sealed = try? AES.GCM.SealedBox(combined: box),
+              let ephemeral = try? Curve25519.KeyAgreement.PublicKey(rawRepresentation: ephemeralPublic) else {
+            return nil
+        }
+
+        lock.lock(); defer { lock.unlock() }
+        guard (try? loadKeysLocked()) != nil, let ring = _ring else { return nil }
+        let cutoff = Int64(now().addingTimeInterval(-Self.retentionWindow).timeIntervalSince1970)
+        let candidates = [ring.current] + (ring.pending.map { [$0] } ?? [])
+            + ring.retired.filter { $0.retiredAt >= cutoff }.map(\.priv)
+
+        for b64 in candidates {
+            guard let priv = Self.agreementPrivate(b64),
+                  let dh = try? priv.sharedSecretFromKeyAgreement(with: ephemeral) else { continue }
+            let key = Self.meshKey(dh: dh,
+                                   ephemeralPublic: Data(ephemeralPublic),
+                                   recipientPublic: priv.publicKey.rawRepresentation)
+            if let opened = try? AES.GCM.open(sealed, using: key, authenticating: header) {
+                return opened
+            }
+        }
+        return nil
+    }
+
+    /// Hints (see `MeshHint`) worth trying for packets addressed to this
+    /// device: every agreement key it can still open, across the day boundary.
+    func meshHints(at date: Date = Date()) -> Set<UInt8> {
+        var out: Set<UInt8> = []
+        for key in openableAgreementKeys() {
+            out.formUnion(MeshHint.candidates(agreementKeyBase64: key, at: date))
+        }
+        return out
+    }
+
+    private static func meshKey(dh: SharedSecret,
+                                ephemeralPublic: Data,
+                                recipientPublic: Data) -> SymmetricKey {
+        dh.hkdfDerivedSymmetricKey(using: SHA256.self,
+                                   salt: meshSalt,
+                                   sharedInfo: ephemeralPublic + recipientPublic,
+                                   outputByteCount: 32)
+    }
+
     // MARK: - Wipe
 
     /// Deletes every identity item (delete account / reset).

@@ -33,6 +33,9 @@ struct ChatComposer: View {
     /// The message being replied to, shown above the field.
     var replyContext: ReplyPreview? = nil
     var onCancelReply: () -> Void = {}
+    /// The chat's auto-translate language, if the user set one. It is the
+    /// strongest hint about what language the draft is being written in.
+    var conversationLanguage: String? = nil
 
     var onSend: () -> Void
     var onImage: (Data) -> Void
@@ -43,6 +46,21 @@ struct ChatComposer: View {
     @State private var isPreparingImage = false
     @State private var imageError: String?
     @State private var lastTypingPing: Date = .distantPast
+
+    // MARK: Typing suggestions (on device, see Services/TypingAssistant.swift)
+
+    @AppStorage(AppConfig.Keys.typingSuggestions) private var typingSuggestionsEnabled = true
+    @AppStorage(AppConfig.Keys.appLanguage) private var appLanguageRaw = ""
+
+    @State private var suggestion: TypingSuggestion?
+    /// The word the writer dismissed; the bar stays away until they move on.
+    @State private var dismissedWord: String?
+    @State private var suggestTask: Task<Void, Never>?
+
+    private var suggestionLanguage: String {
+        TypingAssistant.resolvedLanguage(conversationLanguage: conversationLanguage,
+                                         appLanguage: appLanguageRaw.isEmpty ? nil : appLanguageRaw)
+    }
 
     private var trimmed: String {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,6 +82,10 @@ struct ChatComposer: View {
 
             if let replyContext {
                 replyBar(replyContext)
+            }
+
+            if let suggestion, !suggestion.replacements.isEmpty {
+                suggestionBar(suggestion)
             }
 
             HStack(alignment: .bottom, spacing: 10) {
@@ -123,6 +145,7 @@ struct ChatComposer: View {
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
         .onChange(of: text) { _, newValue in
+            scheduleSuggestion(for: newValue)
             guard !newValue.isEmpty, !isSendBlocked else { return }
             // Local throttle (~1.5 s); the service throttles again at 3 s.
             let now = Date()
@@ -137,6 +160,109 @@ struct ChatComposer: View {
             guard let item else { return }
             Task { await prepare(item) }
         }
+        .onChange(of: typingSuggestionsEnabled) { _, enabled in
+            if !enabled { clearSuggestion() } else { scheduleSuggestion(for: text) }
+        }
+        .onDisappear {
+            suggestTask?.cancel()
+            suggestTask = nil
+        }
+    }
+
+    // MARK: Suggestion bar
+
+    /// Slim, quiet row of corrections above the field. It never takes focus
+    /// and never blocks sending — the send button is unaffected by it.
+    private func suggestionBar(_ suggestion: TypingSuggestion) -> some View {
+        HStack(spacing: 8) {
+            Text("Did you mean")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(suggestion.replacements, id: \.self) { replacement in
+                        Button {
+                            applySuggestion(suggestion, replacement: replacement)
+                        } label: {
+                            Text(replacement)
+                                .font(.callout)
+                                .lineLimit(1)
+                                .padding(.horizontal, 12)
+                                .frame(minHeight: 30)
+                                .background(Color(.tertiarySystemBackground),
+                                            in: Capsule())
+                                .frame(minHeight: 44)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Replace with \(replacement)"))
+                    }
+                }
+                .padding(.trailing, 4)
+            }
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+
+            Button {
+                dismissSuggestion(suggestion)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Dismiss suggestions"))
+        }
+        .padding(.leading, 20)
+        .padding(.trailing, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .transition(.opacity)
+    }
+
+    // MARK: Suggestion logic
+
+    /// Debounced ~0.3 s so the bar doesn't flicker mid-word.
+    private func scheduleSuggestion(for value: String) {
+        suggestTask?.cancel()
+        guard typingSuggestionsEnabled,
+              !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            clearSuggestion()
+            return
+        }
+        // Moving on to another word revives a dismissed bar.
+        if let dismissedWord,
+           TypingAssistant.currentWord(in: value)?.text != dismissedWord {
+            self.dismissedWord = nil
+        }
+        suggestTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, value == text else { return }
+            let found = TypingAssistant.shared.suggestion(for: value, language: suggestionLanguage)
+            guard found?.original != dismissedWord else {
+                withAnimation(.snappy) { suggestion = nil }
+                return
+            }
+            withAnimation(.snappy) { suggestion = found }
+        }
+    }
+
+    private func applySuggestion(_ suggestion: TypingSuggestion, replacement: String) {
+        text = TypingSuggestion.apply(suggestion, replacement: replacement, to: text)
+        clearSuggestion()
+    }
+
+    private func dismissSuggestion(_ suggestion: TypingSuggestion) {
+        dismissedWord = suggestion.original
+        clearSuggestion()
+    }
+
+    private func clearSuggestion() {
+        suggestTask?.cancel()
+        suggestTask = nil
+        withAnimation(.snappy) { suggestion = nil }
     }
 
     // MARK: Reply bar

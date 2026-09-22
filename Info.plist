@@ -47,6 +47,8 @@
 	<string>HopChat uses the camera to scan contact verification QR codes and to take photos you send in a chat.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>HopChat uses Face ID to unlock the app when you turn on app lock.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>HopChat uses Bluetooth to pass encrypted messages between nearby phones when there is no internet. Messages carried for other people cannot be read by this device.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>HopChat uses the local network to deliver your encrypted messages directly to nearby HopChat users. Messages are also delivered through our relay server over the internet.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
@@ -63,6 +65,8 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>

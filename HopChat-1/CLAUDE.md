@@ -38,6 +38,7 @@ in `docs/fixtures/crypto_vectors.json`.
 | `Network/Transport.swift` | NWConnection framing, timeouts, TLS with SPKI pinning |
 | `Network/ServerClient.swift` | Verification, certificates, relay deposit/fetch/ack, report, delete |
 | `Network/LANNode.swift`, `BonjourDiscovery.swift`, `KadmeliaNode.swift` | Authenticated LAN peers |
+| `Network/Mesh/` | BLE mesh: `MeshPacket`/`CompactEnvelope` (wire), `MeshRouter` (flood, TTL, carry-forward), `BLEFrames` (chunking), `BLETransport` (CoreBluetooth), `MeshNode` (wiring, `MeshDelivering`) |
 | `Network/HopChatService.swift` | `KademliaService` — the only network API the views use |
 | `Storage/` | File-backed store (`ConversationStore`), serial `StoreWriter`, media, legacy migration |
 | `Services/` | Notifications, app lock (Face ID), background relay fetch |
@@ -64,6 +65,14 @@ IPv6 peer addresses keep their `%interface` scope end to end. Peers count as onl
 for 5 min after last contact; a keep-alive pings recent peers every 60 s. A peer
 that proved its certificate in the LAN exchange is sent to without a server
 certificate lookup, so Wi-Fi with no internet doesn't stall on timeouts.
+
+**Mesh** — with no network path at all (and `hopchat.mesh.enabled` on), a text,
+receipt, profile or delete hops over Bluetooth: the same sealed envelope inside
+an anonymous outer layer, forwarded by phones that cannot read it. Tried after
+LAN and before the relay; the radio only runs while the phone is offline.
+Messages record `route == .mesh` and are re-sent through the relay when
+internet returns (the recipient de-duplicates by envelope id). Photos and
+typing never go on the mesh. Contract §9.
 
 **Receive** — long-poll `relayFetch` while active, `BGAppRefreshTask`
 (`com.hopchat.relay-fetch`) in the background. Validation order is fixed and

@@ -75,11 +75,12 @@ final class ServiceHarness {
                         serverKey: Curve25519.Signing.PrivateKey,
                         now: Date = Date(),
                         trustBacking: KeyValueSecureStore = InMemorySecureStore(),
-                        secureStore: KeyValueSecureStore = InMemorySecureStore())
+                        secureStore: KeyValueSecureStore = InMemorySecureStore(),
+                        mesh: MeshDelivering? = nil)
     async throws -> ServiceHarness {
         let harness = try makeRegistered(phone: phone, serverKey: serverKey, now: now,
                                          trustBacking: trustBacking, secureStore: secureStore,
-                                         enableLAN: false)
+                                         enableLAN: false, mesh: mesh)
         harness.service.clock = { now }
         await harness.service.start()
         harness.service.stop()             // registered, but no loops running
@@ -116,7 +117,8 @@ final class ServiceHarness {
                                        now fixedNow: Date?,
                                        trustBacking: KeyValueSecureStore,
                                        secureStore: KeyValueSecureStore,
-                                       enableLAN: Bool) throws -> ServiceHarness {
+                                       enableLAN: Bool,
+                                       mesh: MeshDelivering? = nil) throws -> ServiceHarness {
         let serverKeyB64 = serverKey.publicKey.rawRepresentation.base64EncodedString()
         let temp = TempDirectory("hopchat-service")
 
@@ -146,7 +148,8 @@ final class ServiceHarness {
                              pins: [],
                              serverKeyBase64: serverKeyB64)
             },
-            enableLAN: enableLAN)
+            enableLAN: enableLAN,
+            mesh: mesh)
 
         return ServiceHarness(service: service, crypto: crypto, trust: trust,
                               store: store, phone: phone, secureStore: secureStore,

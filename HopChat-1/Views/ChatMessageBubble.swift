@@ -111,12 +111,25 @@ private struct DoubleCheck: View {
     }
 }
 
-/// Marks a message that went phone to phone, with no server involved.
-struct DirectRouteIcon: View {
+/// Marks a message that avoided the server: teal for phone-to-phone over the
+/// local network, indigo for a message that hopped over Bluetooth. A relayed
+/// message shows nothing — that is the ordinary case.
+struct RouteIcon: View {
+    let route: MessageRoute?
+
     var body: some View {
-        Image(systemName: "dot.radiowaves.left.and.right")
-            .foregroundStyle(.teal)
-            .accessibilityLabel(Text("Sent directly"))
+        switch route {
+        case .direct:
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .foregroundStyle(.teal)
+                .accessibilityLabel(Text("Sent directly"))
+        case .mesh:
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+                .foregroundStyle(.indigo)
+                .accessibilityLabel(Text("Sent over Bluetooth"))
+        case .relay, nil:
+            EmptyView()
+        }
     }
 }
 
@@ -334,9 +347,7 @@ struct ChatMessageBubble: View {
                 .font(.caption2)
                 .foregroundStyle(Color(.tertiaryLabel))
 
-            if message.route == .direct {
-                DirectRouteIcon().font(.caption2)
-            }
+            RouteIcon(route: message.route).font(.caption2)
 
             if isMine {
                 MessageStatusIcon(status: message.status)

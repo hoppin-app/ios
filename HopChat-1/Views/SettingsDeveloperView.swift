@@ -26,6 +26,18 @@ struct SettingsDeveloperView: View {
         Form {
             Group {
                 Section {
+                    NavigationLink {
+                        SettingsMeshDevView()
+                    } label: {
+                        Label("Mesh (dev)", systemImage: "dot.radiowaves.left.and.right")
+                    }
+                } header: {
+                    Text("Bluetooth mesh")
+                } footer: {
+                    Text("Phase 2 bring-up: start the radio on two phones and check the counters.")
+                }
+
+                Section {
                     TextField("Host or IP", text: $serverHost)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()

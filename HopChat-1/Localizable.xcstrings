@@ -1,206 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Settings ▸ HopChat ▸ Local Network. Messages still arrive through the relay meanwhile." : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Definições ▸ HopChat ▸ Rede local. Entretanto, as mensagens continuam a chegar pelo relay."
-          }
-        }
-      }
-    },
-    "Local Network" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rede local"
-          }
-        }
-      }
-    },
-    "Nearby delivery is off. HopChat can't reach people on the same Wi-Fi until you allow Local Network access." : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A entrega por perto está desligada. O HopChat não consegue chegar a pessoas na mesma rede Wi-Fi até permitires o acesso à rede local."
-          }
-        }
-      }
-    },
-    "Sent directly" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enviada diretamente"
-          }
-        }
-      }
-    },
-    "No internet — nearby members get messages now, the rest when you're back online." : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sem internet — os membros por perto recebem já, os restantes quando voltares a estar online."
-          }
-        }
-      }
-    },
-    "No internet — sending directly over this network." : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sem internet — a enviar diretamente por esta rede."
-          }
-        }
-      }
-    },
-    "Aurora" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aurora"
-          }
-        }
-      }
-    },
-    "Sunset" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pôr do sol"
-          }
-        }
-      }
-    },
-    "Ocean" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Oceano"
-          }
-        }
-      }
-    },
-    "Forest" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Floresta"
-          }
-        }
-      }
-    },
-    "Candy" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Doce"
-          }
-        }
-      }
-    },
-    "Graphite" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grafite"
-          }
-        }
-      }
-    },
-    "Custom" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Personalizado"
-          }
-        }
-      }
-    },
-    "Theme" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tema"
-          }
-        }
-      }
-    },
-    "Colour %lld" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cor %lld"
-          }
-        }
-      }
-    },
-    "Reset to Aurora" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Repor Aurora"
-          }
-        }
-      }
-    },
-    "Your colours" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "As tuas cores"
-          }
-        }
-      }
-    },
-    "Pick five colours. They blend into each other behind the blur." : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolhe cinco cores. Misturam-se umas com as outras por trás do desfoque."
-          }
-        }
-      }
-    },
-    "Background" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fundo"
-          }
-        }
-      }
-    },
-    "Background colours" : {
-      "localizations" : {
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cores do fundo"
-          }
-        }
-      }
-    },
     "" : {
 
     },
@@ -1357,6 +1157,16 @@
         }
       }
     },
+    "Aurora" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aurora"
+          }
+        }
+      }
+    },
     "Authentication failed. Try again." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1440,6 +1250,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Voltar às conversas"
+          }
+        }
+      }
+    },
+    "Background" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundo"
+          }
+        }
+      }
+    },
+    "Background colours" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cores do fundo"
           }
         }
       }
@@ -1689,6 +1519,18 @@
         }
       }
     },
+    "Bluetooth is off" : {
+      "comment" : "The text to display when Bluetooth is off.",
+      "isCommentAutoGenerated" : true
+    },
+    "Bluetooth mesh" : {
+      "comment" : "The title of a screen that lets the user configure Bluetooth mesh.",
+      "isCommentAutoGenerated" : true
+    },
+    "Bluetooth not allowed" : {
+      "comment" : "A description of the Bluetooth state when the user has",
+      "isCommentAutoGenerated" : true
+    },
     "Calculating safety number…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1791,6 +1633,10 @@
         }
       }
     },
+    "Can't encrypt yet: verifying %@'s keys." : {
+      "comment" : "A warning that a user can't send messages because their keys aren't verified.",
+      "isCommentAutoGenerated" : true
+    },
     "Cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1814,6 +1660,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancelar resposta"
+          }
+        }
+      }
+    },
+    "Candy" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doce"
           }
         }
       }
@@ -2005,6 +1861,16 @@
         }
       }
     },
+    "Colour %lld" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cor %lld"
+          }
+        }
+      }
+    },
     "Compare safety numbers with %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2038,6 +1904,10 @@
           }
         }
       }
+    },
+    "Connected" : {
+      "comment" : "A description of the Bluetooth mesh network being used.",
+      "isCommentAutoGenerated" : true
     },
     "Connecting…" : {
       "extractionState" : "manual",
@@ -2290,6 +2160,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Atualmente %@"
+          }
+        }
+      }
+    },
+    "Custom" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizado"
           }
         }
       }
@@ -2603,6 +2483,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "código do dispositivo"
+          }
+        }
+      }
+    },
+    "Did you mean" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queres dizer"
+          }
+        }
+      }
+    },
+    "Dismiss suggestions" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispensar sugestões"
           }
         }
       }
@@ -2930,6 +2830,16 @@
         }
       }
     },
+    "Forest" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Floresta"
+          }
+        }
+      }
+    },
     "French" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2960,6 +2870,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alemão"
+          }
+        }
+      }
+    },
+    "Graphite" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafite"
           }
         }
       }
@@ -3367,6 +3287,9 @@
         }
       }
     },
+    "Idle — you have internet" : {
+
+    },
     "Illegal content" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3532,6 +3455,16 @@
         }
       }
     },
+    "iOS also has a Preferred Language for each app, on HopChat's own Settings page." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O iOS também tem um Idioma Preferido para cada app, na página de Definições do próprio HopChat."
+          }
+        }
+      }
+    },
     "iOS is blocking HopChat notifications, so the switches below have no effect until you allow them in Settings." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3685,6 +3618,26 @@
         }
       }
     },
+    "Language" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma"
+          }
+        }
+      }
+    },
+    "Language saved. Close HopChat and open it again to see it." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma guardado. Fecha o HopChat e abre-o outra vez para o veres."
+          }
+        }
+      }
+    },
     "Leave" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3770,6 +3723,16 @@
         }
       }
     },
+    "Local Network" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rede local"
+          }
+        }
+      }
+    },
     "Lock" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3803,6 +3766,9 @@
           }
         }
       }
+    },
+    "Looking for phones nearby" : {
+
     },
     "Mark %@ as verified?" : {
       "extractionState" : "manual",
@@ -3984,6 +3950,10 @@
         }
       }
     },
+    "Messages stay sealed the whole way. A phone that carries one cannot read it, cannot tell who sent it and cannot tell who it is for — it only knows it is passing something along, which is what makes the hop work at all." : {
+      "comment" : "A description of how Bluetooth mesh works.",
+      "isCommentAutoGenerated" : true
+    },
     "Messages will send when you're back online." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4094,6 +4064,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nome, opcional"
+          }
+        }
+      }
+    },
+    "Nearby delivery is off. HopChat can't reach people on the same Wi-Fi until you allow Local Network access." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A entrega por perto está desligada. O HopChat não consegue chegar a pessoas na mesma rede Wi-Fi até permitires o acesso à rede local."
           }
         }
       }
@@ -4399,6 +4379,32 @@
         }
       }
     },
+    "No internet — nearby members get messages now, the rest when you're back online." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem internet — os membros por perto recebem já, os restantes quando voltares a estar online."
+          }
+        }
+      }
+    },
+    "No internet — sending directly over this network." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem internet — a enviar diretamente por esta rede."
+          }
+        }
+      }
+    },
+    "No internet: nearby members get messages now, the rest when you're back online." : {
+      "comment" : "A message that appears when a user is offline but",
+      "isCommentAutoGenerated" : true
+    },
     "No key for this contact yet" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4518,6 +4524,10 @@
         }
       }
     },
+    "Not supported on this device" : {
+      "comment" : "A description of the Bluetooth mesh feature.",
+      "isCommentAutoGenerated" : true
+    },
     "Not verified" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4569,6 +4579,16 @@
         }
       }
     },
+    "Ocean" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oceano"
+          }
+        }
+      }
+    },
     "Off" : {
       "comment" : "A button that displays a menu for selecting a language to translate messages into.",
       "isCommentAutoGenerated" : true,
@@ -4594,6 +4614,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Desativado por predefinição. As suas mensagens continuam encriptadas de ponta a ponta e o operador não as consegue ler a menos que ative esta opção."
+          }
+        }
+      }
+    },
+    "Offers spelling corrections as you write, using the dictionaries already on this device. Nothing you type is sent anywhere." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sugere correções ortográficas enquanto escreves, usando os dicionários já presentes neste dispositivo. Nada do que escreves é enviado para lado nenhum."
           }
         }
       }
@@ -4695,6 +4725,16 @@
         }
       }
     },
+    "Open HopChat in iOS Settings" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir o HopChat nas Definições do iOS"
+          }
+        }
+      }
+    },
     "Open iOS Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4759,6 +4799,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abre os detalhes do grupo"
+          }
+        }
+      }
+    },
+    "Opens the iOS Settings page for HopChat" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre a página do HopChat nas Definições do iOS"
           }
         }
       }
@@ -4887,6 +4937,10 @@
         }
       }
     },
+    "Phones nearby" : {
+      "comment" : "A label for the number of nearby Bluetooth mesh nodes.",
+      "isCommentAutoGenerated" : true
+    },
     "Photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4938,6 +4992,19 @@
         }
       }
     },
+    "Photos still need Wi-Fi or mobile data; they are too large to hop. Messages can take a while to arrive and may not arrive at all if nobody comes close enough. As soon as you are back online, anything unconfirmed is sent the normal way." : {
+
+    },
+    "Pick five colours. They blend into each other behind the blur." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolhe cinco cores. Misturam-se umas com as outras por trás do desfoque."
+          }
+        }
+      }
+    },
     "Pick the number this person uses on HopChat." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4985,6 +5052,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aponte a câmara ao código QR no ecrã do seu contacto."
+          }
+        }
+      }
+    },
+    "Português" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Português"
           }
         }
       }
@@ -5372,6 +5449,16 @@
         }
       }
     },
+    "Replace with %@" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substituir por %@"
+          }
+        }
+      }
+    },
     "Reply" : {
       "localizations" : {
         "pt-PT" : {
@@ -5506,6 +5593,16 @@
         }
       }
     },
+    "Reset to Aurora" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repor Aurora"
+          }
+        }
+      }
+    },
     "Retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5556,6 +5653,10 @@
           }
         }
       }
+    },
+    "Right now" : {
+      "comment" : "A heading for the current state of Bluetooth mesh.",
+      "isCommentAutoGenerated" : true
     },
     "Safety Number" : {
       "extractionState" : "manual",
@@ -5902,6 +6003,10 @@
         }
       }
     },
+    "Send over Bluetooth" : {
+      "comment" : "A label for a toggle that lets the user enable Bluetooth mesh delivery.",
+      "isCommentAutoGenerated" : true
+    },
     "Send read receipts" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5970,6 +6075,9 @@
         }
       }
     },
+    "Sending directly (P2P)." : {
+
+    },
     "Sent" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5986,6 +6094,20 @@
           }
         }
       }
+    },
+    "Sent directly" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enviada diretamente"
+          }
+        }
+      }
+    },
+    "Sent over Bluetooth" : {
+      "comment" : "A description of a message that was sent over Bluetooth.",
+      "isCommentAutoGenerated" : true
     },
     "Server key not configured" : {
       "extractionState" : "manual",
@@ -6017,6 +6139,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Definições"
+          }
+        }
+      }
+    },
+    "Settings ▸ HopChat ▸ Local Network. Messages still arrive through the relay meanwhile." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definições ▸ HopChat ▸ Rede local. Entretanto, as mensagens continuam a chegar pelo relay."
           }
         }
       }
@@ -6261,6 +6393,10 @@
         }
       }
     },
+    "Status" : {
+      "comment" : "A label for the Bluetooth mesh status.",
+      "isCommentAutoGenerated" : true
+    },
     "Stays on Your Device" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6295,6 +6431,16 @@
         }
       }
     },
+    "Sunset" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pôr do sol"
+          }
+        }
+      }
+    },
     "Support" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6308,6 +6454,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apoio"
+          }
+        }
+      }
+    },
+    "System default" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predefinição do sistema"
           }
         }
       }
@@ -6730,6 +6886,16 @@
         }
       }
     },
+    "The new language appears the next time you open HopChat. iOS keeps the language an app started with." : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O novo idioma aparece da próxima vez que abrires o HopChat. O iOS mantém o idioma com que uma app arrancou."
+          }
+        }
+      }
+    },
     "The old number stops working" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6896,6 +7062,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "A outra pessoa"
+          }
+        }
+      }
+    },
+    "Theme" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tema"
           }
         }
       }
@@ -7502,6 +7678,16 @@
         }
       }
     },
+    "Typing suggestions" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sugestões de escrita"
+          }
+        }
+      }
+    },
     "Unarchive" : {
       "comment" : "A button that archives or unarchives selected conversations.",
       "isCommentAutoGenerated" : true,
@@ -8007,6 +8193,10 @@
         }
       }
     },
+    "What to expect" : {
+      "comment" : "A section of the settings screen that describes the Bluetooth mesh feature.",
+      "isCommentAutoGenerated" : true
+    },
     "What you can do" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8058,6 +8248,10 @@
         }
       }
     },
+    "With no Wi-Fi and no mobile data, HopChat can pass a message to nearby phones over Bluetooth until it reaches the person you sent it to. It is switched on only while you are offline." : {
+      "comment" : "A description of Bluetooth mesh.",
+      "isCommentAutoGenerated" : true
+    },
     "With previews off, notifications say only that a new message arrived." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8071,6 +8265,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Com as pré-visualizações desativadas, as notificações dizem apenas que chegou uma nova mensagem."
+          }
+        }
+      }
+    },
+    "Writing" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escrita"
           }
         }
       }
@@ -8435,6 +8639,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "O seu código — deixe a outra pessoa lê-lo"
+          }
+        }
+      }
+    },
+    "Your colours" : {
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As tuas cores"
           }
         }
       }
