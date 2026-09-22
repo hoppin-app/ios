@@ -293,11 +293,11 @@ final class TrustStore: ObservableObject {
     }
 
     /// One side's 30-digit fingerprint:
-    /// `h = Canonical(["hopchat-safety-v1", phone, key])`, then 5200 × `h = SHA512(h || rawKey)`,
+    /// `h = Canonical(["hoppin-safety-v1", phone, key])`, then 5200 × `h = SHA512(h || rawKey)`,
     /// first 30 bytes → 6 × (5-byte big-endian mod 100000, zero-padded to 5 digits).
     nonisolated static func fingerprint(phone: String, key: String) -> String {
         let rawKey = Data(base64Encoded: key) ?? Data(key.utf8)
-        var h = Canonical.encode(["hopchat-safety-v1", phone, key])
+        var h = Canonical.encode(["hoppin-safety-v1", phone, key])
         for _ in 0..<5200 {
             var input = h
             input.append(rawKey)
@@ -330,14 +330,14 @@ final class TrustStore: ObservableObject {
 
     // MARK: - QR verification
 
-    /// `"hopchat://verify?p=<phone>&k=<b64url>"`
+    /// `"hoppin://verify?p=<phone>&k=<b64url>"`
     nonisolated static func qrString(phone: String, signingKey: String) -> String {
-        "hopchat://verify?p=\(phone)&k=\(base64URL(signingKey))"
+        "hoppin://verify?p=\(phone)&k=\(base64URL(signingKey))"
     }
 
     nonisolated static func parseQR(_ s: String) -> (phone: String, signingKey: String)? {
         guard let comps = URLComponents(string: s.trimmingCharacters(in: .whitespacesAndNewlines)),
-              comps.scheme?.lowercased() == "hopchat",
+              comps.scheme?.lowercased() == "hoppin",
               (comps.host?.lowercased() == "verify" || comps.path == "verify"),
               let items = comps.queryItems else { return nil }
         guard let rawPhone = items.first(where: { $0.name == "p" })?.value,

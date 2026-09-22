@@ -15,7 +15,7 @@ import os
 extension Notification.Name {
     /// Posted when the user taps a message notification.
     /// `userInfo["conversationID"] as? String`
-    static let openChat = Notification.Name("hopchat.openChat")
+    static let openChat = Notification.Name("hoppin.openChat")
 }
 
 @MainActor
@@ -61,7 +61,7 @@ final class NotificationService {
             ? true : defaults.bool(forKey: AppConfig.Keys.notificationsSound)
 
         let content = UNMutableNotificationContent()
-        content.title = showPreview ? title : "HopChat"
+        content.title = showPreview ? title : "hoppin"
         content.body = showPreview ? body : String(localized: "New message")
         if withSound { content.sound = .default }
         content.threadIdentifier = conversationID

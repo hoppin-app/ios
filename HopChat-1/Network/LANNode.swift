@@ -29,7 +29,7 @@ nonisolated final class LANNode: @unchecked Sendable {
     /// `(request, sourceIP) -> optional reply`. Runs off the main actor.
     typealias Handler = @Sendable (WireMessage, String) async -> WireMessage?
 
-    private let queue = DispatchQueue(label: "hopchat.lan", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "hoppin.lan", qos: .userInitiated)
     private let lock = NSLock()
     private var listener: NWListener?
     private var activeConnections = 0

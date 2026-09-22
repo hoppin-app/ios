@@ -44,7 +44,7 @@ nonisolated final class KeychainStore: KeyValueSecureStore, @unchecked Sendable 
 
     private let service: String
 
-    init(service: String = "HopChat.v2") {
+    init(service: String = "hoppin.v2") {
         self.service = service
     }
 

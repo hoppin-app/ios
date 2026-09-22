@@ -2,7 +2,7 @@
 //  BonjourDiscovery.swift
 //  HopChat-1
 //
-//  LAN peer discovery over Bonjour (`_hopchat._tcp`).
+//  LAN peer discovery over Bonjour (`_hoppin._tcp`).
 //
 //  Privacy fix (v1 broadcast the user's phone number in the TXT record to the
 //  whole LAN): the advertisement now carries only a **random per-launch

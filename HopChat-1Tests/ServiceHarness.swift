@@ -13,7 +13,7 @@
 //  enabled, for direct phone-to-phone delivery tests with no server at all.
 //
 //  `connected(...)` points a service at the real development bootstrap server
-//  described by `/tmp/hopchat-test-server.json`.
+//  described by `/tmp/hoppin-test-server.json`.
 //
 
 import Foundation
@@ -120,7 +120,7 @@ final class ServiceHarness {
                                        enableLAN: Bool,
                                        mesh: MeshDelivering? = nil) throws -> ServiceHarness {
         let serverKeyB64 = serverKey.publicKey.rawRepresentation.base64EncodedString()
-        let temp = TempDirectory("hopchat-service")
+        let temp = TempDirectory("hoppin-service")
 
         let clock: @Sendable () -> Date = fixedNow.map(TestClock.fixed) ?? { Date() }
 
@@ -165,7 +165,7 @@ final class ServiceHarness {
                           trustBacking: KeyValueSecureStore = InMemorySecureStore(),
                           secureStore: KeyValueSecureStore = InMemorySecureStore(),
                           enableLAN: Bool = false) -> ServiceHarness {
-        let temp = TempDirectory("hopchat-service")
+        let temp = TempDirectory("hoppin-service")
         let crypto = CryptoManager(store: secureStore)
         let trust = TrustStore(store: trustBacking)
         let store = ConversationStore(directory: temp.url,

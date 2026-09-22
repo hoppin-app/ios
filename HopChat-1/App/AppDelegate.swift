@@ -6,7 +6,7 @@
 //
 //  Two things must happen before the app finishes launching:
 //    • the BGTaskScheduler handler is registered (iOS refuses a late
-//      registration for `com.hopchat.relay-fetch`),
+//      registration for `com.hoppin.relay-fetch`),
 //    • the UNUserNotificationCenter delegate is installed, so a tap on a
 //      notification that launched the app is still routed.
 //
@@ -30,13 +30,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         AppConfig.registerDefaults()
         BackgroundRefresh.register()
         UNUserNotificationCenter.current().delegate = self
-        Log.app.info("HopChat \(AppConfig.appVersion, privacy: .public) launched")
+        Log.app.info("hoppin \(AppConfig.appVersion, privacy: .public) launched")
         return true
     }
 
     // MARK: - UNUserNotificationCenterDelegate
 
-    /// Foreground presentation, honouring `hopchat.notifications.*`.
+    /// Foreground presentation, honouring `hoppin.notifications.*`.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {

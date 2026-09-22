@@ -33,7 +33,7 @@ struct WireMessageTests {
         let fields = message.signedFields
 
         #expect(fields.count == 10)
-        #expect(fields[0] == "hopchat-wire-v2")
+        #expect(fields[0] == "hoppin-wire-v2")
         #expect(fields[1] == String(WireType.relayDeposit.rawValue))
         #expect(fields[2] == message.txID)
         #expect(fields[3] == message.senderPhone)
@@ -95,7 +95,7 @@ struct WireMessageTests {
 
     @Test("garbage signatures and keys are rejected without crashing")
     func malformedSignatureInputs() {
-        let fields = ["hopchat-wire-v2", "1"]
+        let fields = ["hoppin-wire-v2", "1"]
         let key = Curve25519.Signing.PrivateKey().publicKey
             .rawRepresentation.base64EncodedString()
         #expect(CryptoManager.verify(fields, signature: "", signingKeyBase64: key) == false)
@@ -443,5 +443,62 @@ struct ChatPayloadTests {
         #expect(ChatPayload.maxImageBytes == 600 * 1024)
         #expect(ChatPayload.maxAvatarBytes == 64 * 1024)
         #expect(AppConfig.maxGroupMembers == 32)
+    }
+}
+
+// MARK: - Developer overrides (DEBUG only)
+
+/// Which of the two dev-server settings wins: the Xcode scheme, or the value
+/// stored on the device. Getting this backwards once left a phone dialling a
+/// dev server that had moved to another address, reporting only "no
+/// connection", so the rule is pinned here.
+@Suite("AppConfig — developer override precedence")
+struct DevOverrideTests {
+
+    private func resolve(stored: String = "", lastApplied: String? = nil, env: String = "")
+    -> AppConfig.DevOverrideResolution {
+        AppConfig.resolveDevOverride(stored: stored, lastApplied: lastApplied, fromEnv: env)
+    }
+
+    @Test("a changed scheme value wins and is remembered")
+    func schemeChangeWins() {
+        let result = resolve(stored: "192.168.1.73", lastApplied: "192.168.1.73", env: "192.168.1.78")
+        #expect(result.value == "192.168.1.78")
+        #expect(result.persist)
+    }
+
+    @Test("an unchanged scheme leaves an edit made on the device alone")
+    func deviceEditSurvives() {
+        // The Developer screen was used to point at another machine; relaunching
+        // from Xcode with the same scheme must not undo that.
+        let result = resolve(stored: "10.0.0.5", lastApplied: "192.168.1.78", env: "192.168.1.78")
+        #expect(result.value == "10.0.0.5")
+        #expect(!result.persist)
+    }
+
+    @Test("the first launch takes the scheme")
+    func firstLaunch() {
+        let result = resolve(env: "192.168.1.78")
+        #expect(result.value == "192.168.1.78")
+        #expect(result.persist)
+    }
+
+    @Test("launched from the home screen, the stored value is used")
+    func noEnvironment() {
+        let result = resolve(stored: "192.168.1.78", lastApplied: "192.168.1.78")
+        #expect(result.value == "192.168.1.78")
+        #expect(!result.persist)
+    }
+
+    @Test("nothing anywhere means no override")
+    func nothing() {
+        #expect(resolve().value == nil)
+        #expect(resolve(stored: "   ", env: "  ").value == nil)
+    }
+
+    @Test("whitespace around a value is ignored")
+    func trimmed() {
+        #expect(resolve(env: " 192.168.1.78 ").value == "192.168.1.78")
+        #expect(resolve(stored: " 10.0.0.5 ", lastApplied: "x", env: "x").value == "10.0.0.5")
     }
 }

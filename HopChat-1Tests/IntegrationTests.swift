@@ -4,7 +4,7 @@
 //
 //  End-to-end against a REAL `bootstrap.py`, started by `scripts/run_tests.sh`.
 //  A simulator process cannot spawn the server itself, so the script starts it,
-//  writes /tmp/hopchat-test-server.json, and these tests read that file.
+//  writes /tmp/hoppin-test-server.json, and these tests read that file.
 //  Without it every test here skips, so a plain `xcodebuild test` still passes.
 //
 //  Two full `KademliaService` instances run in one process (separate secure
@@ -69,7 +69,7 @@ struct World {
 
     struct ServerRequired: Error, CustomStringConvertible {
         var description: String {
-            "HOPCHAT_REQUIRE_SERVER=1 but \(RepoPaths.serverInfoURL.path) is missing or invalid"
+            "HOPPIN_REQUIRE_SERVER=1 but \(RepoPaths.serverInfoURL.path) is missing or invalid"
         }
     }
 
@@ -77,7 +77,7 @@ struct World {
     /// one, in which case a missing server is a hard failure, never a skip.
     static func make() throws -> World? {
         guard let info = ServerInfo.current else {
-            if ProcessInfo.processInfo.environment["HOPCHAT_REQUIRE_SERVER"] == "1" {
+            if ProcessInfo.processInfo.environment["HOPPIN_REQUIRE_SERVER"] == "1" {
                 throw ServerRequired()
             }
             return nil

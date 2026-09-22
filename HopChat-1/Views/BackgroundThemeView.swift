@@ -4,7 +4,7 @@
 //
 //  Colour choice for the lava backdrop: a handful of presets plus a custom
 //  palette of five colours. The choice is a plain preference
-//  (`hopchat.appearance.backgroundTheme` / `…customColors`); custom colours
+//  (`hoppin.appearance.backgroundTheme` / `…customColors`); custom colours
 //  are stored as "#RRGGBB" strings joined by commas.
 //
 

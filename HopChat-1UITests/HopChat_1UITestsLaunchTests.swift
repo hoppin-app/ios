@@ -20,9 +20,9 @@ final class HopChat_1UITestsLaunchTests: XCTestCase {
     func testLaunch() throws {
         let app = XCUIApplication()
         app.launchArguments += ["-UITestResetState", "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
-                                "-hopchat.hasSeenOnboarding", "NO",
-                                "-hopchat.hasAcceptedTerms", "NO",
-                                "-hopchat.appLock.enabled", "NO"]
+                                "-hoppin.hasSeenOnboarding", "NO",
+                                "-hoppin.hasAcceptedTerms", "NO",
+                                "-hoppin.appLock.enabled", "NO"]
         app.launch()
 
         XCTAssertEqual(app.state, .runningForeground)

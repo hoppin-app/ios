@@ -155,7 +155,7 @@ nonisolated enum MeshHint {
     /// Anyone can compute it for a public key — that is the point: it filters
     /// work without naming anyone, and 1 in 256 packets matches by chance.
     static func value(agreementKeyBase64: String, at date: Date) -> UInt8 {
-        var input = Data("hopchat-mesh-hint-v1".utf8)
+        var input = Data("hoppin-mesh-hint-v1".utf8)
         input.append(Data(agreementKeyBase64.utf8))
         input.append(withUnsafeBytes(of: dayIndex(date).bigEndian) { Data($0) })
         return Array(SHA256.hash(data: input))[0]

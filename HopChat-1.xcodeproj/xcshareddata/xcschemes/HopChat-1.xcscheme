@@ -73,17 +73,17 @@
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "HOPCHAT_DEV_SERVER_HOST"
-            value = "192.168.1.73"
+            key = "HOPPIN_DEV_SERVER_HOST"
+            value = "192.168.1.78"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "HOPCHAT_DEV_SERVER_KEY"
+            key = "HOPPIN_DEV_SERVER_KEY"
             value = "vzIGAHf1kUgDAxN7UbwUooi9PNsmo5m76aK1cichrgU="
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "HOPCHAT_DEV_ALLOW_PLAINTEXT"
+            key = "HOPPIN_DEV_ALLOW_PLAINTEXT"
             value = "1"
             isEnabled = "YES">
          </EnvironmentVariable>

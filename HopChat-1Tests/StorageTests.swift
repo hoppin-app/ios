@@ -795,8 +795,8 @@ struct LegacyMigrationTests {
             ]
             defaults.set(try encoder.encode([key: messages]), forKey: LegacyMigration.messagesKey)
         }
-        defaults.set(Data("routing".utf8), forKey: "hopchat.routingTable.v1")
-        defaults.set(Data("keys".utf8), forKey: "hopchat.peerKeys.signing.v1")
+        defaults.set(Data("routing".utf8), forKey: "hoppin.routingTable.v1")
+        defaults.set(Data("keys".utf8), forKey: "hoppin.peerKeys.signing.v1")
     }
 
     @Test("v1 contacts and threads are imported and the legacy keys removed")
@@ -829,8 +829,8 @@ struct LegacyMigrationTests {
         // Legacy keys are gone, except the phone (the network layer consumes it).
         #expect(suite.defaults.data(forKey: LegacyMigration.contactsKey) == nil)
         #expect(suite.defaults.data(forKey: LegacyMigration.messagesKey) == nil)
-        #expect(suite.defaults.data(forKey: "hopchat.routingTable.v1") == nil)
-        #expect(suite.defaults.data(forKey: "hopchat.peerKeys.signing.v1") == nil)
+        #expect(suite.defaults.data(forKey: "hoppin.routingTable.v1") == nil)
+        #expect(suite.defaults.data(forKey: "hoppin.peerKeys.signing.v1") == nil)
         #expect(suite.defaults.string(forKey: LegacyMigration.phoneKey) == "+351912345678")
         #expect(LegacyMigration.hasLegacyData(in: suite.defaults) == false)
 

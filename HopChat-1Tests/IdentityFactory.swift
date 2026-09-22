@@ -110,7 +110,7 @@ enum IdentityFactory {
                                 serial: String = UUID().uuidString) -> IdentityCertificate {
         let issued = Int64(issuedAt.timeIntervalSince1970)
         let expires = issued + Int64(validity)
-        let fields = ["hopchat-cert-v1",
+        let fields = ["hoppin-cert-v1",
                       phone,
                       signingKey,
                       agreementKey,

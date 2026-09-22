@@ -48,7 +48,7 @@ final class AppLock: ObservableObject {
 
     // MARK: - Settings
 
-    /// Persisted to `hopchat.appLock.enabled`.
+    /// Persisted to `hoppin.appLock.enabled`.
     ///
     /// Prefer ``setEnabled(_:)`` from UI: enabling must be gated on a
     /// successful authentication. The plain setter exists for the contract's
@@ -68,7 +68,7 @@ final class AppLock: ObservableObject {
         }
     }
 
-    /// Grace period in seconds, persisted to `hopchat.appLock.timeout`.
+    /// Grace period in seconds, persisted to `hoppin.appLock.timeout`.
     /// `0` means lock as soon as the app leaves the foreground.
     var timeout: Int {
         get { max(0, defaults.integer(forKey: AppConfig.Keys.appLockTimeout)) }
@@ -93,7 +93,7 @@ final class AppLock: ObservableObject {
             Log.ui.error("App lock refused: device cannot authenticate the owner")
             return false
         }
-        let ok = await evaluate(reason: String(localized: "Turn on app lock for HopChat"))
+        let ok = await evaluate(reason: String(localized: "Turn on app lock for hoppin"))
         if ok {
             isEnabled = true
             isLocked = false
@@ -152,7 +152,7 @@ final class AppLock: ObservableObject {
             return true
         }
 
-        return await evaluate(reason: String(localized: "Unlock HopChat"))
+        return await evaluate(reason: String(localized: "Unlock hoppin"))
     }
 
     private func evaluate(reason: String) async -> Bool {
@@ -210,7 +210,7 @@ final class AppLock: ObservableObject {
         case .userCancel, .appCancel, .systemCancel:
             return String(localized: "Authentication was cancelled.")
         case .userFallback:
-            return String(localized: "Enter your device passcode to unlock HopChat.")
+            return String(localized: "Enter your device passcode to unlock hoppin.")
         case .biometryLockout:
             return String(localized: "Too many failed attempts. Unlock with your device passcode.")
         case .biometryNotEnrolled, .biometryNotAvailable:

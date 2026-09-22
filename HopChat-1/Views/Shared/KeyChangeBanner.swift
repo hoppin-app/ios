@@ -37,7 +37,7 @@ struct KeyChangeBanner: View {
                     .foregroundStyle(.orange)
             }
 
-            Text("\(phone) may have reinstalled HopChat or switched device. Messages are blocked until you check.")
+            Text("\(phone) may have reinstalled hoppin or switched device. Messages are blocked until you check.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

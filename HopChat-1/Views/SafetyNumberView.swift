@@ -43,7 +43,7 @@ struct SafetyNumberView: View {
     var body: some View {
         List {
             Section {
-                Text("A safety number is a code shared only by the two of you. If it matches on both phones, nobody is reading your messages in the middle. It changes when one of you reinstalls HopChat or switches phone.")
+                Text("A safety number is a code shared only by the two of you. If it matches on both phones, nobody is reading your messages in the middle. It changes when one of you reinstalls hoppin or switches phone.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -77,7 +77,7 @@ struct SafetyNumberView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("No key for this contact yet")
                             .font(.headline)
-                        Text("HopChat needs their encryption key before a safety number exists. Send them a message, or refresh below.")
+                        Text("hoppin needs their encryption key before a safety number exists. Send them a message, or refresh below.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Button("Refresh Key") {
@@ -226,9 +226,9 @@ struct SafetyNumberView: View {
 
         case .unreadable:
             VStack(alignment: .leading, spacing: 6) {
-                Label("That isn't a HopChat code", systemImage: "questionmark.circle")
+                Label("That isn't a hoppin code", systemImage: "questionmark.circle")
                     .font(.headline)
-                Text("Ask them to open this same screen in HopChat and show their code.")
+                Text("Ask them to open this same screen in hoppin and show their code.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -25,8 +25,8 @@ nonisolated enum VerificationErrorText {
             case .invalidPhone:
                 return String(localized: "That doesn't look like a valid phone number. Include the country code, like +351 912 345 678.")
             case .unavailable:
-                return String(localized: "No connection to HopChat. Check your internet and try again.")
-            case .notRegistered, .notOnHopChat:
+                return String(localized: "No connection to hoppin. Check your internet and try again.")
+            case .notRegistered, .notOnhoppin:
                 return String(localized: "That number isn't verified yet. Request a new code and try again.")
             case .blocked:
                 return String(localized: "This number can't be verified right now.")
@@ -41,7 +41,7 @@ nonisolated enum VerificationErrorText {
             case .server(let code, let message):
                 return serverText(message.isEmpty ? code : message)
             case .timeout, .transport:
-                return String(localized: "No connection to HopChat. Check your internet and try again.")
+                return String(localized: "No connection to hoppin. Check your internet and try again.")
             case .badServerSignature:
                 return String(localized: "The server's reply couldn't be verified. Try again later.")
             case .badResponse:
@@ -55,7 +55,7 @@ nonisolated enum VerificationErrorText {
         let lower = raw.lowercased()
 
         if lower.contains("server key not configured") {
-            return "This build has no pinned server key, so it can't verify anything. (Developer: set hopchat.dev.serverKey or ship AppConfig.serverSigningKeyBase64.)"
+            return "This build has no pinned server key, so it can't verify anything. (Developer: set hoppin.dev.serverKey or ship AppConfig.serverSigningKeyBase64.)"
         }
         if lower.contains("rate_limited") || lower.contains("rate limited") || lower.contains("too many requests") {
             if let seconds = firstInteger(in: raw) {
@@ -220,7 +220,7 @@ struct PhoneNumberStep: View {
                     .foregroundStyle(.secondary)
                 }
 
-                Text("Your number is sent to the HopChat server so it can text you a code and issue your certificate. It is never shared with other services.")
+                Text("Your number is sent to the hoppin server so it can text you a code and issue your certificate. It is never shared with other services.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

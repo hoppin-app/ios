@@ -258,7 +258,7 @@ nonisolated final class CryptoManager: @unchecked Sendable {
 
     // MARK: - Envelope sealing / opening (§4)
 
-    private static let hkdfSalt = Data("HopChat-E2E-v2".utf8)
+    private static let hkdfSalt = Data("hoppin-E2E-v2".utf8)
 
     private static func deriveKey(dh1: SharedSecret,
                                   dh2: SharedSecret,
@@ -268,7 +268,7 @@ nonisolated final class CryptoManager: @unchecked Sendable {
         var ikm = Data()
         dh1.withUnsafeBytes { ikm.append(contentsOf: $0) }
         dh2.withUnsafeBytes { ikm.append(contentsOf: $0) }
-        let info = Canonical.encode(["hopchat-seal-v2", senderSigningKey, recipientSigningKey] + header)
+        let info = Canonical.encode(["hoppin-seal-v2", senderSigningKey, recipientSigningKey] + header)
         return HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: ikm),
                                       salt: hkdfSalt,
                                       info: info,
@@ -469,7 +469,7 @@ nonisolated final class CryptoManager: @unchecked Sendable {
     /// The inner envelope still carries the sender's signature and
     /// certificate, so authentication is unchanged — it just isn't visible
     /// until the recipient opens the outer layer.
-    static let meshSalt = Data("HopChat-Mesh-v1".utf8)
+    static let meshSalt = Data("hoppin-Mesh-v1".utf8)
 
     func sealForMesh(_ payload: Data,
                      recipientAgreementKeyBase64: String,

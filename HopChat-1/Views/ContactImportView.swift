@@ -117,7 +117,7 @@ struct ContactNumberChooser: View {
                 } header: {
                     Text(contact.name.isEmpty ? "Choose a number" : contact.name)
                 } footer: {
-                    Text("Pick the number this person uses on HopChat.")
+                    Text("Pick the number this person uses on hoppin.")
                 }
             }
             .navigationTitle("Choose Number")

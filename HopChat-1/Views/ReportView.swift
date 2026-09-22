@@ -98,7 +98,7 @@ struct ReportView: View {
                     if includeMessages {
                         Text(evidence.isEmpty
                              ? "You have no received messages from this person to include."
-                             : "These messages will be sent to the HopChat operator in readable form. Nothing else from your chats is shared.")
+                             : "These messages will be sent to the hoppin operator in readable form. Nothing else from your chats is shared.")
                     } else {
                         Text("Off by default. Your messages stay end-to-end encrypted and the operator cannot read them unless you turn this on.")
                     }

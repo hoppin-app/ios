@@ -284,9 +284,9 @@ struct KeyLoadingTests {
     @Test("sign returns empty rather than signing with a degraded key")
     func signWithUnavailableKey() {
         let crypto = CryptoManager(store: ThrowingSecureStore(isAvailable: false))
-        #expect(crypto.sign(["hopchat-wire-v2"]).isEmpty)
+        #expect(crypto.sign(["hoppin-wire-v2"]).isEmpty)
         #expect(throws: CryptoError.keyUnavailable) {
-            _ = try crypto.signOrThrow(["hopchat-wire-v2"])
+            _ = try crypto.signOrThrow(["hoppin-wire-v2"])
         }
     }
 
@@ -663,7 +663,7 @@ struct QRTests {
         let phone = "+351912345678"
         let qr = TrustStore.qrString(phone: phone, signingKey: key)
 
-        #expect(qr.hasPrefix("hopchat://verify?p=\(phone)&k="))
+        #expect(qr.hasPrefix("hoppin://verify?p=\(phone)&k="))
         #expect(qr.contains("+") == false || qr.contains("?p=+"))   // only the phone's plus
 
         let parsed = TrustStore.parseQR(qr)
@@ -694,13 +694,13 @@ struct QRTests {
             .rawRepresentation.base64EncodedString()
         #expect(TrustStore.parseQR("") == nil)
         #expect(TrustStore.parseQR("https://example.com/verify?p=+351912345678&k=\(key)") == nil)
-        #expect(TrustStore.parseQR("hopchat://other?p=+351912345678&k=\(key)") == nil)
-        #expect(TrustStore.parseQR("hopchat://verify?p=351912345678&k=\(key)") == nil)
-        #expect(TrustStore.parseQR("hopchat://verify?p=+351912345678") == nil)
-        #expect(TrustStore.parseQR("hopchat://verify?p=+351912345678&k=notbase64!!") == nil)
+        #expect(TrustStore.parseQR("hoppin://other?p=+351912345678&k=\(key)") == nil)
+        #expect(TrustStore.parseQR("hoppin://verify?p=351912345678&k=\(key)") == nil)
+        #expect(TrustStore.parseQR("hoppin://verify?p=+351912345678") == nil)
+        #expect(TrustStore.parseQR("hoppin://verify?p=+351912345678&k=notbase64!!") == nil)
         // A 16-byte key is not a Curve25519 key.
         let short = Data(repeating: 7, count: 16).base64EncodedString()
-        #expect(TrustStore.parseQR("hopchat://verify?p=+351912345678&k=\(short)") == nil)
+        #expect(TrustStore.parseQR("hoppin://verify?p=+351912345678&k=\(short)") == nil)
     }
 
     @Test("surrounding whitespace from a scanner is tolerated")

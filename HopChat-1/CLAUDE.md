@@ -1,8 +1,8 @@
-# HopChat — Project Context for Claude Code
+# hoppin — Project Context for Claude Code
 
 ## What this is
 
-HopChat is an iOS (18+) SwiftUI messenger. Messages are **end-to-end encrypted**,
+hoppin is an iOS (18+) SwiftUI messenger. Messages are **end-to-end encrypted**,
 delivered **directly over the local network** when both devices are on it, and
 otherwise through a **relay server that stores only sealed envelopes it cannot
 read**. Identity is a phone number **verified once by SMS**; the server then
@@ -39,7 +39,7 @@ in `docs/fixtures/crypto_vectors.json`.
 | `Network/ServerClient.swift` | Verification, certificates, relay deposit/fetch/ack, report, delete |
 | `Network/LANNode.swift`, `BonjourDiscovery.swift`, `KadmeliaNode.swift` | Authenticated LAN peers |
 | `Network/Mesh/` | BLE mesh: `MeshPacket`/`CompactEnvelope` (wire), `MeshRouter` (flood, TTL, carry-forward), `BLEFrames` (chunking), `BLETransport` (CoreBluetooth), `MeshNode` (wiring, `MeshDelivering`) |
-| `Network/HopChatService.swift` | `KademliaService` — the only network API the views use |
+| `Network/HoppinService.swift` | `KademliaService` — the only network API the views use |
 | `Storage/` | File-backed store (`ConversationStore`), serial `StoreWriter`, media, legacy migration |
 | `Services/` | Notifications, app lock (Face ID), background relay fetch |
 | `Views/` | SwiftUI; `Shared/` holds `AvatarView`, `PresenceDot`, `KeyChangeBanner` |
@@ -58,7 +58,7 @@ Failures stay `.pending`, retry with backoff, and become `.failed` after 7 days.
 Each stored message records its `route` (`.direct` / `.relay`); the UI shows a
 "sent directly" mark for `.direct`.
 
-**LAN** — Bonjour `_hopchat._tcp` + a signed hello; listener, browser, published
+**LAN** — Bonjour `_hoppin._tcp` + a signed hello; listener, browser, published
 service and outbound connections all allow peer-to-peer Wi-Fi (AWDL), so two
 iPhones can connect even on client-isolated networks (eduroam, hotels). Link-local
 IPv6 peer addresses keep their `%interface` scope end to end. Peers count as online
@@ -66,7 +66,7 @@ for 5 min after last contact; a keep-alive pings recent peers every 60 s. A peer
 that proved its certificate in the LAN exchange is sent to without a server
 certificate lookup, so Wi-Fi with no internet doesn't stall on timeouts.
 
-**Mesh** — with no network path at all (and `hopchat.mesh.enabled` on), a text,
+**Mesh** — with no network path at all (and `hoppin.mesh.enabled` on), a text,
 receipt, profile or delete hops over Bluetooth: the same sealed envelope inside
 an anonymous outer layer, forwarded by phones that cannot read it. Tried after
 LAN and before the relay; the radio only runs while the phone is offline.
@@ -75,7 +75,7 @@ internet returns (the recipient de-duplicates by envelope id). Photos and
 typing never go on the mesh. Contract §9.
 
 **Receive** — long-poll `relayFetch` while active, `BGAppRefreshTask`
-(`com.hopchat.relay-fetch`) in the background. Validation order is fixed and
+(`com.hoppin.relay-fetch`) in the background. Validation order is fixed and
 must not be reordered: certificate valid + bound to the claimed phone → agreement
 key current or recently pinned → envelope signature → addressed to us, within 7
 days, not already seen → trust evaluation → block list → decrypt. Then persist,
@@ -111,7 +111,7 @@ deletes the user's mail permanently — that was a real bug; keep the distinctio
 
 ```bash
 # Server (dev): fixed code, plaintext, ephemeral state
-HOPCHAT_ENV=dev HOPCHAT_ALLOW_PLAINTEXT=1 HOPCHAT_DEV_FIXED_CODE=123456 ./venv/bin/python bootstrap.py
+HOPPIN_ENV=dev HOPPIN_ALLOW_PLAINTEXT=1 HOPPIN_DEV_FIXED_CODE=123456 ./venv/bin/python bootstrap.py
 
 ./venv/bin/python -m unittest discover -s server     # server suite
 ./scripts/run_tests.sh                               # server + app tests end to end
@@ -128,7 +128,7 @@ automatically (`CLAUDE.md` is excluded from the bundle).
 
 - `AppConfig.serverSigningKeyBase64` is still a **placeholder**; the production
   server's Ed25519 public key and TLS SPKI pins must be pasted in before release.
-  Local testing uses `hopchat.dev.serverKey` / `hopchat.dev.allowPlaintext`.
+  Local testing uses `hoppin.dev.serverKey` / `hoppin.dev.allowPlaintext`.
 - SMS delivery needs a Twilio account (`TWILIO_*` env vars); the dev provider
   only logs codes.
 - Website legal pages contain `[placeholder]` fields (legal name, contact email,

@@ -98,7 +98,7 @@ struct ChangeNumberView: View {
                     ChangeNumberPoint(
                         icon: "paperplane.fill",
                         title: Text("Your contacts are told automatically"),
-                        detail: Text("HopChat sends each of your contacts a signed notice so their app follows you to the new number without a security warning."))
+                        detail: Text("hoppin sends each of your contacts a signed notice so their app follows you to the new number without a security warning."))
                     ChangeNumberPoint(
                         icon: "xmark.circle.fill",
                         title: Text("The old number stops working"),

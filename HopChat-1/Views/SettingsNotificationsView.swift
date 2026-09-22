@@ -30,7 +30,7 @@ struct SettingsNotificationsView: View {
                     Toggle(isOn: $notificationsEnabled) {
                         Text("Message notifications")
                     }
-                    .accessibilityHint(Text("Shows a notification when a message arrives while HopChat is closed"))
+                    .accessibilityHint(Text("Shows a notification when a message arrives while hoppin is closed"))
 
                     Toggle(isOn: $showPreview) {
                         Text("Show preview")
@@ -43,7 +43,7 @@ struct SettingsNotificationsView: View {
                     }
                     .disabled(!notificationsEnabled)
                 } header: {
-                    Text("In HopChat")
+                    Text("In hoppin")
                 } footer: {
                     Text("With previews off, notifications say only that a new message arrived.")
                 }
@@ -90,14 +90,14 @@ struct SettingsNotificationsView: View {
                     Text("Open iOS Settings")
                         .frame(minHeight: 44)
                 }
-                .accessibilityHint(Text("Opens the Settings app where you can turn HopChat notifications back on"))
+                .accessibilityHint(Text("Opens the Settings app where you can turn hoppin notifications back on"))
 
             default:
                 EmptyView()
             }
         } footer: {
             if systemStatus == .denied {
-                Text("iOS is blocking HopChat notifications, so the switches below have no effect until you allow them in Settings.")
+                Text("iOS is blocking hoppin notifications, so the switches below have no effect until you allow them in Settings.")
             }
         }
     }

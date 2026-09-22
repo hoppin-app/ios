@@ -73,7 +73,7 @@ struct ContactVerificationBadge: View {
 
 // MARK: - People
 
-/// How the contact list is ordered (persisted as `hopchat.people.sort`).
+/// How the contact list is ordered (persisted as `hoppin.people.sort`).
 enum PeopleSort: String, CaseIterable, Identifiable {
     case name, recent, online
     var id: String { rawValue }
@@ -173,8 +173,8 @@ struct PeopleView: View {
                         .pickerStyle(.menu)
 
                         ShareLink(item: AppConfig.inviteURL,
-                                  subject: Text("Join me on HopChat"),
-                                  message: Text("I'm using HopChat for private, end-to-end encrypted messages. Get it here:")) {
+                                  subject: Text("Join me on hoppin"),
+                                  message: Text("I'm using hoppin for private, end-to-end encrypted messages. Get it here:")) {
                             Label("Invite a Friend", systemImage: "square.and.arrow.up")
                         }
                     } label: {

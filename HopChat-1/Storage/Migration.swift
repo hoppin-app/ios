@@ -15,14 +15,14 @@ nonisolated enum LegacyMigration {
 
     // MARK: - Keys
 
-    static let contactsKey = "hopchat.contacts.v1"
-    static let messagesKey = "hopchat.messages.v1"
-    static let phoneKey    = "hopchat.phone"          // NOT removed here: the network layer consumes it
+    static let contactsKey = "hoppin.contacts.v1"
+    static let messagesKey = "hoppin.messages.v1"
+    static let phoneKey    = "hoppin.phone"          // NOT removed here: the network layer consumes it
     /// Removed together with the store keys once migration succeeds.
     static let obsoleteKeys = [
-        "hopchat.routingTable.v1",
-        "hopchat.peerKeys.agreement.v1",
-        "hopchat.peerKeys.signing.v1"
+        "hoppin.routingTable.v1",
+        "hoppin.peerKeys.agreement.v1",
+        "hoppin.peerKeys.signing.v1"
     ]
 
     static let threadSeparator = "↔︎"
@@ -165,6 +165,6 @@ nonisolated enum LegacyMigration {
         defaults.removeObject(forKey: contactsKey)
         defaults.removeObject(forKey: messagesKey)
         for key in obsoleteKeys { defaults.removeObject(forKey: key) }
-        // `hopchat.phone` is intentionally left for the network layer to consume.
+        // `hoppin.phone` is intentionally left for the network layer to consume.
     }
 }

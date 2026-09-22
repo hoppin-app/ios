@@ -29,7 +29,7 @@ struct ContactKeyChangeView: View {
                     Label("Security code changed", systemImage: "exclamationmark.triangle.fill")
                         .font(.headline)
                         .foregroundStyle(.orange)
-                    Text("The encryption key HopChat has for \(contact.displayName) is not the one it saw before. Messages to them are held back until you decide.")
+                    Text("The encryption key hoppin has for \(contact.displayName) is not the one it saw before. Messages to them are held back until you decide.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -38,7 +38,7 @@ struct ContactKeyChangeView: View {
             }
 
             Section {
-                keyRow(title: String(localized: "Key HopChat trusted"), value: previousKey)
+                keyRow(title: String(localized: "Key hoppin trusted"), value: previousKey)
                 keyRow(title: String(localized: "New key"), value: pendingCertificate?.signingKey)
                 if let issued = pendingCertificate?.issuedAt {
                     HStack {
@@ -52,7 +52,7 @@ struct ContactKeyChangeView: View {
             } header: {
                 Text("What changed")
             } footer: {
-                Text("This can happen when someone reinstalls HopChat or changes phone — it can also mean someone is impersonating them.")
+                Text("This can happen when someone reinstalls hoppin or changes phone — it can also mean someone is impersonating them.")
             }
 
             Section {

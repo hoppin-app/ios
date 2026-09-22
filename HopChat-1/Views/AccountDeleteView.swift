@@ -35,7 +35,7 @@ struct DeleteAccountView: View {
                 section(title: Text("Removed from the server"),
                         icon: "server.rack",
                         items: [
-                            Text("Your identity certificate, so nobody can look you up on HopChat."),
+                            Text("Your identity certificate, so nobody can look you up on hoppin."),
                             Text("Every sealed message still waiting in your relay mailbox — undelivered messages are lost."),
                             Text("Your registration, freeing the number for a future sign-up."),
                         ])
@@ -44,13 +44,13 @@ struct DeleteAccountView: View {
                         icon: "iphone.slash",
                         items: [
                             Text("All conversations, including group chats."),
-                            Text("All photos you sent or received in HopChat."),
+                            Text("All photos you sent or received in hoppin."),
                             Text("Your contacts, blocks and safety-number verifications."),
                             Text("Your encryption keys and every app setting."),
                         ])
 
                 Label {
-                    Text("This cannot be undone. HopChat keeps no backup — not on the server, not in iCloud.")
+                    Text("This cannot be undone. hoppin keeps no backup — not on the server, not in iCloud.")
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -119,11 +119,11 @@ struct DeleteAccountView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(Text("Delete Account"))
         .navigationBarTitleDisplayMode(.inline)
-        .alert(Text("Delete your HopChat account?"), isPresented: $showFinalAlert) {
+        .alert(Text("Delete your hoppin account?"), isPresented: $showFinalAlert) {
             Button(role: .cancel) { } label: { Text("Cancel") }
             Button(role: .destructive) { performDelete() } label: { Text("Delete Everything") }
         } message: {
-            Text("Your account and everything HopChat stores on this iPhone will be erased. This cannot be undone.")
+            Text("Your account and everything hoppin stores on this iPhone will be erased. This cannot be undone.")
         }
     }
 
@@ -191,7 +191,7 @@ struct DeleteAccountView: View {
 
     private func offlineAwareText(for error: Error) -> String {
         if let service = error as? ServiceError, service == .unavailable {
-            return String(localized: "HopChat couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again.")
+            return String(localized: "hoppin couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again.")
         }
         return VerificationErrorText.text(for: error)
     }

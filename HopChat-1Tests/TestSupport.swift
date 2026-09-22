@@ -36,7 +36,7 @@ enum RepoPaths {
     }()
 
     static var fixturesURL: URL {
-        if let override = ProcessInfo.processInfo.environment["HOPCHAT_FIXTURES"],
+        if let override = ProcessInfo.processInfo.environment["HOPPIN_FIXTURES"],
            !override.isEmpty {
             return URL(fileURLWithPath: override)
         }
@@ -45,11 +45,11 @@ enum RepoPaths {
 
     /// Handshake file written by `scripts/run_tests.sh`.
     static var serverInfoURL: URL {
-        if let override = ProcessInfo.processInfo.environment["HOPCHAT_TEST_SERVER"],
+        if let override = ProcessInfo.processInfo.environment["HOPPIN_TEST_SERVER"],
            !override.isEmpty {
             return URL(fileURLWithPath: override)
         }
-        return URL(fileURLWithPath: "/tmp/hopchat-test-server.json")
+        return URL(fileURLWithPath: "/tmp/hoppin-test-server.json")
     }
 }
 
@@ -251,7 +251,7 @@ final class TempDirectory: @unchecked Sendable {
 
     let url: URL
 
-    init(_ name: String = "hopchat-tests") {
+    init(_ name: String = "hoppin-tests") {
         url = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("\(name)-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -269,7 +269,7 @@ final class TempDefaults: @unchecked Sendable {
     let defaults: UserDefaults
 
     init() {
-        name = "hopchat.tests.\(UUID().uuidString)"
+        name = "hoppin.tests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: name) ?? .standard
     }
 
@@ -325,7 +325,7 @@ struct ServerInfo: Decodable, Sendable {
 
     static let skipComment: Comment = """
         No development bootstrap server: run `scripts/run_tests.sh` to start one \
-        (it writes /tmp/hopchat-test-server.json). Skipping the integration suite.
+        (it writes /tmp/hoppin-test-server.json). Skipping the integration suite.
         """
 }
 

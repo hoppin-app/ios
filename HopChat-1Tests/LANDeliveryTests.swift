@@ -5,7 +5,7 @@
 //  Direct phone-to-phone delivery with NO server reachable.
 //
 //  Two running `KademliaService` instances share one process: each publishes
-//  and browses `_hopchat._tcp`, completes the signed hello exchange (which
+//  and browses `_hoppin._tcp`, completes the signed hello exchange (which
 //  pins the other's certificate, TOFU) and then delivers `directEnvelope`s over
 //  TCP. Both servers point at a closed loopback port, so anything that
 //  arrives can only have come over the LAN.
@@ -16,7 +16,7 @@
 //
 //  If Bonjour is unavailable in the test environment (no local-network
 //  access), discovery never completes and every test records a known issue
-//  instead of failing — unless HOPCHAT_REQUIRE_LAN=1, which makes it a failure.
+//  instead of failing — unless HOPPIN_REQUIRE_LAN=1, which makes it a failure.
 //
 
 import Testing
@@ -33,7 +33,7 @@ private struct LANPair {
 
     struct DiscoveryFailed: Error, CustomStringConvertible {
         var description: String {
-            "HOPCHAT_REQUIRE_LAN=1 but the two services never discovered each other over Bonjour"
+            "HOPPIN_REQUIRE_LAN=1 but the two services never discovered each other over Bonjour"
         }
     }
 
@@ -59,7 +59,7 @@ private struct LANPair {
             alice.service.presenceMap[bob.phone] == .online
                 && bob.service.presenceMap[alice.phone] == .online
         }
-        if !found, ProcessInfo.processInfo.environment["HOPCHAT_REQUIRE_LAN"] == "1" {
+        if !found, ProcessInfo.processInfo.environment["HOPPIN_REQUIRE_LAN"] == "1" {
             throw DiscoveryFailed()
         }
         return found

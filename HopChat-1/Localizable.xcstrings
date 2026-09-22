@@ -33,19 +33,19 @@
         }
       }
     },
-    "%@ may have reinstalled HopChat or switched device. Messages are blocked until you check." : {
+    "%@ may have reinstalled hoppin or switched device. Messages are blocked until you check." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ may have reinstalled HopChat or switched device. Messages are blocked until you check."
+            "value" : "%@ may have reinstalled hoppin or switched device. Messages are blocked until you check."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ pode ter reinstalado o HopChat ou mudado de dispositivo. As mensagens estão bloqueadas até que verifique."
+            "value" : "%@ pode ter reinstalado o hoppin ou mudado de dispositivo. As mensagens estão bloqueadas até que verifique."
           }
         }
       }
@@ -524,19 +524,19 @@
         }
       }
     },
-    "A safety number is a code shared only by the two of you. If it matches on both phones, nobody is reading your messages in the middle. It changes when one of you reinstalls HopChat or switches phone." : {
+    "A safety number is a code shared only by the two of you. If it matches on both phones, nobody is reading your messages in the middle. It changes when one of you reinstalls hoppin or switches phone." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A safety number is a code shared only by the two of you. If it matches on both phones, nobody is reading your messages in the middle. It changes when one of you reinstalls HopChat or switches phone."
+            "value" : "A safety number is a code shared only by the two of you. If it matches on both phones, nobody is reading your messages in the middle. It changes when one of you reinstalls hoppin or switches phone."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Um número de segurança é um código partilhado apenas entre vocês os dois. Se for igual nos dois telemóveis, ninguém está a ler as vossas mensagens pelo meio. Muda quando um de vocês reinstala o HopChat ou troca de telemóvel."
+            "value" : "Um número de segurança é um código partilhado apenas entre vocês os dois. Se for igual nos dois telemóveis, ninguém está a ler as vossas mensagens pelo meio. Muda quando um de vocês reinstala o hoppin ou troca de telemóvel."
           }
         }
       }
@@ -932,19 +932,19 @@
         }
       }
     },
-    "All photos you sent or received in HopChat." : {
+    "All photos you sent or received in hoppin." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All photos you sent or received in HopChat."
+            "value" : "All photos you sent or received in hoppin."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todas as fotografias que enviou ou recebeu no HopChat."
+            "value" : "Todas as fotografias que enviou ou recebeu no hoppin."
           }
         }
       }
@@ -1046,19 +1046,19 @@
         }
       }
     },
-    "App lock covers the screen when HopChat is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS." : {
+    "App lock covers the screen when hoppin is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App lock covers the screen when HopChat is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS."
+            "value" : "App lock covers the screen when hoppin is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O bloqueio da app tapa o ecrã quando o HopChat não está em primeiro plano. Não acrescenta encriptação às suas mensagens — já são encriptadas no disco pelo iOS."
+            "value" : "O bloqueio da app tapa o ecrã quando o hoppin não está em primeiro plano. Não acrescenta encriptação às suas mensagens — já são encriptadas no disco pelo iOS."
           }
         }
       }
@@ -1140,19 +1140,19 @@
         }
       }
     },
-    "Ask them to open this same screen in HopChat and show their code." : {
+    "Ask them to open this same screen in hoppin and show their code." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask them to open this same screen in HopChat and show their code."
+            "value" : "Ask them to open this same screen in hoppin and show their code."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Peça-lhe para abrir este mesmo ecrã no HopChat e mostrar o código."
+            "value" : "Peça-lhe para abrir este mesmo ecrã no hoppin e mostrar o código."
           }
         }
       }
@@ -2424,19 +2424,19 @@
         }
       }
     },
-    "Delete your HopChat account?" : {
+    "Delete your hoppin account?" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete your HopChat account?"
+            "value" : "Delete your hoppin account?"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apagar a sua conta HopChat?"
+            "value" : "Apagar a sua conta hoppin?"
           }
         }
       }
@@ -2575,19 +2575,19 @@
         }
       }
     },
-    "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, HopChat warns you before you send anything." : {
+    "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, hoppin warns you before you send anything." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, HopChat warns you before you send anything."
+            "value" : "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, hoppin warns you before you send anything."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cada conversa tem um número de segurança que pode comparar presencialmente ou por código QR. Se as chaves de um contacto mudarem, o HopChat avisa-o antes de enviar seja o que for."
+            "value" : "Cada conversa tem um número de segurança que pode comparar presencialmente ou por código QR. Se as chaves de um contacto mudarem, o hoppin avisa-o antes de enviar seja o que for."
           }
         }
       }
@@ -2728,19 +2728,19 @@
         }
       }
     },
-    "Enter your device passcode to unlock HopChat." : {
+    "Enter your device passcode to unlock hoppin." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter your device passcode to unlock HopChat."
+            "value" : "Enter your device passcode to unlock hoppin."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Introduza o código do dispositivo para desbloquear o HopChat."
+            "value" : "Introduza o código do dispositivo para desbloquear o hoppin."
           }
         }
       }
@@ -3020,223 +3020,223 @@
         }
       }
     },
-    "HopChat can't reach the network right now." : {
+    "hoppin can't reach the network right now." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat can't reach the network right now."
+            "value" : "hoppin can't reach the network right now."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat não consegue aceder à rede neste momento."
+            "value" : "O hoppin não consegue aceder à rede neste momento."
           }
         }
       }
     },
-    "HopChat can't use the camera right now." : {
+    "hoppin can't use the camera right now." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat can't use the camera right now."
+            "value" : "hoppin can't use the camera right now."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat não consegue usar a câmara neste momento."
+            "value" : "O hoppin não consegue usar a câmara neste momento."
           }
         }
       }
     },
-    "HopChat couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again." : {
+    "hoppin couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again."
+            "value" : "hoppin couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat não conseguiu contactar o servidor, por isso nada foi apagado. As suas mensagens continuam aqui. Ligue-se à Internet e tente novamente."
+            "value" : "O hoppin não conseguiu contactar o servidor, por isso nada foi apagado. As suas mensagens continuam aqui. Ligue-se à Internet e tente novamente."
           }
         }
       }
     },
-    "HopChat has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility." : {
+    "hoppin has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility."
+            "value" : "hoppin has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat tem uma política de tolerância zero para conteúdo abusivo e utilizadores abusivos. Tudo o que enviar é da sua responsabilidade."
+            "value" : "O hoppin tem uma política de tolerância zero para conteúdo abusivo e utilizadores abusivos. Tudo o que enviar é da sua responsabilidade."
           }
         }
       }
     },
-    "HopChat is locked" : {
+    "hoppin is locked" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat is locked"
+            "value" : "hoppin is locked"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat está bloqueado"
+            "value" : "O hoppin está bloqueado"
           }
         }
       }
     },
-    "HopChat needs permission to add photos. Enable it in Settings." : {
+    "hoppin needs permission to add photos. Enable it in Settings." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat needs permission to add photos. Enable it in Settings."
+            "value" : "hoppin needs permission to add photos. Enable it in Settings."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat precisa de autorização para adicionar fotografias. Ative-a nos Ajustes."
+            "value" : "O hoppin precisa de autorização para adicionar fotografias. Ative-a nos Ajustes."
           }
         }
       }
     },
-    "HopChat needs their encryption key before a safety number exists. Send them a message, or refresh below." : {
+    "hoppin needs their encryption key before a safety number exists. Send them a message, or refresh below." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat needs their encryption key before a safety number exists. Send them a message, or refresh below."
+            "value" : "hoppin needs their encryption key before a safety number exists. Send them a message, or refresh below."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat precisa da chave de encriptação desta pessoa para existir um número de segurança. Envie-lhe uma mensagem ou atualize abaixo."
+            "value" : "O hoppin precisa da chave de encriptação desta pessoa para existir um número de segurança. Envie-lhe uma mensagem ou atualize abaixo."
           }
         }
       }
     },
-    "HopChat now verifies numbers by SMS. Your old number is filled in — verify it once to keep using it." : {
+    "hoppin now verifies numbers by SMS. Your old number is filled in — verify it once to keep using it." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat now verifies numbers by SMS. Your old number is filled in — verify it once to keep using it."
+            "value" : "hoppin now verifies numbers by SMS. Your old number is filled in — verify it once to keep using it."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat passou a verificar números por SMS. O seu número antigo já está preenchido — verifique-o uma vez para continuar a usá-lo."
+            "value" : "O hoppin passou a verificar números por SMS. O seu número antigo já está preenchido — verifique-o uma vez para continuar a usá-lo."
           }
         }
       }
     },
-    "HopChat sends each of your contacts a signed notice so their app follows you to the new number without a security warning." : {
+    "hoppin sends each of your contacts a signed notice so their app follows you to the new number without a security warning." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat sends each of your contacts a signed notice so their app follows you to the new number without a security warning."
+            "value" : "hoppin sends each of your contacts a signed notice so their app follows you to the new number without a security warning."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat envia a cada um dos seus contactos um aviso assinado, para que a app deles o acompanhe até ao novo número sem gerar um alerta de segurança."
+            "value" : "O hoppin envia a cada um dos seus contactos um aviso assinado, para que a app deles o acompanhe até ao novo número sem gerar um alerta de segurança."
           }
         }
       }
     },
-    "HopChat texts you a 6-digit code. This is the only time you need it — it proves the number is yours so nobody else can claim it." : {
+    "hoppin texts you a 6-digit code. This is the only time you need it — it proves the number is yours so nobody else can claim it." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat texts you a 6-digit code. This is the only time you need it — it proves the number is yours so nobody else can claim it."
+            "value" : "hoppin texts you a 6-digit code. This is the only time you need it — it proves the number is yours so nobody else can claim it."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat envia-lhe um código de 6 dígitos por SMS. É a única vez que precisa dele — prova que o número é seu, para que mais ninguém o possa reivindicar."
+            "value" : "O hoppin envia-lhe um código de 6 dígitos por SMS. É a única vez que precisa dele — prova que o número é seu, para que mais ninguém o possa reivindicar."
           }
         }
       }
     },
-    "HopChat uses one relay server so messages reach you when your phone is offline." : {
+    "hoppin uses one relay server so messages reach you when your phone is offline." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat uses one relay server so messages reach you when your phone is offline."
+            "value" : "hoppin uses one relay server so messages reach you when your phone is offline."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat usa um servidor de retransmissão para que as mensagens cheguem até si quando o seu telemóvel está offline."
+            "value" : "O hoppin usa um servidor de retransmissão para que as mensagens cheguem até si quando o seu telemóvel está offline."
           }
         }
       }
     },
-    "HopChat uses the camera only to scan your contact's verification QR code." : {
+    "hoppin uses the camera only to scan your contact's verification QR code." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat uses the camera only to scan your contact's verification QR code."
+            "value" : "hoppin uses the camera only to scan your contact's verification QR code."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat usa a câmara apenas para ler o código QR de verificação do seu contacto."
+            "value" : "O hoppin usa a câmara apenas para ler o código QR de verificação do seu contacto."
           }
         }
       }
     },
-    "How long HopChat can stay in the background before it locks" : {
+    "How long hoppin can stay in the background before it locks" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How long HopChat can stay in the background before it locks"
+            "value" : "How long hoppin can stay in the background before it locks"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quanto tempo o HopChat pode ficar em segundo plano antes de bloquear"
+            "value" : "Quanto tempo o hoppin pode ficar em segundo plano antes de bloquear"
           }
         }
       }
@@ -3275,14 +3275,14 @@
         }
       }
     },
-    "I'm using HopChat for private, end-to-end encrypted messages. Get it here:" : {
-      "comment" : "A message that can be shared to invite others to use HopChat.",
+    "I'm using hoppin for private, end-to-end encrypted messages. Get it here:" : {
+      "comment" : "A message that can be shared to invite others to use hoppin.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estou a usar o HopChat para mensagens privadas e encriptadas ponto a ponto. Obtém-no aqui:"
+            "value" : "Estou a usar o hoppin para mensagens privadas e encriptadas ponto a ponto. Obtém-no aqui:"
           }
         }
       }
@@ -3341,19 +3341,19 @@
         }
       }
     },
-    "In HopChat" : {
+    "In hoppin" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In HopChat"
+            "value" : "In hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No HopChat"
+            "value" : "No hoppin"
           }
         }
       }
@@ -3427,7 +3427,7 @@
       }
     },
     "Invite a Friend" : {
-      "comment" : "A button that invites a friend to use HopChat.",
+      "comment" : "A button that invites a friend to use hoppin.",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "pt-PT" : {
@@ -3455,29 +3455,29 @@
         }
       }
     },
-    "iOS also has a Preferred Language for each app, on HopChat's own Settings page." : {
+    "iOS also has a Preferred Language for each app, on hoppin's own Settings page." : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O iOS também tem um Idioma Preferido para cada app, na página de Definições do próprio HopChat."
+            "value" : "O iOS também tem um Idioma Preferido para cada app, na página de Definições do próprio hoppin."
           }
         }
       }
     },
-    "iOS is blocking HopChat notifications, so the switches below have no effect until you allow them in Settings." : {
+    "iOS is blocking hoppin notifications, so the switches below have no effect until you allow them in Settings." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iOS is blocking HopChat notifications, so the switches below have no effect until you allow them in Settings."
+            "value" : "iOS is blocking hoppin notifications, so the switches below have no effect until you allow them in Settings."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O iOS está a bloquear as notificações do HopChat, por isso os interruptores abaixo não têm efeito até que as permita nos Ajustes."
+            "value" : "O iOS está a bloquear as notificações do hoppin, por isso os interruptores abaixo não têm efeito até que as permita nos Ajustes."
           }
         }
       }
@@ -3550,19 +3550,19 @@
         }
       }
     },
-    "Join me on HopChat" : {
+    "Join me on hoppin" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Join me on HopChat"
+            "value" : "Join me on hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Junte-se a mim no HopChat"
+            "value" : "Junte-se a mim no hoppin"
           }
         }
       }
@@ -3584,19 +3584,19 @@
         }
       }
     },
-    "Key HopChat trusted" : {
+    "Key hoppin trusted" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Key HopChat trusted"
+            "value" : "Key hoppin trusted"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chave em que o HopChat confiava"
+            "value" : "Chave em que o hoppin confiava"
           }
         }
       }
@@ -3628,12 +3628,12 @@
         }
       }
     },
-    "Language saved. Close HopChat and open it again to see it." : {
+    "Language saved. Close hoppin and open it again to see it." : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Idioma guardado. Fecha o HopChat e abre-o outra vez para o veres."
+            "value" : "Idioma guardado. Fecha o hoppin e abre-o outra vez para o veres."
           }
         }
       }
@@ -3689,19 +3689,19 @@
         }
       }
     },
-    "Let's chat on HopChat — end-to-end encrypted messages." : {
+    "Let's chat on hoppin — end-to-end encrypted messages." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Let's chat on HopChat — end-to-end encrypted messages."
+            "value" : "Let's chat on hoppin — end-to-end encrypted messages."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vamos falar no HopChat — mensagens encriptadas de ponta a ponta."
+            "value" : "Vamos falar no hoppin — mensagens encriptadas de ponta a ponta."
           }
         }
       }
@@ -3750,19 +3750,19 @@
         }
       }
     },
-    "Locks HopChat when you leave the app" : {
+    "Locks hoppin when you leave the app" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Locks HopChat when you leave the app"
+            "value" : "Locks hoppin when you leave the app"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bloqueia o HopChat quando sai da aplicação"
+            "value" : "Bloqueia o hoppin quando sai da aplicação"
           }
         }
       }
@@ -4068,12 +4068,12 @@
         }
       }
     },
-    "Nearby delivery is off. HopChat can't reach people on the same Wi-Fi until you allow Local Network access." : {
+    "Nearby delivery is off. hoppin can't reach people on the same Wi-Fi until you allow Local Network access." : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A entrega por perto está desligada. O HopChat não consegue chegar a pessoas na mesma rede Wi-Fi até permitires o acesso à rede local."
+            "value" : "A entrega por perto está desligada. O hoppin não consegue chegar a pessoas na mesma rede Wi-Fi até permitires o acesso à rede local."
           }
         }
       }
@@ -4294,19 +4294,19 @@
         }
       }
     },
-    "No connection to HopChat. Check your internet and try again." : {
+    "No connection to hoppin. Check your internet and try again." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No connection to HopChat. Check your internet and try again."
+            "value" : "No connection to hoppin. Check your internet and try again."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sem ligação ao HopChat. Verifique a sua Internet e tente novamente."
+            "value" : "Sem ligação ao hoppin. Verifique a sua Internet e tente novamente."
           }
         }
       }
@@ -4725,12 +4725,12 @@
         }
       }
     },
-    "Open HopChat in iOS Settings" : {
+    "Open hoppin in iOS Settings" : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abrir o HopChat nas Definições do iOS"
+            "value" : "Abrir o hoppin nas Definições do iOS"
           }
         }
       }
@@ -4803,46 +4803,46 @@
         }
       }
     },
-    "Opens the iOS Settings page for HopChat" : {
+    "Opens the iOS Settings page for hoppin" : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abre a página do HopChat nas Definições do iOS"
+            "value" : "Abre a página do hoppin nas Definições do iOS"
           }
         }
       }
     },
-    "Opens the Settings app where you can turn HopChat notifications back on" : {
+    "Opens the Settings app where you can turn hoppin notifications back on" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens the Settings app where you can turn HopChat notifications back on"
+            "value" : "Opens the Settings app where you can turn hoppin notifications back on"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abre os Ajustes, onde pode voltar a ativar as notificações do HopChat"
+            "value" : "Abre os Ajustes, onde pode voltar a ativar as notificações do hoppin"
           }
         }
       }
     },
-    "Opens the share sheet with a link to HopChat" : {
+    "Opens the share sheet with a link to hoppin" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens the share sheet with a link to HopChat"
+            "value" : "Opens the share sheet with a link to hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abre a janela de partilha com uma ligação para o HopChat"
+            "value" : "Abre a janela de partilha com uma ligação para o hoppin"
           }
         }
       }
@@ -5005,19 +5005,19 @@
         }
       }
     },
-    "Pick the number this person uses on HopChat." : {
+    "Pick the number this person uses on hoppin." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pick the number this person uses on HopChat."
+            "value" : "Pick the number this person uses on hoppin."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escolha o número que esta pessoa usa no HopChat."
+            "value" : "Escolha o número que esta pessoa usa no hoppin."
           }
         }
       }
@@ -6143,12 +6143,12 @@
         }
       }
     },
-    "Settings ▸ HopChat ▸ Local Network. Messages still arrive through the relay meanwhile." : {
+    "Settings ▸ hoppin ▸ Local Network. Messages still arrive through the relay meanwhile." : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Definições ▸ HopChat ▸ Rede local. Entretanto, as mensagens continuam a chegar pelo relay."
+            "value" : "Definições ▸ hoppin ▸ Rede local. Entretanto, as mensagens continuam a chegar pelo relay."
           }
         }
       }
@@ -6194,19 +6194,19 @@
         }
       }
     },
-    "Shows a notification when a message arrives while HopChat is closed" : {
+    "Shows a notification when a message arrives while hoppin is closed" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows a notification when a message arrives while HopChat is closed"
+            "value" : "Shows a notification when a message arrives while hoppin is closed"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mostra uma notificação quando chega uma mensagem com o HopChat fechado"
+            "value" : "Mostra uma notificação quando chega uma mensagem com o hoppin fechado"
           }
         }
       }
@@ -6376,19 +6376,19 @@
         }
       }
     },
-    "Starting HopChat…" : {
+    "Starting hoppin…" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Starting HopChat…"
+            "value" : "Starting hoppin…"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A iniciar o HopChat…"
+            "value" : "A iniciar o hoppin…"
           }
         }
       }
@@ -6723,36 +6723,36 @@
         }
       }
     },
-    "That isn't a HopChat code" : {
+    "That isn't a hoppin code" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That isn't a HopChat code"
+            "value" : "That isn't a hoppin code"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Isso não é um código HopChat"
+            "value" : "Isso não é um código hoppin"
           }
         }
       }
     },
-    "That number isn't on HopChat yet." : {
+    "That number isn't on hoppin yet." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That number isn't on HopChat yet."
+            "value" : "That number isn't on hoppin yet."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esse número ainda não está no HopChat."
+            "value" : "Esse número ainda não está no hoppin."
           }
         }
       }
@@ -6869,29 +6869,29 @@
         }
       }
     },
-    "The encryption key HopChat has for %@ is not the one it saw before. Messages to them are held back until you decide." : {
+    "The encryption key hoppin has for %@ is not the one it saw before. Messages to them are held back until you decide." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The encryption key HopChat has for %@ is not the one it saw before. Messages to them are held back until you decide."
+            "value" : "The encryption key hoppin has for %@ is not the one it saw before. Messages to them are held back until you decide."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A chave de encriptação que o HopChat tem para %@ não é a que viu anteriormente. As mensagens para esta pessoa ficam retidas até que decida."
+            "value" : "A chave de encriptação que o hoppin tem para %@ não é a que viu anteriormente. As mensagens para esta pessoa ficam retidas até que decida."
           }
         }
       }
     },
-    "The new language appears the next time you open HopChat. iOS keeps the language an app started with." : {
+    "The new language appears the next time you open hoppin. iOS keeps the language an app started with." : {
       "localizations" : {
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O novo idioma aparece da próxima vez que abrires o HopChat. O iOS mantém o idioma com que uma app arrancou."
+            "value" : "O novo idioma aparece da próxima vez que abrires o hoppin. O iOS mantém o idioma com que uma app arrancou."
           }
         }
       }
@@ -7076,19 +7076,19 @@
         }
       }
     },
-    "These messages will be sent to the HopChat operator in readable form. Nothing else from your chats is shared." : {
+    "These messages will be sent to the hoppin operator in readable form. Nothing else from your chats is shared." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "These messages will be sent to the HopChat operator in readable form. Nothing else from your chats is shared."
+            "value" : "These messages will be sent to the hoppin operator in readable form. Nothing else from your chats is shared."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estas mensagens serão enviadas ao operador do HopChat em formato legível. Mais nada das suas conversas é partilhado."
+            "value" : "Estas mensagens serão enviadas ao operador do hoppin em formato legível. Mais nada das suas conversas é partilhado."
           }
         }
       }
@@ -7110,36 +7110,36 @@
         }
       }
     },
-    "They're not on HopChat yet" : {
+    "They're not on hoppin yet" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "They're not on HopChat yet"
+            "value" : "They're not on hoppin yet"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esta pessoa ainda não está no HopChat"
+            "value" : "Esta pessoa ainda não está no hoppin"
           }
         }
       }
     },
-    "This can happen when someone reinstalls HopChat or changes phone — it can also mean someone is impersonating them." : {
+    "This can happen when someone reinstalls hoppin or changes phone — it can also mean someone is impersonating them." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This can happen when someone reinstalls HopChat or changes phone — it can also mean someone is impersonating them."
+            "value" : "This can happen when someone reinstalls hoppin or changes phone — it can also mean someone is impersonating them."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Isto pode acontecer quando alguém reinstala o HopChat ou muda de telemóvel — mas também pode significar que alguém se está a fazer passar por essa pessoa."
+            "value" : "Isto pode acontecer quando alguém reinstala o hoppin ou muda de telemóvel — mas também pode significar que alguém se está a fazer passar por essa pessoa."
           }
         }
       }
@@ -7161,19 +7161,19 @@
         }
       }
     },
-    "This cannot be undone. HopChat keeps no backup — not on the server, not in iCloud." : {
+    "This cannot be undone. hoppin keeps no backup — not on the server, not in iCloud." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This cannot be undone. HopChat keeps no backup — not on the server, not in iCloud."
+            "value" : "This cannot be undone. hoppin keeps no backup — not on the server, not in iCloud."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Isto não pode ser anulado. O HopChat não guarda qualquer cópia de segurança — nem no servidor, nem no iCloud."
+            "value" : "Isto não pode ser anulado. O hoppin não guarda qualquer cópia de segurança — nem no servidor, nem no iCloud."
           }
         }
       }
@@ -7576,36 +7576,36 @@
         }
       }
     },
-    "Turn on app lock for HopChat" : {
+    "Turn on app lock for hoppin" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on app lock for HopChat"
+            "value" : "Turn on app lock for hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ativar o bloqueio da app no HopChat"
+            "value" : "Ativar o bloqueio da app no hoppin"
           }
         }
       }
     },
-    "Turn on camera access for HopChat in Settings to scan a verification code, or compare the digits out loud instead." : {
+    "Turn on camera access for hoppin in Settings to scan a verification code, or compare the digits out loud instead." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on camera access for HopChat in Settings to scan a verification code, or compare the digits out loud instead."
+            "value" : "Turn on camera access for hoppin in Settings to scan a verification code, or compare the digits out loud instead."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ative o acesso à câmara para o HopChat nos Ajustes para ler um código de verificação, ou compare os dígitos em voz alta."
+            "value" : "Ative o acesso à câmara para o hoppin nos Ajustes para ler um código de verificação, ou compare os dígitos em voz alta."
           }
         }
       }
@@ -7819,19 +7819,19 @@
         }
       }
     },
-    "Unlock HopChat" : {
+    "Unlock hoppin" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unlock HopChat"
+            "value" : "Unlock hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Desbloquear o HopChat"
+            "value" : "Desbloquear o hoppin"
           }
         }
       }
@@ -8091,19 +8091,19 @@
         }
       }
     },
-    "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the HopChat server only for that check." : {
+    "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the hoppin server only for that check." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the HopChat server only for that check."
+            "value" : "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the hoppin server only for that check."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enviamos um código de 6 dígitos por SMS para o seu número, para que as pessoas o possam encontrar e ninguém se possa fazer passar por si. O seu número é enviado ao servidor do HopChat apenas para essa verificação."
+            "value" : "Enviamos um código de 6 dígitos por SMS para o seu número, para que as pessoas o possam encontrar e ninguém se possa fazer passar por si. O seu número é enviado ao servidor do hoppin apenas para essa verificação."
           }
         }
       }
@@ -8142,19 +8142,19 @@
         }
       }
     },
-    "Welcome to HopChat" : {
+    "Welcome to hoppin" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welcome to HopChat"
+            "value" : "Welcome to hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bem-vindo ao HopChat"
+            "value" : "Bem-vindo ao hoppin"
           }
         }
       }
@@ -8248,7 +8248,7 @@
         }
       }
     },
-    "With no Wi-Fi and no mobile data, HopChat can pass a message to nearby phones over Bluetooth until it reaches the person you sent it to. It is switched on only while you are offline." : {
+    "With no Wi-Fi and no mobile data, hoppin can pass a message to nearby phones over Bluetooth until it reaches the person you sent it to. It is switched on only while you are offline." : {
       "comment" : "A description of Bluetooth mesh.",
       "isCommentAutoGenerated" : true
     },
@@ -8592,19 +8592,19 @@
         }
       }
     },
-    "Your account and everything HopChat stores on this iPhone will be erased. This cannot be undone." : {
+    "Your account and everything hoppin stores on this iPhone will be erased. This cannot be undone." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your account and everything HopChat stores on this iPhone will be erased. This cannot be undone."
+            "value" : "Your account and everything hoppin stores on this iPhone will be erased. This cannot be undone."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A sua conta e tudo o que o HopChat guarda neste iPhone serão apagados. Isto não pode ser anulado."
+            "value" : "A sua conta e tudo o que o hoppin guarda neste iPhone serão apagados. Isto não pode ser anulado."
           }
         }
       }
@@ -8721,19 +8721,19 @@
         }
       }
     },
-    "Your identity certificate, so nobody can look you up on HopChat." : {
+    "Your identity certificate, so nobody can look you up on hoppin." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your identity certificate, so nobody can look you up on HopChat."
+            "value" : "Your identity certificate, so nobody can look you up on hoppin."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O seu certificado de identidade, para que ninguém o possa procurar no HopChat."
+            "value" : "O seu certificado de identidade, para que ninguém o possa procurar no hoppin."
           }
         }
       }
@@ -8789,19 +8789,19 @@
         }
       }
     },
-    "Your number is sent to the HopChat server so it can text you a code and issue your certificate. It is never shared with other services." : {
+    "Your number is sent to the hoppin server so it can text you a code and issue your certificate. It is never shared with other services." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your number is sent to the HopChat server so it can text you a code and issue your certificate. It is never shared with other services."
+            "value" : "Your number is sent to the hoppin server so it can text you a code and issue your certificate. It is never shared with other services."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O seu número é enviado ao servidor do HopChat para que este lhe possa enviar um código por SMS e emitir o seu certificado. Nunca é partilhado com outros serviços."
+            "value" : "O seu número é enviado ao servidor do hoppin para que este lhe possa enviar um código por SMS e emitir o seu certificado. Nunca é partilhado com outros serviços."
           }
         }
       }

@@ -51,7 +51,7 @@ nonisolated struct Envelope: Codable, Equatable, Hashable, Sendable {
         self.signature = signature
     }
 
-    /// `["hopchat-env-v2", id, senderPhone, recipientPhone, timestamp,
+    /// `["hoppin-env-v2", id, senderPhone, recipientPhone, timestamp,
     ///   senderAgreementKey, recipientAgreementKey, ephemeralKey]`
     var header: [String] {
         Envelope.header(id: id,
@@ -82,7 +82,7 @@ nonisolated struct Envelope: Codable, Equatable, Hashable, Sendable {
                        senderAgreementKey: String,
                        recipientAgreementKey: String,
                        ephemeralKey: String) -> [String] {
-        ["hopchat-env-v2",
+        ["hoppin-env-v2",
          id,
          senderPhone,
          recipientPhone,

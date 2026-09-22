@@ -380,7 +380,7 @@ nonisolated enum PhotoSaver {
             PHPhotoLibrary.requestAuthorization(for: .addOnly) { continuation.resume(returning: $0) }
         }
         guard status == .authorized || status == .limited else {
-            return .failure(String(localized: "HopChat needs permission to add photos. Enable it in Settings."))
+            return .failure(String(localized: "hoppin needs permission to add photos. Enable it in Settings."))
         }
 
         do {

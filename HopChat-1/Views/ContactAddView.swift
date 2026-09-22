@@ -26,7 +26,7 @@ struct ContactAddView: View {
     @State private var name = ""
     @State private var isAdding = false
     @State private var errorMessage: String?
-    @State private var notOnHopChat = false
+    @State private var notOnhoppin = false
     @State private var addedName: String?
 
     private var normalized: String? { PhoneNumber.normalize(rawPhone) }
@@ -64,10 +64,10 @@ struct ContactAddView: View {
                     }
                 }
 
-                if notOnHopChat {
+                if notOnhoppin {
                     Section {
                         VStack(alignment: .leading, spacing: 10) {
-                            Label("They're not on HopChat yet", systemImage: "person.crop.circle.badge.questionmark")
+                            Label("They're not on hoppin yet", systemImage: "person.crop.circle.badge.questionmark")
                                 .font(.headline)
                             Text("Send them an invite and try again once they've joined.")
                                 .font(.subheadline)
@@ -136,7 +136,7 @@ struct ContactAddView: View {
         guard let phone = normalized else { return }
         isAdding = true
         errorMessage = nil
-        notOnHopChat = false
+        notOnhoppin = false
         defer { isAdding = false }
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -145,8 +145,8 @@ struct ContactAddView: View {
                                                    name: trimmedName.isEmpty ? nil : trimmedName)
             Log.ui.notice("contact added")
             addedName = contact.displayName
-        } catch ServiceError.notOnHopChat {
-            notOnHopChat = true
+        } catch ServiceError.notOnhoppin {
+            notOnhoppin = true
         } catch let error as ServiceError {
             errorMessage = error.errorDescription ?? String(localized: "Couldn't add this contact.")
         } catch {

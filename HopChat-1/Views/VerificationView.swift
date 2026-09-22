@@ -31,7 +31,7 @@ struct VerificationView: View {
                 case .phone:
                     PhoneNumberStep(
                         title: String(localized: "Verify Your Number"),
-                        explanation: String(localized: "HopChat texts you a 6-digit code. This is the only time you need it — it proves the number is yours so nobody else can claim it."),
+                        explanation: String(localized: "hoppin texts you a 6-digit code. This is the only time you need it — it proves the number is yours so nobody else can claim it."),
                         prefill: prefill,
                         submitTitle: String(localized: "Send Code"),
                         onSubmit: { raw in
@@ -93,7 +93,7 @@ struct VerificationView: View {
         }
         .safeAreaInset(edge: .bottom) {
             if service.legacyPhoneHint != nil, step == .phone {
-                Text("HopChat now verifies numbers by SMS. Your old number is filled in — verify it once to keep using it.")
+                Text("hoppin now verifies numbers by SMS. Your old number is filled in — verify it once to keep using it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

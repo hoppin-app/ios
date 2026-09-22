@@ -91,7 +91,7 @@ nonisolated struct WireMessage: Codable {
 
     /// Contract §3 — the exact field list every signature covers.
     var signedFields: [String] {
-        ["hopchat-wire-v2",
+        ["hoppin-wire-v2",
          String(type),
          txID,
          senderPhone,

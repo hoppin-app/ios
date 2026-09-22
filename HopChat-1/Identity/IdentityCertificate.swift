@@ -41,9 +41,9 @@ nonisolated struct IdentityCertificate: Codable, Equatable, Hashable, Sendable {
         self.sig = sig
     }
 
-    /// `["hopchat-cert-v1", phone, signingKey, agreementKey, issuedAt, expiresAt, serial]`
+    /// `["hoppin-cert-v1", phone, signingKey, agreementKey, issuedAt, expiresAt, serial]`
     var signedFields: [String] {
-        ["hopchat-cert-v1",
+        ["hoppin-cert-v1",
          phone,
          signingKey,
          agreementKey,

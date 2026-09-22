@@ -56,7 +56,7 @@ struct SettingsPrivacyView: View {
     private var localNetworkSection: some View {
         Section {
             Label {
-                Text("Nearby delivery is off. HopChat can't reach people on the same Wi-Fi until you allow Local Network access.")
+                Text("Nearby delivery is off. hoppin can't reach people on the same Wi-Fi until you allow Local Network access.")
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "wifi.exclamationmark")
@@ -72,7 +72,7 @@ struct SettingsPrivacyView: View {
         } header: {
             Text("Local Network")
         } footer: {
-            Text("Settings ▸ HopChat ▸ Local Network. Messages still arrive through the relay meanwhile.")
+            Text("Settings ▸ hoppin ▸ Local Network. Messages still arrive through the relay meanwhile.")
         }
     }
 
@@ -102,7 +102,7 @@ struct SettingsPrivacyView: View {
                 Text("Require \(lock.authenticationName)")
             }
             .disabled(lock.isAuthenticating)
-            .accessibilityHint(Text("Locks HopChat when you leave the app"))
+            .accessibilityHint(Text("Locks hoppin when you leave the app"))
 
             if lock.isEnabled {
                 Picker(selection: timeoutBinding) {
@@ -113,7 +113,7 @@ struct SettingsPrivacyView: View {
                     Text("Lock")
                 }
                 .pickerStyle(.navigationLink)
-                .accessibilityHint(Text("How long HopChat can stay in the background before it locks"))
+                .accessibilityHint(Text("How long hoppin can stay in the background before it locks"))
             }
 
             if let message = lockError ?? lock.lastFailureMessage, !lock.isEnabled {
@@ -124,7 +124,7 @@ struct SettingsPrivacyView: View {
         } header: {
             Text("App lock")
         } footer: {
-            Text("App lock covers the screen when HopChat is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS.")
+            Text("App lock covers the screen when hoppin is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS.")
         }
     }
 
@@ -172,7 +172,7 @@ struct SettingsPrivacyView: View {
     private var relaySection: some View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
-                Text("HopChat uses one relay server so messages reach you when your phone is offline.")
+                Text("hoppin uses one relay server so messages reach you when your phone is offline.")
                 Label {
                     Text("It cannot read your messages, see your photos, or know what you typed. Everything is sealed with keys that only you and the person you are writing to hold.")
                 } icon: {

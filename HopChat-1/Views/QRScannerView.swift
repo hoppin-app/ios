@@ -38,7 +38,7 @@ struct QRScannerView: View {
                         scanner
                     case .notDetermined:
                         message(title: String(localized: "Camera access needed"),
-                                body: String(localized: "HopChat uses the camera only to scan your contact's verification QR code."),
+                                body: String(localized: "hoppin uses the camera only to scan your contact's verification QR code."),
                                 systemImage: "camera",
                                 actionTitle: String(localized: "Allow Camera")) {
                             AVCaptureDevice.requestAccess(for: .video) { granted in
@@ -49,7 +49,7 @@ struct QRScannerView: View {
                         }
                     case .denied, .restricted:
                         message(title: String(localized: "Camera access is off"),
-                                body: String(localized: "Turn on camera access for HopChat in Settings to scan a verification code, or compare the digits out loud instead."),
+                                body: String(localized: "Turn on camera access for hoppin in Settings to scan a verification code, or compare the digits out loud instead."),
                                 systemImage: "camera.slash",
                                 actionTitle: String(localized: "Open Settings")) {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -58,7 +58,7 @@ struct QRScannerView: View {
                         }
                     @unknown default:
                         message(title: String(localized: "Camera unavailable"),
-                                body: String(localized: "HopChat can't use the camera right now."),
+                                body: String(localized: "hoppin can't use the camera right now."),
                                 systemImage: "camera.slash")
                     }
                 }
@@ -142,7 +142,7 @@ struct CameraScannerRepresentable: UIViewControllerRepresentable {
         var onScan: ((String) -> Void)?
         private let session = AVCaptureSession()
         private var previewLayer: AVCaptureVideoPreviewLayer?
-        private let sessionQueue = DispatchQueue(label: "hopchat.qr.session")
+        private let sessionQueue = DispatchQueue(label: "hoppin.qr.session")
 
         override func viewDidLoad() {
             super.viewDidLoad()

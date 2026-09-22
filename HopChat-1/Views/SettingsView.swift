@@ -3,7 +3,7 @@
 //  HopChat-1
 //
 //  Root of the settings tab (contract §6, §7). Every persisted value here is
-//  a non-sensitive `hopchat.*` UserDefaults key from §6 — no phone numbers,
+//  a non-sensitive `hoppin.*` UserDefaults key from §6 — no phone numbers,
 //  no secrets. The v1 bootstrap-IP editor is gone: developer overrides live
 //  behind `#if DEBUG` in SettingsDeveloperView.
 //
@@ -212,11 +212,11 @@ struct SettingsView: View {
             }
 
             ShareLink(item: AppConfig.inviteURL,
-                      subject: Text("Join me on HopChat"),
-                      message: Text("Let's chat on HopChat — end-to-end encrypted messages.")) {
+                      subject: Text("Join me on hoppin"),
+                      message: Text("Let's chat on hoppin — end-to-end encrypted messages.")) {
                 Label("Invite a friend", systemImage: "square.and.arrow.up")
             }
-            .accessibilityHint(Text("Opens the share sheet with a link to HopChat"))
+            .accessibilityHint(Text("Opens the share sheet with a link to hoppin"))
         } header: {
             Text("About")
         }

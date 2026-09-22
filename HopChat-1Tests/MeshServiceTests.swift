@@ -246,7 +246,7 @@ struct MeshRouteTests {
 
     @Test("a mesh message re-sent through the relay keeps its mesh mark")
     func keepsTheMeshMark() throws {
-        let temp = TempDirectory("hopchat-route")
+        let temp = TempDirectory("hoppin-route")
         let store = ConversationStore(directory: temp.url, legacyDefaults: nil,
                                       debounce: .milliseconds(1))
         let conversation = ConversationStore.conversationID(peer: "+14155552671")
@@ -267,7 +267,7 @@ struct MeshRouteTests {
 
     @Test("messages the mesh took are the ones re-sent when internet returns")
     func awaitingDelivery() throws {
-        let temp = TempDirectory("hopchat-route")
+        let temp = TempDirectory("hoppin-route")
         let store = ConversationStore(directory: temp.url, legacyDefaults: nil,
                                       debounce: .milliseconds(1))
         let conversation = ConversationStore.conversationID(peer: "+14155552671")

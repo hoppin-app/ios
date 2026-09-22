@@ -9,9 +9,9 @@
 //  State is driven entirely through launch arguments so the tests never depend
 //  on what a previous run left behind:
 //
-//      -UITestResetState      wipe HopChat's UserDefaults before the UI loads
-//      -hopchat.hasSeenOnboarding <bool>
-//      -hopchat.hasAcceptedTerms  <bool>
+//      -UITestResetState      wipe hoppin's UserDefaults before the UI loads
+//      -hoppin.hasSeenOnboarding <bool>
+//      -hoppin.hasAcceptedTerms  <bool>
 //
 //  The first is an app-side hook (see the report: it must be honoured in
 //  `HopChat_1App`/`AppDelegate`). The `-key value` pairs are the standard
@@ -41,13 +41,13 @@ final class HopChat_1UITests: XCTestCase {
         app.launchArguments += ["-UITestResetState", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         switch stage {
         case .firstRun:
-            app.launchArguments += ["-hopchat.hasSeenOnboarding", "NO",
-                                    "-hopchat.hasAcceptedTerms", "NO"]
+            app.launchArguments += ["-hoppin.hasSeenOnboarding", "NO",
+                                    "-hoppin.hasAcceptedTerms", "NO"]
         case .onboarded:
-            app.launchArguments += ["-hopchat.hasSeenOnboarding", "YES",
-                                    "-hopchat.hasAcceptedTerms", "YES"]
+            app.launchArguments += ["-hoppin.hasSeenOnboarding", "YES",
+                                    "-hoppin.hasAcceptedTerms", "YES"]
         }
-        app.launchArguments += ["-hopchat.appLock.enabled", "NO"]
+        app.launchArguments += ["-hoppin.appLock.enabled", "NO"]
         app.launch()
         return app
     }
@@ -78,7 +78,7 @@ final class HopChat_1UITests: XCTestCase {
     func testFirstRunShowsOnboarding() throws {
         let app = launch(.firstRun)
 
-        let welcome = app.staticTexts["Welcome to HopChat"]
+        let welcome = app.staticTexts["Welcome to hoppin"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 20),
                       "first run should open on the onboarding story")
 
@@ -91,7 +91,7 @@ final class HopChat_1UITests: XCTestCase {
 
     func testTermsGateBlocksUntilAgreementIsToggled() throws {
         let app = launch(.firstRun)
-        XCTAssertTrue(app.staticTexts["Welcome to HopChat"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Welcome to hoppin"].waitForExistence(timeout: 20))
 
         let skip = app.buttons["Skip"]
         if skip.waitForExistence(timeout: 5) {
@@ -170,11 +170,11 @@ final class HopChat_1UITests: XCTestCase {
 
     func testOnboardingIsReadableByVoiceOver() throws {
         let app = launch(.firstRun)
-        XCTAssertTrue(app.staticTexts["Welcome to HopChat"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["Welcome to hoppin"].waitForExistence(timeout: 20))
 
         // Slide text is combined into one element with a non-empty label, and
         // the decorative icon is hidden from assistive technologies.
-        let slide = app.staticTexts["Welcome to HopChat"]
+        let slide = app.staticTexts["Welcome to hoppin"]
         XCTAssertFalse(slide.label.isEmpty, "the slide must expose a VoiceOver label")
 
         for button in ["Next", "Skip"] where app.buttons[button].exists {

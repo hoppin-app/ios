@@ -2,8 +2,8 @@
 //  SettingsLanguageView.swift
 //  HopChat-1
 //
-//  App language (contract §6, `hopchat.appLanguage`) plus the on-device
-//  typing-suggestion switch (`hopchat.typingSuggestions`).
+//  App language (contract §6, `hoppin.appLanguage`) plus the on-device
+//  typing-suggestion switch (`hoppin.typingSuggestions`).
 //
 //  The choice is written through to the standard `AppleLanguages` default,
 //  which is what picks the bundle's `.lproj` at launch. A running app keeps
@@ -115,13 +115,13 @@ struct SettingsLanguageView: View {
                 } header: {
                     Text("Language")
                 } footer: {
-                    Text("The new language appears the next time you open HopChat. iOS keeps the language an app started with.")
+                    Text("The new language appears the next time you open hoppin. iOS keeps the language an app started with.")
                 }
 
                 if didChange {
                     Section {
                         Label {
-                            Text("Language saved. Close HopChat and open it again to see it.")
+                            Text("Language saved. Close hoppin and open it again to see it.")
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: "arrow.clockwise")
@@ -134,13 +134,13 @@ struct SettingsLanguageView: View {
                     Button {
                         openAppSettings()
                     } label: {
-                        Label("Open HopChat in iOS Settings", systemImage: "gear")
+                        Label("Open hoppin in iOS Settings", systemImage: "gear")
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())
                     }
-                    .accessibilityHint(Text("Opens the iOS Settings page for HopChat"))
+                    .accessibilityHint(Text("Opens the iOS Settings page for hoppin"))
                 } footer: {
-                    Text("iOS also has a Preferred Language for each app, on HopChat's own Settings page.")
+                    Text("iOS also has a Preferred Language for each app, on hoppin's own Settings page.")
                 }
 
                 Section {

@@ -11,7 +11,7 @@ import os
 
 nonisolated enum Log {
 
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.hopchat"
+    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.hoppin"
 
     static let net    = Logger(subsystem: subsystem, category: "net")
     static let crypto = Logger(subsystem: subsystem, category: "crypto")

@@ -4,7 +4,7 @@
 //
 //  File-backed conversation store.
 //
-//  Layout (Application Support/HopChat/, excluded from backup):
+//  Layout (Application Support/hoppin/, excluded from backup):
 //     contacts.json
 //     groups.json
 //     seen.json
@@ -33,7 +33,7 @@ final class ConversationStore: ObservableObject {
                                                  appropriateFor: nil,
                                                  create: true))
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        return base.appendingPathComponent("HopChat", isDirectory: true)
+        return base.appendingPathComponent("hoppin", isDirectory: true)
     }
 
     // MARK: - Published state

@@ -65,7 +65,7 @@ struct HopSplashView: View {
         }
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Starting HopChat…"))
+        .accessibilityLabel(Text("Starting hoppin…"))
         .task { await run() }
     }
 

@@ -30,7 +30,7 @@ struct SettingsMeshView: View {
                     }
                 } footer: {
                     Text("""
-                         With no Wi-Fi and no mobile data, HopChat can pass a \
+                         With no Wi-Fi and no mobile data, hoppin can pass a \
                          message to nearby phones over Bluetooth until it \
                          reaches the person you sent it to. It is switched on \
                          only while you are offline.

@@ -1,5 +1,5 @@
 //
-//  HopChatService.swift
+//  HoppinService.swift
 //  HopChat-1
 //
 //  `KademliaService` — the only networking API the views use (contract §7).
@@ -50,7 +50,7 @@ nonisolated enum PresenceStatus: String {
 nonisolated enum ServiceError: LocalizedError, Equatable {
     case notRegistered
     case invalidPhone
-    case notOnHopChat
+    case notOnhoppin
     case blocked
     case keyChangeUnacknowledged
     case tooManyMembers
@@ -63,8 +63,8 @@ nonisolated enum ServiceError: LocalizedError, Equatable {
             return String(localized: "You need to verify your phone number first.")
         case .invalidPhone:
             return String(localized: "That doesn't look like a valid phone number.")
-        case .notOnHopChat:
-            return String(localized: "That number isn't on HopChat yet.")
+        case .notOnhoppin:
+            return String(localized: "That number isn't on hoppin yet.")
         case .blocked:
             return String(localized: "You've blocked this contact.")
         case .keyChangeUnacknowledged:
@@ -74,7 +74,7 @@ nonisolated enum ServiceError: LocalizedError, Equatable {
         case .server(let message):
             return message
         case .unavailable:
-            return String(localized: "HopChat can't reach the network right now.")
+            return String(localized: "hoppin can't reach the network right now.")
         }
     }
 }
@@ -108,7 +108,7 @@ final class KademliaService: ObservableObject {
 
     /// BGAppRefresh identifier. Registration and scheduling live in the app
     /// layer; this service only supplies `performBackgroundFetch()`.
-    nonisolated static let backgroundTaskIdentifier = "com.hopchat.relay-fetch"
+    nonisolated static let backgroundTaskIdentifier = "com.hoppin.relay-fetch"
 
     // MARK: Dependencies (injected — no hidden singletons in the pipeline)
 
@@ -418,7 +418,7 @@ final class KademliaService: ObservableObject {
         }
 
         guard await ensureCertificate(for: phone, force: true) != nil else {
-            throw ServiceError.notOnHopChat
+            throw ServiceError.notOnhoppin
         }
 
         let contact = Contact(phone: phone,
@@ -663,7 +663,7 @@ final class KademliaService: ObservableObject {
 
     /// Returns a valid, pinned certificate for `phone`, refreshing it from the
     /// server when it is older than 24 h, missing, or expired.
-    /// Returns `nil` when the contact isn't on HopChat or has an unacknowledged
+    /// Returns `nil` when the contact isn't on hoppin or has an unacknowledged
     /// key change.
     private func ensureCertificate(for phone: String, force: Bool = false) async -> IdentityCertificate? {
         if trust.hasPendingKeyChange(phone) {
@@ -1567,7 +1567,7 @@ final class KademliaService: ObservableObject {
         store.wipeAll()
         let defaults = UserDefaults.standard
         for key in AppConfig.allUserDefaultsKeys { defaults.removeObject(forKey: key) }
-        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("hopchat.") {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("hoppin.") {
             defaults.removeObject(forKey: key)
         }
         replayCache.removeAll()
@@ -2055,7 +2055,7 @@ final class KademliaService: ObservableObject {
         switch error {
         case .server(let code, let message):
             switch code {
-            case "not_registered", "recipient_not_registered": return .notOnHopChat
+            case "not_registered", "recipient_not_registered": return .notOnhoppin
             case "invalid_phone": return .invalidPhone
             case "blocked": return .blocked
             case "cert_invalid": return .notRegistered

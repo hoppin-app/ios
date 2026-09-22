@@ -99,7 +99,7 @@ final class ServerClient {
         return try certificate(from: reply.value)
     }
 
-    /// `nil` when the phone is not registered with HopChat.
+    /// `nil` when the phone is not registered with hoppin.
     func lookupCertificate(phone: String) async throws -> IdentityCertificate? {
         var message = WireMessage(type: .certLookup, senderPhone: try myPhone(), key: phone)
         sign(&message)

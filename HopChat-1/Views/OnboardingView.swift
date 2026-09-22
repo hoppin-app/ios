@@ -28,7 +28,7 @@ private let onboardingSlides: [OnboardingSlide] = [
         id: 0,
         icon: "hand.wave.fill",
         color: .blue,
-        title: String(localized: "Welcome to HopChat"),
+        title: String(localized: "Welcome to hoppin"),
         body: String(localized: "Private messaging for the people you actually know. Set-up takes one SMS and about a minute.")
     ),
     OnboardingSlide(
@@ -36,7 +36,7 @@ private let onboardingSlides: [OnboardingSlide] = [
         icon: "checkmark.message.fill",
         color: .indigo,
         title: String(localized: "Verify Your Number Once"),
-        body: String(localized: "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the HopChat server only for that check.")
+        body: String(localized: "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the hoppin server only for that check.")
     ),
     OnboardingSlide(
         id: 2,
@@ -57,7 +57,7 @@ private let onboardingSlides: [OnboardingSlide] = [
         icon: "number.square.fill",
         color: .purple,
         title: String(localized: "Check Your Contacts"),
-        body: String(localized: "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, HopChat warns you before you send anything.")
+        body: String(localized: "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, hoppin warns you before you send anything.")
     ),
     OnboardingSlide(
         id: 5,
@@ -218,7 +218,7 @@ private struct TermsPage: View {
                         .font(.system(.title2, design: .rounded).weight(.bold))
                 }
 
-                Text("HopChat has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility.")
+                Text("hoppin has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility.")
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
 

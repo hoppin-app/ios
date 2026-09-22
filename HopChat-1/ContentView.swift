@@ -258,7 +258,7 @@ private struct LockScreen: View {
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
 
-                Text("HopChat is locked")
+                Text("hoppin is locked")
                     .font(.system(.title2, design: .rounded).weight(.bold))
 
                 Text("Unlock to read your messages.")

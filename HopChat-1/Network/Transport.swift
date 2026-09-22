@@ -26,8 +26,8 @@ nonisolated enum Transport {
     static let defaultConnectTimeout: TimeInterval = 5
     static let defaultTimeout: TimeInterval = 10
 
-    private static let queue = DispatchQueue(label: "hopchat.transport", qos: .userInitiated)
-    private static let verifyQueue = DispatchQueue(label: "hopchat.tls.verify")
+    private static let queue = DispatchQueue(label: "hoppin.transport", qos: .userInitiated)
+    private static let verifyQueue = DispatchQueue(label: "hoppin.tls.verify")
 
     // MARK: - Result
 

@@ -2,8 +2,8 @@
 //  SettingsDeveloperView.swift
 //  HopChat-1
 //
-//  DEBUG-only server overrides (contract §6: `hopchat.dev.serverHost`,
-//  `hopchat.dev.allowPlaintext`, `hopchat.dev.serverKey`). The whole file is
+//  DEBUG-only server overrides (contract §6: `hoppin.dev.serverHost`,
+//  `hoppin.dev.allowPlaintext`, `hoppin.dev.serverKey`). The whole file is
 //  compiled out of Release builds — unlike the v1 bootstrap-IP editor, which
 //  shipped to users.
 //
@@ -16,9 +16,9 @@ struct SettingsDeveloperView: View {
 
     @StateObject private var kad = KademliaService.shared
 
-    @AppStorage("hopchat.dev.serverHost")    private var serverHost = ""
-    @AppStorage("hopchat.dev.allowPlaintext") private var allowPlaintext = false
-    @AppStorage("hopchat.dev.serverKey")     private var serverKey = ""
+    @AppStorage("hoppin.dev.serverHost")    private var serverHost = ""
+    @AppStorage("hoppin.dev.allowPlaintext") private var allowPlaintext = false
+    @AppStorage("hoppin.dev.serverKey")     private var serverKey = ""
 
     @State private var isReconnecting = false
 

@@ -2,7 +2,7 @@
 //  BLETransport.swift
 //  HopChat-1
 //
-//  The Bluetooth radio under the mesh: every phone advertises the HopChat
+//  The Bluetooth radio under the mesh: every phone advertises the hoppin
 //  service *and* scans for it, so whichever side sees the other first opens the
 //  connection. Each connected phone becomes a `MeshLink` handed to `MeshRouter`;
 //  everything above this file is radio-agnostic.
@@ -77,11 +77,11 @@ final class BLETransport: NSObject {
         // Restoration identifiers let iOS hand the managers back after the app
         // is relaunched in the background with a live connection.
         central = CBCentralManager(delegate: self, queue: .main, options: [
-            CBCentralManagerOptionRestoreIdentifierKey: "hopchat.mesh.central",
+            CBCentralManagerOptionRestoreIdentifierKey: "hoppin.mesh.central",
             CBCentralManagerOptionShowPowerAlertKey: false,
         ])
         peripheral = CBPeripheralManager(delegate: self, queue: .main, options: [
-            CBPeripheralManagerOptionRestoreIdentifierKey: "hopchat.mesh.peripheral",
+            CBPeripheralManagerOptionRestoreIdentifierKey: "hoppin.mesh.peripheral",
         ])
 
         sweepTask = Task { [weak self] in

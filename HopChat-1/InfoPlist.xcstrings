@@ -8,13 +8,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat"
+            "value" : "hoppin"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat"
+            "value" : "hoppin"
           }
         }
       }
@@ -38,7 +38,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "HopChat uses Bluetooth to pass encrypted messages between nearby phones when there is no internet. Messages carried for other people cannot be read by this device."
+            "value" : "hoppin uses Bluetooth to pass encrypted messages between nearby phones when there is no internet. Messages carried for other people cannot be read by this device."
           }
         }
       }
@@ -50,13 +50,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat uses the camera to scan contact verification QR codes and to take photos you send in a chat."
+            "value" : "hoppin uses the camera to scan contact verification QR codes and to take photos you send in a chat."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat usa a câmara para ler códigos QR de verificação de contactos e para tirar fotografias que envia numa conversa."
+            "value" : "O hoppin usa a câmara para ler códigos QR de verificação de contactos e para tirar fotografias que envia numa conversa."
           }
         }
       }
@@ -68,13 +68,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat uses Face ID to unlock the app when you turn on app lock."
+            "value" : "hoppin uses Face ID to unlock the app when you turn on app lock."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat usa o Face ID para desbloquear a aplicação quando ativa o bloqueio da app."
+            "value" : "O hoppin usa o Face ID para desbloquear a aplicação quando ativa o bloqueio da app."
           }
         }
       }
@@ -86,13 +86,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat uses the local network to deliver your encrypted messages directly to nearby HopChat users. Messages are also delivered through our relay server over the internet."
+            "value" : "hoppin uses the local network to deliver your encrypted messages directly to nearby hoppin users. Messages are also delivered through our relay server over the internet."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat usa a rede local para entregar as suas mensagens encriptadas diretamente a utilizadores do HopChat que estejam por perto. As mensagens também são entregues através do nosso servidor de retransmissão, pela Internet."
+            "value" : "O hoppin usa a rede local para entregar as suas mensagens encriptadas diretamente a utilizadores do hoppin que estejam por perto. As mensagens também são entregues através do nosso servidor de retransmissão, pela Internet."
           }
         }
       }
@@ -104,13 +104,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HopChat saves photos you receive in a chat to your photo library."
+            "value" : "hoppin saves photos you receive in a chat to your photo library."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O HopChat guarda na sua biblioteca de fotografias as fotos que recebe numa conversa."
+            "value" : "O hoppin guarda na sua biblioteca de fotografias as fotos que recebe numa conversa."
           }
         }
       }
