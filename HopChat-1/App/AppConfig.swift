@@ -53,9 +53,25 @@ nonisolated enum AppConfig {
         #endif
     }
 
+    /// DEBUG-only port override, for a dev server that isn't on the usual
+    /// port — a tunnel (ngrok and friends hand out a random one), or a second
+    /// server on the same machine. Ignored in Release.
+    static var devServerPort: UInt16? {
+        #if DEBUG
+        guard let raw = devOverride("hoppin.dev.serverPort", env: "HOPPIN_DEV_SERVER_PORT"),
+              let port = UInt16(raw), port != 0 else { return nil }
+        return port
+        #else
+        return nil
+        #endif
+    }
+
     /// The port actually used, derived from `usePlaintextTransport`.
     static var serverPort: UInt16 {
-        usePlaintextTransport ? serverPlaintextPort : serverTLSPort
+        #if DEBUG
+        if let port = devServerPort { return port }
+        #endif
+        return usePlaintextTransport ? serverPlaintextPort : serverTLSPort
     }
 
     /// Pinned Ed25519 public key of the bootstrap server (standard base64,
@@ -205,11 +221,17 @@ nonisolated enum AppConfig {
         static let backgroundCustomColors = "hoppin.appearance.customColors"
         static let appLockEnabled     = "hoppin.appLock.enabled"
         static let appLockTimeout     = "hoppin.appLock.timeout"
+        /// DEBUG-only: dev server port, for tunnels and non-standard ports.
+        static let devServerPort      = "hoppin.dev.serverPort"
         /// App language override, written through to `AppleLanguages`.
         /// "" (or absent) means "follow the system".
         static let appLanguage        = "hoppin.appLanguage"
         /// On-device typing suggestions in the chat composer (default true).
         static let typingSuggestions  = "hoppin.typingSuggestions"
+        /// Publish this device's IPv6 address to contacts and dial theirs,
+        /// so two phones on different networks can talk without the relay
+        /// (default true). Off means cross-network delivery is relay-only.
+        static let directInternet     = "hoppin.direct.internet"
         /// Deliver over the Bluetooth mesh when there is no internet
         /// (default true). Off means the app only ever uses Wi-Fi and the relay.
         static let meshEnabled        = "hoppin.mesh.enabled"
@@ -232,6 +254,7 @@ nonisolated enum AppConfig {
             Keys.appLockTimeout: 0,
             Keys.typingSuggestions: true,
             Keys.meshEnabled: true,
+            Keys.directInternet: true,
         ])
     }
 
@@ -242,7 +265,7 @@ nonisolated enum AppConfig {
          Keys.notificationsEnabled, Keys.notificationsPreview, Keys.notificationsSound,
          Keys.appLockEnabled, Keys.appLockTimeout, Keys.animatedBackground, Keys.peopleSort,
          Keys.backgroundTheme, Keys.backgroundCustomColors,
-         Keys.appLanguage, Keys.typingSuggestions, Keys.meshEnabled,
+         Keys.appLanguage, Keys.typingSuggestions, Keys.meshEnabled, Keys.directInternet,
          Keys.hasSeenOnboarding, Keys.hasAcceptedTerms, Keys.legacyPhone]
     }
 }

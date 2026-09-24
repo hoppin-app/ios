@@ -101,11 +101,13 @@ final class ServiceHarness {
                         serverKey: Curve25519.Signing.PrivateKey,
                         enableLAN: Bool = true,
                         trustBacking: KeyValueSecureStore = InMemorySecureStore(),
-                        secureStore: KeyValueSecureStore = InMemorySecureStore())
+                        secureStore: KeyValueSecureStore = InMemorySecureStore(),
+                        dialableAddresses: @escaping (String) -> Bool = DirectAddress.isGloballyRoutable)
     async throws -> ServiceHarness {
         let harness = try makeRegistered(phone: phone, serverKey: serverKey, now: nil,
                                          trustBacking: trustBacking, secureStore: secureStore,
-                                         enableLAN: enableLAN)
+                                         enableLAN: enableLAN,
+                                         dialableAddresses: dialableAddresses)
         await harness.service.start()
         return harness
     }
@@ -118,7 +120,9 @@ final class ServiceHarness {
                                        trustBacking: KeyValueSecureStore,
                                        secureStore: KeyValueSecureStore,
                                        enableLAN: Bool,
-                                       mesh: MeshDelivering? = nil) throws -> ServiceHarness {
+                                       mesh: MeshDelivering? = nil,
+                                       dialableAddresses: @escaping (String) -> Bool
+                                           = DirectAddress.isGloballyRoutable) throws -> ServiceHarness {
         let serverKeyB64 = serverKey.publicKey.rawRepresentation.base64EncodedString()
         let temp = TempDirectory("hoppin-service")
 
@@ -149,7 +153,8 @@ final class ServiceHarness {
                              serverKeyBase64: serverKeyB64)
             },
             enableLAN: enableLAN,
-            mesh: mesh)
+            mesh: mesh,
+            dialableAddresses: dialableAddresses)
 
         return ServiceHarness(service: service, crypto: crypto, trust: trust,
                               store: store, phone: phone, secureStore: secureStore,

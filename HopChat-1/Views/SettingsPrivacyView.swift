@@ -15,6 +15,7 @@ struct SettingsPrivacyView: View {
     @StateObject private var store = ConversationStore.shared
     @StateObject private var kad = KademliaService.shared
 
+    @AppStorage(AppConfig.Keys.directInternet)     private var directInternet = true
     @AppStorage(AppConfig.Keys.sendReadReceipts)     private var readReceipts = true
     @AppStorage(AppConfig.Keys.sendTypingIndicators) private var typingIndicators = true
 
@@ -35,6 +36,7 @@ struct SettingsPrivacyView: View {
                     localNetworkSection
                 }
                 receiptsSection
+                directDeliverySection
                 appLockSection
                 blockedSection
                 relaySection
@@ -77,6 +79,23 @@ struct SettingsPrivacyView: View {
     }
 
     // MARK: - Receipts
+
+    /// Direct delivery across the internet trades a little privacy for a lot
+    /// of independence from the relay, so the trade is spelled out rather than
+    /// buried.
+    private var directDeliverySection: some View {
+        Section {
+            Toggle(isOn: Binding(get: { directInternet },
+                                 set: { kad.setDirectInternetEnabled($0) })) {
+                Text("Deliver directly when possible")
+            }
+            .accessibilityHint(Text("Sends messages straight to the other phone when it can be reached, instead of through the relay."))
+        } header: {
+            Text("Direct delivery")
+        } footer: {
+            Text("Messages go straight to the person you are writing to whenever their phone can be reached, instead of through the relay. To make that work, the people you message learn your phone's network address — roughly your city and internet provider. Turn this off to route everything through the relay, which sees the address instead.")
+        }
+    }
 
     private var receiptsSection: some View {
         Section {

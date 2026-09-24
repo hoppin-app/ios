@@ -74,7 +74,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "HOPPIN_DEV_SERVER_HOST"
-            value = "192.168.1.78"
+            value = "20.199.104.218"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable

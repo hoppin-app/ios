@@ -17,6 +17,7 @@ struct SettingsDeveloperView: View {
     @StateObject private var kad = KademliaService.shared
 
     @AppStorage("hoppin.dev.serverHost")    private var serverHost = ""
+    @AppStorage("hoppin.dev.serverPort")    private var serverPort = ""
     @AppStorage("hoppin.dev.allowPlaintext") private var allowPlaintext = false
     @AppStorage("hoppin.dev.serverKey")     private var serverKey = ""
 
@@ -43,6 +44,13 @@ struct SettingsDeveloperView: View {
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                         .accessibilityLabel(Text("Server host override"))
+
+                    TextField("Port (blank = 4443 / 4001)", text: $serverPort)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.numberPad)
+                        .accessibilityLabel(Text("Server port override"))
+                        .accessibilityHint(Text("For a tunnel or a server on a non-standard port."))
 
                     Toggle(isOn: $allowPlaintext) {
                         Text("Allow plaintext transport")

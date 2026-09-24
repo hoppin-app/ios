@@ -66,6 +66,10 @@ for 5 min after last contact; a keep-alive pings recent peers every 60 s. A peer
 that proved its certificate in the LAN exchange is sent to without a server
 certificate lookup, so Wi-Fi with no internet doesn't stall on timeouts.
 
+**Direct across networks** — with no LAN peer and no path the relay can carry,
+a contact that published a global IPv6 address (inside a sealed `addressHint`)
+is dialled directly before the relay is tried. Contract §10.
+
 **Mesh** — with no network path at all (and `hoppin.mesh.enabled` on), a text,
 receipt, profile or delete hops over Bluetooth: the same sealed envelope inside
 an anonymous outer layer, forwarded by phones that cannot read it. Tried after
@@ -124,11 +128,22 @@ automatically (`CLAUDE.md` is excluded from the bundle).
 
 ---
 
+## The relay
+
+Deployed at **`20.199.104.218:4443`** (Azure, France Central, `hoppin-relay`),
+running `hoppin-bootstrap.service`. Details, credentials layout and caveats are
+in [`docs/DEPLOY.md`](../docs/DEPLOY.md). Two things to know before touching it:
+it still runs in `dev` mode with a fixed verification code, and it carries the
+identity key copied from the development Mac.
+
+Devices reach it through the DEBUG overrides (`hoppin.dev.serverHost`,
+`hoppin.dev.serverKey`); `AppConfig`'s defaults have not been updated yet.
+
 ## Open items
 
-- `AppConfig.serverSigningKeyBase64` is still a **placeholder**; the production
-  server's Ed25519 public key and TLS SPKI pins must be pasted in before release.
-  Local testing uses `hoppin.dev.serverKey` / `hoppin.dev.allowPlaintext`.
+- `AppConfig.serverSigningKeyBase64` is still a **placeholder** and
+  `serverHost` still points at `34.14.80.215`, an address that was released
+  and now belongs to someone else. Both must be replaced before release.
 - SMS delivery needs a Twilio account (`TWILIO_*` env vars); the dev provider
   only logs codes.
 - Website legal pages contain `[placeholder]` fields (legal name, contact email,

@@ -502,3 +502,52 @@ struct DevOverrideTests {
         #expect(resolve(stored: " 10.0.0.5 ", lastApplied: "x", env: "x").value == "10.0.0.5")
     }
 }
+
+// MARK: - Dev server port override
+
+/// A dev server doesn't always sit on 4443: a tunnel hands out a random port,
+/// and that is how the app is reached when no public host is available.
+// Serialized: every test here writes the same UserDefaults key, and in
+// parallel they overwrite each other.
+@Suite("AppConfig — dev port override", .serialized)
+struct DevServerPortTests {
+
+    private let key = "hoppin.dev.serverPort"
+
+    private func withStoredPort(_ value: String?, _ body: () -> Void) {
+        let defaults = UserDefaults.standard
+        let previous = defaults.string(forKey: key)
+        let previousApplied = defaults.string(forKey: key + ".fromScheme")
+        defaults.removeObject(forKey: key + ".fromScheme")
+        if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+        body()
+        if let previous { defaults.set(previous, forKey: key) } else { defaults.removeObject(forKey: key) }
+        if let previousApplied { defaults.set(previousApplied, forKey: key + ".fromScheme") }
+    }
+
+    @Test("a stored port is used instead of the default")
+    func overrides() {
+        withStoredPort("14523") {
+            #expect(AppConfig.devServerPort == 14523)
+            #expect(AppConfig.serverPort == 14523)
+        }
+    }
+
+    @Test("nonsense is ignored rather than breaking every connection")
+    func rejectsNonsense() {
+        for bad in ["", "   ", "0", "-1", "99999", "4443a", "port"] {
+            withStoredPort(bad) {
+                #expect(AppConfig.devServerPort == nil, "\(bad) should not be accepted")
+            }
+        }
+    }
+
+    @Test("with nothing set the usual ports apply")
+    func defaults() {
+        withStoredPort(nil) {
+            #expect(AppConfig.devServerPort == nil)
+            #expect(AppConfig.serverPort == AppConfig.serverTLSPort
+                    || AppConfig.serverPort == AppConfig.serverPlaintextPort)
+        }
+    }
+}

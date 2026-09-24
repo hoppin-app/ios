@@ -24,6 +24,10 @@ nonisolated struct ChatPayload: Codable, Equatable {
         case groupImage
         case groupLeave
         case numberChange
+        /// "You can reach me directly here" — a globally routable IPv6
+        /// address and port, sealed like everything else so only this contact
+        /// learns it (contract §10).
+        case addressHint
     }
 
     var kind: Kind
@@ -46,6 +50,12 @@ nonisolated struct ChatPayload: Codable, Equatable {
     var newCertificate: String?
     /// Text/image: id of the message being replied to.
     var replyToID: String?
+    /// Address hint: globally routable IPv6 addresses of the sender.
+    var directAddresses: [String]?
+    /// Address hint: the port the sender's listener is bound to.
+    var directPort: UInt16?
+    /// Address hint: when the sender expects these to stop working.
+    var directExpiresAt: Int64?
     /// Sender clock, unix seconds.
     var sentAt: Int64
 
@@ -62,6 +72,9 @@ nonisolated struct ChatPayload: Codable, Equatable {
          newPhone: String? = nil,
          newCertificate: String? = nil,
          replyToID: String? = nil,
+         directAddresses: [String]? = nil,
+         directPort: UInt16? = nil,
+         directExpiresAt: Int64? = nil,
          sentAt: Int64 = Int64(Date().timeIntervalSince1970)) {
         self.kind = kind
         self.text = text
@@ -76,6 +89,9 @@ nonisolated struct ChatPayload: Codable, Equatable {
         self.newPhone = newPhone
         self.newCertificate = newCertificate
         self.replyToID = replyToID
+        self.directAddresses = directAddresses
+        self.directPort = directPort
+        self.directExpiresAt = directExpiresAt
         self.sentAt = sentAt
     }
 
@@ -95,7 +111,7 @@ nonisolated struct ChatPayload: Codable, Equatable {
     /// generate receipts of their own (contract §4).
     var isTransient: Bool {
         switch kind {
-        case .deliveryReceipt, .readReceipt, .typing: return true
+        case .deliveryReceipt, .readReceipt, .typing, .addressHint: return true
         default: return false
         }
     }
@@ -103,12 +119,20 @@ nonisolated struct ChatPayload: Codable, Equatable {
     /// Payload kinds that are only ever sent over an authenticated LAN link.
     var isLANOnly: Bool { kind == .typing }
 
+    /// What may be dialled straight to a contact across the internet.
+    /// Everything except the hint itself: announcing an address to a peer we
+    /// believe is already reachable would be circular, and it belongs on the
+    /// relay where it is guaranteed to arrive.
+    var isDirectEligible: Bool { kind != .addressHint && !isLANOnly }
+
     /// What the Bluetooth mesh will carry (contract §9): text, receipts,
     /// delete-for-everyone and profile names. Photos are far too big for a
     /// hop-by-hop radio, and typing indicators stay on the LAN.
     var isMeshEligible: Bool {
         switch kind {
-        case .image, .groupImage, .typing: return false
+        // An address hint is about reaching someone over the internet, which
+        // is exactly what the mesh is used in the absence of.
+        case .image, .groupImage, .typing, .addressHint: return false
         default: return true
         }
     }
@@ -163,6 +187,13 @@ nonisolated struct ChatPayload: Codable, Equatable {
             guard groupID != nil else { return false }
         case .numberChange:
             guard let p = newPhone, !p.isEmpty, newCertificate != nil else { return false }
+        case .addressHint:
+            guard let addresses = directAddresses,
+                  !addresses.isEmpty,
+                  addresses.count <= DirectAddress.maxAddresses,
+                  addresses.allSatisfy({ $0.utf8.count <= 64 }),
+                  let port = directPort, port != 0,
+                  directExpiresAt != nil else { return false }
         }
         if let replyToID, replyToID.isEmpty || replyToID.utf8.count > 64 { return false }
         if isGroupPayload && groupID == nil { return false }

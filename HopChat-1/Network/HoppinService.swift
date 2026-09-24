@@ -123,13 +123,17 @@ final class KademliaService: ObservableObject {
     /// The Bluetooth mesh, or nil when this service runs without one (tests,
     /// and any build that doesn't want a radio).
     private let mesh: MeshDelivering?
+    /// Which addresses a contact may be dialled at. Injected so tests can use
+    /// loopback; in the app it is always `DirectAddress.isGloballyRoutable`.
+    private let isDialableAddress: (String) -> Bool
 
     init(crypto: CryptoManager,
          trust: TrustStore,
          store: ConversationStore,
          serverFactory: ((CryptoManager) -> ServerClient)? = nil,
          enableLAN: Bool = true,
-         mesh: MeshDelivering? = nil) {
+         mesh: MeshDelivering? = nil,
+         dialableAddresses: @escaping (String) -> Bool = DirectAddress.isGloballyRoutable) {
         self.crypto = crypto
         self.trust = trust
         self.store = store
@@ -138,6 +142,7 @@ final class KademliaService: ObservableObject {
         self.server = makeServer(crypto)
         self.enableLAN = enableLAN
         self.mesh = mesh
+        self.isDialableAddress = dialableAddresses
         self.routing = RoutingTable(localID: NodeID.from(phone: crypto.certificate?.phone ?? "unregistered"))
     }
 
@@ -175,6 +180,14 @@ final class KademliaService: ObservableObject {
     /// the relay instead of waiting out the LAN timeout every time. Cleared as
     /// soon as the peer is heard from again.
     private var lanSilentUntil: [String: Date] = [:]
+    /// phone → where that contact said it can be reached across the internet.
+    private var directCandidates: [String: DirectCandidate] = [:]
+    /// phone → the addresses we last told them about, so an unchanged address
+    /// isn't re-announced on every message.
+    private var directAnnouncedTo: [String: String] = [:]
+    /// Contacts whose published address didn't answer. Same idea as
+    /// `lanSilentUntil`: one timeout is enough, don't pay it on every send.
+    private var directSilentUntil: [String: Date] = [:]
     private var pathMonitor: NWPathMonitor?
     private var pathDebounce: Task<Void, Never>?
     /// Last thing the path monitor said. Starts optimistic: the mesh only
@@ -182,7 +195,9 @@ final class KademliaService: ObservableObject {
     private var pathSatisfied = true
 
     private var isRunning = false
-    private var lanPort: UInt16 = 0
+    /// The port the LAN listener bound to. Published to contacts in an
+    /// address hint, and read by the tests to dial this service directly.
+    private(set) var lanPort: UInt16 = 0
     private var lastLocalIP: String?
     private var relayBackoff = Backoff(base: 1, cap: 60)
 
@@ -267,10 +282,15 @@ final class KademliaService: ObservableObject {
 
         for (_, task) in typingTimers { task.cancel() }
         typingTimers.removeAll()
+        for task in pendingReceipts { task.cancel() }
+        pendingReceipts.removeAll()
 
         stopLAN()
         mesh?.stop()
         routing.removeAll()
+        directCandidates.removeAll()
+        directAnnouncedTo.removeAll()
+        directSilentUntil.removeAll()
         presenceMap = [:]
         typingPeers = []
         connectionState = .offline
@@ -285,6 +305,7 @@ final class KademliaService: ObservableObject {
     /// Awaits any queued disk writes. Phase-2 should call this when the app
     /// moves to the background or terminates.
     func flushPendingWrites() async {
+        await awaitPendingReceipts()
         await store.flush()
     }
 
@@ -518,6 +539,13 @@ final class KademliaService: ObservableObject {
 
         store.recordAttempt(messageID: messageID, conversationID: conversationID)
 
+        // Before the first message of a session, tell each recipient where we
+        // can be reached. It costs one small envelope and only when our
+        // address changed.
+        for recipient in recipients {
+            await announceDirectAddress(to: recipient)
+        }
+
         var routes: [MessageRoute] = []
         for recipient in recipients {
             if let route = await sendPayload(payload, to: recipient, envelopeID: messageID) {
@@ -592,17 +620,26 @@ final class KademliaService: ObservableObject {
             lanSilentUntil[phone] = Date().addingTimeInterval(Self.lanSilencePeriod)
         }
 
-        // 2. Typing indicators are LAN-only — never relayed (contract §4).
+        // 2. A contact that published a reachable IPv6 address: dial it.
+        //    Same wire message as the LAN path, so the receiver's checks are
+        //    identical — only the road is different.
+        if payload.isDirectEligible,
+           let candidate = freshDirectCandidate(for: phone),
+           await sendDirect(envelope, to: phone, at: candidate) {
+            return .direct
+        }
+
+        // 3. Typing indicators are LAN-only — never relayed (contract §4).
         guard !payload.isLANOnly else { return nil }
 
-        // 3. No internet at all: hand it to the Bluetooth mesh (contract §9).
+        // 4. No internet at all: hand it to the Bluetooth mesh (contract §9).
         //    Tried before the relay only while the path is down, so a phone
         //    with signal never pays the radio's battery cost.
         if !pathSatisfied, sendOverMesh(envelope, to: recipientCert, payload: payload) {
             return .mesh
         }
 
-        // 4. Encrypted store-and-forward relay.
+        // 5. Encrypted store-and-forward relay.
         do {
             try await server.deposit(envelope)
             connectionState = .online
@@ -1032,6 +1069,9 @@ final class KademliaService: ObservableObject {
 
         case .numberChange:
             applyNumberChange(payload, from: sender)
+
+        case .addressHint:
+            applyAddressHint(payload, from: sender)
         }
         return .accepted
     }
@@ -1091,8 +1131,17 @@ final class KademliaService: ObservableObject {
                                                 body: preview)
         NotificationService.shared.setBadge(store.totalUnreadCount)
 
-        // Delivery receipt, after the message is safely stored.
-        await sendDeliveryReceipt(for: envelopeID, to: sender, groupID: payload.groupID)
+        // Delivery receipt, after the message is safely stored — but not
+        // waited for. Sending it can take as long as the slowest route (a
+        // dead relay costs ~10 s), and the caller of `processIncoming` may be
+        // a sender holding a 3 s connection open for the ack that says "I
+        // stored it". Making that ack wait for our receipt turned every
+        // direct delivery into a timeout and a relay retry.
+        let receiptTask = Task { [weak self] () -> Void in
+            guard let self else { return }
+            await self.sendDeliveryReceipt(for: envelopeID, to: sender, groupID: payload.groupID)
+        }
+        pendingReceipts.insert(receiptTask)
 
         // Translation runs afterwards, with a 10 s ceiling, only in chats
         // where the user turned it on.
@@ -1253,6 +1302,19 @@ final class KademliaService: ObservableObject {
     }
 
     // MARK: - Receipts
+
+    /// Receipts in flight. Held so `flushPendingWrites()` (and the tests) can
+    /// wait for them, and so they are cancelled when the service stops.
+    private var pendingReceipts: Set<Task<Void, Never>> = []
+
+    /// Waits for any delivery receipt still being sent. Tests use this; the
+    /// app doesn't need to, since a receipt that fails is retried like any
+    /// other send.
+    func awaitPendingReceipts() async {
+        let tasks = pendingReceipts
+        pendingReceipts.removeAll()
+        for task in tasks { await task.value }
+    }
 
     private func sendDeliveryReceipt(for messageID: String, to sender: String, groupID: String?) async {
         let payload = ChatPayload(kind: .deliveryReceipt, refIDs: [messageID], groupID: groupID)
@@ -1957,6 +2019,109 @@ final class KademliaService: ObservableObject {
 
         relayBackoff.reset()
         await retryPending()
+    }
+
+    // MARK: - Direct over the internet (contract §10)
+
+    /// Whether this device may publish its address and dial contacts directly.
+    /// Off means every cross-network message goes through the relay.
+    var isDirectInternetEnabled: Bool {
+        UserDefaults.standard.object(forKey: AppConfig.Keys.directInternet) as? Bool ?? true
+    }
+
+    func setDirectInternetEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: AppConfig.Keys.directInternet)
+        if !enabled {
+            // Stop dialling and stop publishing. What contacts already know
+            // expires on its own within the hour.
+            directCandidates.removeAll()
+            directAnnouncedTo.removeAll()
+        }
+    }
+
+    /// A candidate worth dialling: fresh, and not one that just timed out.
+    private func freshDirectCandidate(for phone: String) -> DirectCandidate? {
+        guard isDirectInternetEnabled else { return nil }
+        guard (directSilentUntil[phone] ?? .distantPast) <= now else { return nil }
+        guard let candidate = directCandidates[phone], candidate.isFresh(at: now) else {
+            directCandidates[phone] = nil
+            return nil
+        }
+        return candidate
+    }
+
+    /// One attempt at the contact's published address. Returns true when they
+    /// answered with a signed ack; a failure is remembered so the next message
+    /// goes straight to the relay.
+    private func sendDirect(_ envelope: Envelope,
+                            to phone: String,
+                            at candidate: DirectCandidate) async -> Bool {
+        var wire = WireMessage(type: .directEnvelope,
+                               senderPhone: myPhone,
+                               senderPort: lanPort,
+                               certificate: crypto.certificate?.encodedJSON(),
+                               recipientPhone: phone,
+                               envelope: envelope)
+        wire.signature = crypto.sign(wire.signedFields)
+
+        // Dialled through `Transport` rather than `LANNode`: sending needs
+        // only an outbound connection, so this works even where Bonjour and
+        // the local listener are off. Receiving still needs the listener,
+        // which is why an address is only published when it is running.
+        guard let reply = await Transport.request(wire, to: candidate.address,
+                                                  port: candidate.port, tls: false,
+                                                  timeout: 3,
+                                                  connectTimeout: Transport.defaultConnectTimeout),
+              isAuthenticLANReply(reply, from: phone, txID: wire.txID),
+              reply.wireType == .directAck else {
+            // Unreachable: a firewall dropped it, the address rotated, or they
+            // are simply offline. The relay takes it from here.
+            directSilentUntil[phone] = now.addingTimeInterval(Self.directSilencePeriod)
+            Log.net.debug("Direct internet attempt failed — falling back to the relay")
+            return false
+        }
+        lastHeardFrom[phone] = now
+        Log.net.info("Delivered directly over the internet")
+        return true
+    }
+
+    static let directSilencePeriod: TimeInterval = 5 * 60
+
+    /// Tells `phone` where we can be reached, when that has changed since the
+    /// last time we told them. Sent inside a sealed envelope, so the address
+    /// reaches that one contact and nobody else — least of all the relay.
+    private func announceDirectAddress(to phone: String) async {
+        guard isDirectInternetEnabled, isRegistered, lanPort != 0 else { return }
+        let addresses = DirectAddress.local()
+        guard !addresses.isEmpty else { return }
+
+        let fingerprint = addresses.joined(separator: ",") + ":\(lanPort)"
+        guard directAnnouncedTo[phone] != fingerprint else { return }
+        // Recorded before sending: a failed hint is not worth retrying on
+        // every message, and the next address change will re-announce anyway.
+        directAnnouncedTo[phone] = fingerprint
+
+        let expiry = now.addingTimeInterval(DirectAddress.lifetime)
+        let payload = ChatPayload(kind: .addressHint,
+                                  directAddresses: addresses,
+                                  directPort: lanPort,
+                                  directExpiresAt: Int64(expiry.timeIntervalSince1970))
+        await sendPayload(payload, to: phone, envelopeID: UUID().uuidString)
+    }
+
+    /// Stores where a contact says it can be reached.
+    private func applyAddressHint(_ payload: ChatPayload, from sender: String) {
+        guard isDirectInternetEnabled,
+              let addresses = payload.directAddresses,
+              let port = payload.directPort,
+              let expiresAt = payload.directExpiresAt,
+              let candidate = DirectAddress.candidate(
+                  from: addresses, port: port,
+                  expiresAt: Date(timeIntervalSince1970: TimeInterval(expiresAt)),
+                  now: now, isDialable: isDialableAddress) else { return }
+        directCandidates[sender] = candidate
+        // A new address is a reason to stop skipping them.
+        directSilentUntil[sender] = nil
     }
 
     // MARK: - Bluetooth mesh (contract §9)
