@@ -163,6 +163,9 @@ struct ChangeNumberView: View {
         .padding(.bottom, 24)
         .frame(maxWidth: 700)
         .frame(maxWidth: .infinity)
+        // The tab bar would sit on top of "Done", and there is nowhere else
+        // to go from here anyway.
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

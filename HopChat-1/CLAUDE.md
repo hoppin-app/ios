@@ -132,20 +132,21 @@ automatically (`CLAUDE.md` is excluded from the bundle).
 
 Deployed at **`20.199.104.218:4443`** (Azure, France Central, `hoppin-relay`),
 running `hoppin-bootstrap.service`. Details, credentials layout and caveats are
-in [`docs/DEPLOY.md`](../docs/DEPLOY.md). Two things to know before touching it:
-it still runs in `dev` mode with a fixed verification code, and it carries the
-identity key copied from the development Mac.
+in [`docs/DEPLOY.md`](../docs/DEPLOY.md). It runs in `prod` mode with real SMS
+through Twilio (sender `hoppin`), and its identity key was generated on the
+instance — the Mac-derived key was retired on 25/09/2026.
 
-Devices reach it through the DEBUG overrides (`hoppin.dev.serverHost`,
-`hoppin.dev.serverKey`); `AppConfig`'s defaults have not been updated yet.
+`AppConfig` now ships the live host, signing key and both TLS SPKI pins, so a
+Release build connects without any override. The DEBUG overrides
+(`hoppin.dev.serverHost`, `hoppin.dev.serverKey`, `hoppin.dev.serverPins`) are
+still there for pointing a development build at a local `bootstrap.py`.
 
 ## Open items
 
-- `AppConfig.serverSigningKeyBase64` is still a **placeholder** and
-  `serverHost` still points at `34.14.80.215`, an address that was released
-  and now belongs to someone else. Both must be replaced before release.
-- SMS delivery needs a Twilio account (`TWILIO_*` env vars); the dev provider
-  only logs codes.
+- There is **no push**. Notifications are local, fired after a
+  `BGAppRefreshTask` drains the relay, so a message can land long after it was
+  sent and never while the app is force-quit. APNs is the largest remaining
+  piece of work, and it means the relay learns a device token.
 - Website legal pages contain `[placeholder]` fields (legal name, contact email,
   governing law) that must be filled before submission.
 - Export compliance (`ITSAppUsesNonExemptEncryption = false`) is a legal

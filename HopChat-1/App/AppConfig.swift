@@ -20,7 +20,7 @@ nonisolated enum AppConfig {
             return override
         }
         #endif
-        return "34.14.80.215"
+        return "20.199.104.218"
     }
 
     static let serverTLSPort: UInt16 = 4443
@@ -88,7 +88,11 @@ nonisolated enum AppConfig {
             return override
         }
         #endif
-        return serverKeyPlaceholder
+        // Generated on the relay itself, 25/09/2026, and never held anywhere
+        // else. Rotating it invalidates every certificate ever issued, so the
+        // only reason to change this line is a rotation everyone re-verifies
+        // through.
+        return "4Er+ZAACSCzEQBQcnDlP18bzUvFr7atDMsrFYL6mEd8="
     }
 
     /// `true` when the pinned server key is present and decodes to 32 bytes.
@@ -110,7 +114,14 @@ nonisolated enum AppConfig {
             }.filter { !$0.isEmpty }
         }
         #endif
-        return []
+        // Current, then the backup keypair held offline on the relay. Shipping
+        // both means the certificate can be reissued against either key
+        // without an app update; a single pin would strand every installed
+        // copy the day the key has to change.
+        return [
+            "2M4/3wY0qirqzwbagmzWa/g6RX/zARxh62IZR1C6NSk=",
+            "ztiIkCcn2OHqK4sN8j/Z1cFDXJX2jh6XLzBOcnSUK/I=",
+        ]
     }
 
     #if DEBUG

@@ -193,6 +193,8 @@ final class KademliaService: ObservableObject {
     /// Last thing the path monitor said. Starts optimistic: the mesh only
     /// takes over once iOS has actually reported that there is no path.
     private var pathSatisfied = true
+    /// Pending second pass over mesh messages still inside their receipt grace.
+    private var meshResendRetry: Task<Void, Never>?
 
     private var isRunning = false
     /// The port the LAN listener bound to. Published to contacts in an
@@ -279,6 +281,7 @@ final class KademliaService: ObservableObject {
         lanKeepAliveTask?.cancel(); lanKeepAliveTask = nil
         pathDebounce?.cancel(); pathDebounce = nil
         pathMonitor?.cancel(); pathMonitor = nil
+        meshResendRetry?.cancel(); meshResendRetry = nil
 
         for (_, task) in typingTimers { task.cancel() }
         typingTimers.removeAll()
@@ -2187,15 +2190,43 @@ final class KademliaService: ObservableObject {
         return true
     }
 
+    /// How long a mesh copy is given to produce a delivery receipt before the
+    /// relay is asked to carry it as well. Without this, coming back online a
+    /// second after a successful mesh hop relays a duplicate that the
+    /// recipient only discards after paying for it.
+    private static let meshReceiptGrace: TimeInterval = 60
+
     /// Re-sends, through the relay, what the mesh accepted but never confirmed.
     /// The envelope id is unchanged, so a recipient that already got the mesh
-    /// copy discards this one (`hasSeenEnvelope`).
+    /// copy discards this one (`hasSeenEnvelope`) — but that copy still costs
+    /// bandwidth and battery, so anything whose receipt may still be in flight
+    /// waits out `meshReceiptGrace` first.
     private func resendMeshSent() async {
         guard isRegistered else { return }
+        meshResendRetry?.cancel()
+        meshResendRetry = nil
+
+        var earliestRemaining: TimeInterval?
+
         for message in store.meshSentAwaitingDelivery()
         where now.timeIntervalSince(message.timestamp) <= 7 * 86_400 {
+            let waited = now.timeIntervalSince(message.timestamp)
+            guard waited >= Self.meshReceiptGrace else {
+                let remaining = Self.meshReceiptGrace - waited
+                earliestRemaining = min(earliestRemaining ?? remaining, remaining)
+                continue
+            }
             await deliverStoredMessage(messageID: message.id,
                                        conversationID: message.conversationID)
+        }
+
+        // Something is still inside its grace window. Come back for it; by
+        // then its receipt may have arrived and it drops out of the query.
+        guard let remaining = earliestRemaining else { return }
+        meshResendRetry = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            guard !Task.isCancelled, let self, self.isRunning, self.pathSatisfied else { return }
+            await self.resendMeshSent()
         }
     }
 

@@ -207,6 +207,12 @@ struct SettingsPrivacyView: View {
             .font(.subheadline)
             .padding(.vertical, 4)
             .fixedSize(horizontal: false, vertical: true)
+
+            NavigationLink {
+                SettingsServerDataView()
+            } label: {
+                Label("Your data on the relay", systemImage: "server.rack")
+            }
         } header: {
             Text("What the server can see")
         }

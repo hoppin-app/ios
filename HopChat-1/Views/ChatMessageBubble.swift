@@ -219,6 +219,10 @@ struct ChatMessageBubble: View {
     var showsFooter = true
     /// The user tapped "Show original" on a translated message.
     var showsOriginal = false
+    /// No internet path right now. A pending photo then says what it is
+    /// waiting for, instead of looking like an upload that stalled — photos
+    /// are too big for the mesh and wait for Wi-Fi or mobile data.
+    var isOffline = false
 
     var onTapImage: (URL) -> Void = { _ in }
     var onRetry: () -> Void = {}
@@ -227,6 +231,11 @@ struct ChatMessageBubble: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isMine: Bool { message.isFromMe }
+
+    /// A photo of ours that cannot move until there is a network path.
+    private var isWaitingForNetwork: Bool {
+        isMine && isOffline && message.status == .pending && message.kind == .image
+    }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
@@ -354,6 +363,13 @@ struct ChatMessageBubble: View {
                     .font(.caption2)
             }
 
+            if isWaitingForNetwork {
+                Text("Waiting for Wi-Fi or mobile data")
+                    .font(.caption2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             if isMine, message.status == .failed {
                 Button(action: onRetry) {
                     Text("Retry")
@@ -404,7 +420,11 @@ struct ChatMessageBubble: View {
             parts.append(String(localized: "Reply to \(replyPreview.author): \(replyPreview.snippet)"))
         }
         parts.append(ChatFormatters.time(message.timestamp))
-        if isMine { parts.append(statusDescription(message.status)) }
+        if isMine {
+            parts.append(isWaitingForNetwork
+                         ? String(localized: "Waiting for Wi-Fi or mobile data")
+                         : statusDescription(message.status))
+        }
         if message.route == .direct { parts.append(String(localized: "Sent directly")) }
         return parts.joined(separator: ", ")
     }

@@ -163,6 +163,10 @@ struct TextRoomView: View {
         }
         .lavaBackground()
         .navigationBarTitleDisplayMode(.inline)
+        // The bar's own material paints a flat band with a hard bottom edge
+        // across the background gradient. `topEdgeBlur` does the job instead,
+        // and fades out rather than stopping.
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) { header }
             ToolbarItem(placement: .topBarTrailing) { translateMenu }
@@ -351,9 +355,17 @@ struct TextRoomView: View {
         }
     }
     
+    /// Keeps the title and buttons legible over whatever scrolls beneath them,
+    /// without drawing an edge: the blur ramps to nothing and the scrim over it
+    /// fades on the same run, so there is no line where the header stops.
     private var topEdgeBlur: some View {
         VariableBlur(maxBlurRadius: 16)
-            .frame(height: 90)
+            .frame(height: 140)
+            .overlay(
+                LinearGradient(colors: [.black.opacity(0.28), .black.opacity(0.10), .clear],
+                               startPoint: .top,
+                               endPoint: .bottom)
+            )
             .allowsHitTesting(false)
             .ignoresSafeArea(edges: .top)
     }
@@ -368,6 +380,7 @@ struct TextRoomView: View {
             replyPreview: message.replyToID.map { replyPreview(for: $0) },
             showsFooter: message.id == messages.last?.id,
             showsOriginal: showingOriginal.contains(message.id),
+            isOffline: kad.connectionState != .online,
             onTapImage: { fullScreenImage = $0 },
             onRetry: { retry(message) },
             onTapReply: { scrollTarget = $0 }
@@ -596,12 +609,23 @@ struct TextRoomView: View {
                 inlineNote(icon: "wifi.exclamationmark",
                            text: String(localized: "No internet: nearby members get messages now, the rest when you're back online."),
                            tint: .secondary)
+            } else if hasPendingPhoto {
+                // Text can hop over the mesh; a photo cannot, so say so once
+                // here rather than leaving it sitting on "Sending".
+                inlineNote(icon: "photo.badge.exclamationmark",
+                           text: String(localized: "Photos need Wi-Fi or mobile data. They'll send when you're back online."),
+                           tint: .secondary)
             } else {
                 inlineNote(icon: "wifi.slash",
                            text: String(localized: "Messages will send when you're back online."),
                            tint: .secondary)
             }
         }
+    }
+
+    /// One of ours is a photo that has not gone anywhere yet.
+    private var hasPendingPhoto: Bool {
+        messages.contains { $0.isFromMe && $0.kind == .image && $0.status == .pending }
     }
 
     private func inlineNote(icon: String, text: String, tint: Color) -> some View {
