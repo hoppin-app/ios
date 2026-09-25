@@ -253,7 +253,7 @@ nonisolated enum Transport {
 
         guard tls else {
             #if !DEBUG
-            Log.net.error("Plaintext transport requested in a Release build — refusing TLS downgrade is the caller's job")
+            Log.net.error("Plaintext transport requested in a Release build; refusing the TLS downgrade is the caller's job")
             #endif
             let params = NWParameters(tls: nil, tcp: tcpOptions)
             params.allowLocalEndpointReuse = true
@@ -268,17 +268,17 @@ nonisolated enum Transport {
         sec_protocol_options_set_verify_block(tlsOptions.securityProtocolOptions, { _, secTrust, complete in
             guard !pins.isEmpty else {
                 #if DEBUG
-                Log.net.warning("TLS pinning skipped — no SPKI pins configured (DEBUG only)")
+                Log.net.warning("TLS pinning skipped: no SPKI pins configured (DEBUG only)")
                 complete(true)
                 #else
-                Log.net.error("TLS rejected — no SPKI pins configured")
+                Log.net.error("TLS rejected: no SPKI pins configured")
                 complete(false)
                 #endif
                 return
             }
             let trust = sec_trust_copy_ref(secTrust).takeRetainedValue()
             let ok = validate(trust: trust, against: pins)
-            if !ok { Log.net.error("TLS rejected — server SPKI does not match any pin") }
+            if !ok { Log.net.error("TLS rejected: server SPKI does not match any pin") }
             complete(ok)
         }, verifyQueue)
 

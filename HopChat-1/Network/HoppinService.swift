@@ -233,7 +233,7 @@ final class KademliaService: ObservableObject {
             try crypto.ensureKeysLoaded()
         } catch {
             Log.crypto.error("Identity keys unavailable: \(String(describing: error), privacy: .public)")
-            connectionState = .error(String(localized: "Keychain unavailable — unlock the device and try again."))
+            connectionState = .error(String(localized: "Keychain unavailable. Unlock the device and try again."))
             return
         }
 
@@ -246,14 +246,14 @@ final class KademliaService: ObservableObject {
         }
 
         guard isServerKeyUsable else {
-            Log.net.error("Pinned server key is missing or invalid — refusing to connect")
+            Log.net.error("Pinned server key is missing or invalid, refusing to connect")
             connectionState = .error(String(localized: "Server key not configured"))
             return
         }
 
         guard let certificate = crypto.certificate else {
             connectionState = .offline
-            Log.net.info("No identity certificate yet — waiting for SMS verification")
+            Log.net.info("No identity certificate yet, waiting for SMS verification")
             return
         }
 
@@ -329,7 +329,7 @@ final class KademliaService: ObservableObject {
             // v1 stored the phone with no proof of ownership. The user has to
             // re-verify over SMS; the old number is only a prefill hint.
             legacyPhoneHint = PhoneNumber.normalize(legacy) ?? legacy
-            Log.app.info("Legacy phone found — SMS re-verification required")
+            Log.app.info("Legacy phone found, SMS re-verification required")
         } else {
             defaults.removeObject(forKey: AppConfig.Keys.legacyPhone)
         }
@@ -560,7 +560,7 @@ final class KademliaService: ObservableObject {
             store.updateStatus(messageID: messageID, conversationID: conversationID, to: .sent)
             store.setRoute(best, messageID: messageID, conversationID: conversationID)
         } else {
-            Log.net.debug("Message \(messageID.prefix(8), privacy: .public) still pending — will retry")
+            Log.net.debug("Message \(messageID.prefix(8), privacy: .public) still pending, will retry")
         }
     }
 
@@ -578,7 +578,7 @@ final class KademliaService: ObservableObject {
         // Never sign or seal with a degraded (empty) key: the non-throwing
         // accessors return "" while the Keychain is locked.
         guard crypto.isReady else {
-            Log.crypto.error("Refusing to send — identity keys unavailable")
+            Log.crypto.error("Refusing to send: identity keys unavailable")
             lastError = ServiceError.unavailable.errorDescription
             return nil
         }
@@ -586,7 +586,7 @@ final class KademliaService: ObservableObject {
         guard let recipientCert = await ensureCertificate(for: phone) else { return nil }
 
         guard !trust.pendingKeyChanges.contains(phone), !trust.hasPendingKeyChange(phone) else {
-            Log.net.error("Refusing to send to \(PhoneNumber.masked(phone), privacy: .private) — unacknowledged key change")
+            Log.net.error("Refusing to send to \(PhoneNumber.masked(phone), privacy: .private): unacknowledged key change")
             lastError = ServiceError.keyChangeUnacknowledged.errorDescription
             return nil
         }
@@ -777,7 +777,7 @@ final class KademliaService: ObservableObject {
             // TrustStore deliberately refuses to pin here; treating it as a new
             // contact would pin whatever key happens to be on the wire. This is
             // transient: don't send, don't accept, retry later.
-            Log.crypto.error("Trust evaluation unavailable for \(PhoneNumber.masked(phone), privacy: .private) — retry later")
+            Log.crypto.error("Trust evaluation unavailable for \(PhoneNumber.masked(phone), privacy: .private), retry later")
             lastError = ServiceError.unavailable.errorDescription
             return .unavailable
         }
@@ -894,7 +894,7 @@ final class KademliaService: ObservableObject {
             }
         }
         if deferred > 0 {
-            Log.net.info("\(deferred, privacy: .public) envelope(s) deferred — left on the relay for redelivery")
+            Log.net.info("\(deferred, privacy: .public) envelope(s) deferred, left on the relay for redelivery")
         }
         return (accepted, settledIDs.count, deferred)
     }
@@ -1667,7 +1667,7 @@ final class KademliaService: ObservableObject {
             guard renewed.isValid(serverKeyBase64: server.serverKeyBase64, now: now),
                   renewed.phone == certificate.phone,
                   renewed.signingKey == certificate.signingKey else {
-                Log.crypto.error("Renewed certificate failed validation — keeping the old one")
+                Log.crypto.error("Renewed certificate failed validation, keeping the old one")
                 return
             }
             if needsRotation {
@@ -1901,7 +1901,7 @@ final class KademliaService: ObservableObject {
         if let node = lanNode, node.isListening {
             bonjour?.refresh()
         } else {
-            Log.net.info("LAN listener gone after background — restarting")
+            Log.net.info("LAN listener gone after background, restarting")
             stopLAN()
             startLAN()
         }
@@ -2013,7 +2013,7 @@ final class KademliaService: ObservableObject {
 
         let currentIP = localWiFiIP()
         if currentIP != lastLocalIP {
-            Log.net.info("Local interface changed — restarting the LAN listener")
+            Log.net.info("Local interface changed, restarting the LAN listener")
             lastLocalIP = currentIP
             stopLAN()
             routing.removeAll()
@@ -2080,7 +2080,7 @@ final class KademliaService: ObservableObject {
             // Unreachable: a firewall dropped it, the address rotated, or they
             // are simply offline. The relay takes it from here.
             directSilentUntil[phone] = now.addingTimeInterval(Self.directSilencePeriod)
-            Log.net.debug("Direct internet attempt failed — falling back to the relay")
+            Log.net.debug("Direct internet attempt failed, falling back to the relay")
             return false
         }
         lastHeardFrom[phone] = now
@@ -2182,7 +2182,7 @@ final class KademliaService: ObservableObject {
                                        ttl: MeshPacket.defaultTTL,
                                        lifetime: MeshPacket.maxLifetime,
                                        now: now) else {
-            Log.net.debug("Message too large for the mesh — leaving it for the relay")
+            Log.net.debug("Message too large for the mesh, leaving it for the relay")
             return false
         }
         mesh.send(packet)

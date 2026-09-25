@@ -52,7 +52,7 @@ struct ContactKeyChangeView: View {
             } header: {
                 Text("What changed")
             } footer: {
-                Text("This can happen when someone reinstalls hoppin or changes phone — it can also mean someone is impersonating them.")
+                Text("This can happen when someone reinstalls hoppin or changes phone. It can also mean someone is impersonating them.")
             }
 
             Section {
@@ -73,7 +73,7 @@ struct ContactKeyChangeView: View {
             } header: {
                 Text("What you can do")
             } footer: {
-                Text("Verifying compares a safety number with them in person or over a call you trust — that is the only way to be sure. Accepting simply trusts the new key so you can keep messaging; it will no longer be marked verified.")
+                Text("Verifying compares a safety number with them in person or over a call you trust. That is the only way to be sure. Accepting simply trusts the new key so you can keep messaging, and it will no longer be marked verified.")
             }
         }
         .navigationTitle("Security Code")

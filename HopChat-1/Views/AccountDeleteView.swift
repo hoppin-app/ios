@@ -36,7 +36,7 @@ struct DeleteAccountView: View {
                         icon: "server.rack",
                         items: [
                             Text("Your identity certificate, so nobody can look you up on hoppin."),
-                            Text("Every sealed message still waiting in your relay mailbox — undelivered messages are lost."),
+                            Text("Every sealed message still waiting in your relay mailbox. Undelivered messages are lost."),
                             Text("Your registration, freeing the number for a future sign-up."),
                         ])
 
@@ -50,7 +50,7 @@ struct DeleteAccountView: View {
                         ])
 
                 Label {
-                    Text("This cannot be undone. hoppin keeps no backup — not on the server, not in iCloud.")
+                    Text("This cannot be undone. hoppin keeps no backup, not on the server and not in iCloud.")
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")

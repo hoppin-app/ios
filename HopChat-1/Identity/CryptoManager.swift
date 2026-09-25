@@ -14,7 +14,7 @@ import os
 
 nonisolated enum CryptoError: Error, Equatable {
     /// The secure store could not be read/written (e.g. device locked).
-    /// Keys are NEVER regenerated in this case — retry later.
+    /// Keys are NEVER regenerated in this case, retry later.
     case keyUnavailable
     /// No local agreement private key matches `envelope.recipientAgreementKey`.
     case noMatchingAgreementKey

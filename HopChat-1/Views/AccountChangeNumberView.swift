@@ -94,7 +94,7 @@ struct ChangeNumberView: View {
                     ChangeNumberPoint(
                         icon: "checkmark.seal.fill",
                         title: Text("Your chats and keys move with you"),
-                        detail: Text("Your messages, contacts and encryption keys stay exactly as they are — only the number on your certificate changes."))
+                        detail: Text("Your messages, contacts and encryption keys stay exactly as they are. Only the number on your certificate changes."))
                     ChangeNumberPoint(
                         icon: "paperplane.fill",
                         title: Text("Your contacts are told automatically"),

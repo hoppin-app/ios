@@ -70,7 +70,7 @@ nonisolated enum BackgroundRefresh {
         }
 
         task.expirationHandler = {
-            Log.app.debug("Background refresh expired — cancelling")
+            Log.app.debug("Background refresh expired, cancelling")
             work.cancel()
             task.setTaskCompleted(success: false)
         }

@@ -169,7 +169,7 @@ struct SafetyNumberView: View {
                     .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityLabel(Text("Your verification QR code. Ask your contact to scan it."))
             }
-            Text("Your code — let them scan it")
+            Text("Let them scan your code")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

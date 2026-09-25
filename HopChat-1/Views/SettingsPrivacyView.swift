@@ -93,7 +93,7 @@ struct SettingsPrivacyView: View {
         } header: {
             Text("Direct delivery")
         } footer: {
-            Text("Messages go straight to the person you are writing to whenever their phone can be reached, instead of through the relay. To make that work, the people you message learn your phone's network address — roughly your city and internet provider. Turn this off to route everything through the relay, which sees the address instead.")
+            Text("Messages go straight to the person you are writing to whenever their phone can be reached, instead of through the relay. To make that work, the people you message learn your phone's network address, roughly your city and internet provider. Turn this off to route everything through the relay, which sees the address instead.")
         }
     }
 
@@ -143,7 +143,7 @@ struct SettingsPrivacyView: View {
         } header: {
             Text("App lock")
         } footer: {
-            Text("App lock covers the screen when hoppin is not in front. It does not add extra encryption to your messages — they are already encrypted on disk by iOS.")
+            Text("App lock covers the screen when hoppin is not in front. It does not add extra encryption to your messages. They are already encrypted on disk by iOS.")
         }
     }
 
@@ -198,7 +198,7 @@ struct SettingsPrivacyView: View {
                     Image(systemName: "lock.fill").foregroundStyle(.green)
                 }
                 Label {
-                    Text("It does see phone numbers — yours and the one you are writing to — along with your IP address and the time each message passes through.")
+                    Text("It does see phone numbers, yours and the one you are writing to, along with your IP address and the time each message passes through.")
                 } icon: {
                     Image(systemName: "eye.fill").foregroundStyle(.orange)
                 }

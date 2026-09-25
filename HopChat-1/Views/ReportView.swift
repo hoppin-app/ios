@@ -142,8 +142,8 @@ struct ReportView: View {
                 Button("Done") { dismiss() }
             } message: {
                 Text(blockToo
-                     ? "Thanks — we'll review it. This person is now blocked."
-                     : "Thanks — we'll review it.")
+                     ? "Thanks, we'll review it. This person is now blocked."
+                     : "Thanks, we'll review it.")
             }
         }
     }
@@ -166,7 +166,7 @@ struct ReportView: View {
             // Blocking is local, so honour it even when the report could not be sent.
             if blockToo { kad.block(phone: contact.phone) }
             let detail = error.errorDescription ?? String(localized: "Couldn't send the report.")
-            errorMessage = String(localized: "\(detail) Your report wasn't sent — try again when you're back online.")
+            errorMessage = String(localized: "\(detail) Your report wasn't sent. Try again when you're back online.")
         } catch {
             if blockToo { kad.block(phone: contact.phone) }
             errorMessage = String(localized: "Couldn't send the report. Check your connection and try again.")

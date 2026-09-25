@@ -199,7 +199,7 @@ final class BLETransport: NSObject {
         switch assembled.kind {
         case .hello:
             guard let hello = BLEHello.decode(assembled.payload) else {
-                Log.net.debug("BLE hello was malformed — closing the link")
+                Log.net.debug("BLE hello was malformed, closing the link")
                 tearDown(id)
                 return
             }

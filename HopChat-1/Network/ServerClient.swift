@@ -260,7 +260,7 @@ final class ServerClient {
             throw ServerError.badResponse
         }
         guard reply.hasValidSignature(signingKeyBase64: serverKeyBase64) else {
-            Log.net.error("Server reply signature invalid — dropping")
+            Log.net.error("Server reply signature invalid, dropping")
             throw ServerError.badServerSignature
         }
 

@@ -213,7 +213,7 @@ struct SettingsView: View {
 
             ShareLink(item: AppConfig.inviteURL,
                       subject: Text("Join me on hoppin"),
-                      message: Text("Let's chat on hoppin — end-to-end encrypted messages.")) {
+                      message: Text("Let's chat on hoppin. Messages are end-to-end encrypted.")) {
                 Label("Invite a friend", systemImage: "square.and.arrow.up")
             }
             .accessibilityHint(Text("Opens the share sheet with a link to hoppin"))

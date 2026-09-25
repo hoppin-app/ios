@@ -51,7 +51,7 @@ struct SettingsServerDataView: View {
         } header: {
             Text("What the relay holds")
         } footer: {
-            Text("Both keys are public halves — they are how other people encrypt to you, and they reveal nothing about your messages. Undelivered messages sit on the relay as sealed envelopes and are erased the moment your phone collects them.")
+            Text("Both keys are public halves. They are how other people encrypt to you, and they reveal nothing about your messages. Undelivered messages sit on the relay as sealed envelopes and are erased the moment your phone collects them.")
         }
     }
 

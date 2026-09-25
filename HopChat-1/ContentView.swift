@@ -83,8 +83,10 @@ struct FloatingTabBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(items[index].label))
+        // `Text("")` would put an empty, untranslatable key in the string
+        // catalogue; an absent value is what VoiceOver wants here anyway.
         .accessibilityValue(index == 0 && unreadCount > 0
-                            ? Text("\(unreadCount) unread") : Text(""))
+                            ? Text("\(unreadCount) unread") : Text(verbatim: ""))
         .accessibilityAddTraits(selectedTab == index ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier(["tab.chats", "tab.people", "tab.settings"][index])
     }

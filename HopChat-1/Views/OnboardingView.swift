@@ -50,7 +50,7 @@ private let onboardingSlides: [OnboardingSlide] = [
         icon: "arrow.triangle.branch",
         color: .orange,
         title: String(localized: "Two Ways to Arrive"),
-        body: String(localized: "On the same Wi-Fi, messages hop straight from device to device. Otherwise a relay holds them sealed until you pick them up — the people running it cannot read them.")
+        body: String(localized: "On the same Wi-Fi, messages hop straight from device to device. Otherwise a relay holds them sealed until you pick them up, and the people running it cannot read them.")
     ),
     OnboardingSlide(
         id: 4,
@@ -256,7 +256,7 @@ private struct TermsPage: View {
                 Button {
                     onAccept()
                 } label: {
-                    Text("I Agree — Continue")
+                    Text("Agree and Continue")
                         .font(.headline)
                         .frame(maxWidth: .infinity, minHeight: 28)
                         .padding(.vertical, 12)

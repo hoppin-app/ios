@@ -32,7 +32,7 @@ final class TrustStore: ObservableObject {
         case trusted
         case keyChanged(previousSigningKey: String)
         /// The secure store could not be read (device locked / keychain error).
-        /// Callers must NOT treat this as a new contact — retry later.
+        /// Callers must NOT treat this as a new contact, retry later.
         case unavailable
     }
 

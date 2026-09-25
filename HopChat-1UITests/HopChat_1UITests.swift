@@ -108,7 +108,7 @@ final class HopChat_1UITests: XCTestCase {
         XCTAssertTrue(heading.waitForExistence(timeout: 10),
                       "skipping onboarding should land on the terms page")
 
-        let agree = app.buttons["I Agree — Continue"]
+        let agree = app.buttons["Agree and Continue"]
         XCTAssertTrue(agree.waitForExistence(timeout: 10), "the agree button should exist")
         XCTAssertFalse(agree.isEnabled,
                        "the terms gate must stay closed until the switch is on")

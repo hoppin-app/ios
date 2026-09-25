@@ -139,7 +139,7 @@ nonisolated final class LANNode: @unchecked Sendable {
         let count = activeConnections
         if count >= LANNode.maxConcurrentInbound {
             lock.unlock()
-            Log.net.debug("LAN listener at capacity — dropping inbound connection")
+            Log.net.debug("LAN listener at capacity, dropping inbound connection")
             connection.cancel()
             return
         }

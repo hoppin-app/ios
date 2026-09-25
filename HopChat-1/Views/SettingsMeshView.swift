@@ -66,7 +66,7 @@ struct SettingsMeshView: View {
                         Text("""
                              Messages stay sealed the whole way. A phone that \
                              carries one cannot read it, cannot tell who sent \
-                             it and cannot tell who it is for — it only knows \
+                             it and cannot tell who it is for. It only knows \
                              it is passing something along, which is what \
                              makes the hop work at all.
                              """)
@@ -104,7 +104,7 @@ struct SettingsMeshView: View {
                 ? String(localized: "Connected")
                 : String(localized: "Looking for phones nearby")
         }
-        return String(localized: "Idle — you have internet")
+        return String(localized: "Idle while you have internet")
     }
 
     private func openSystemSettings() {
