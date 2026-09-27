@@ -37,6 +37,46 @@ nonisolated enum Transport {
         let remoteIP: String?
     }
 
+    // MARK: - Failure
+
+    /// Why an exchange produced no reply. The server client turns these into
+    /// different messages: "you're offline", "the server is down" and "this
+    /// isn't our server" call for different things from the user, and all of
+    /// them used to read as "No connection to hoppin".
+    enum Failure: Error, Equatable, Sendable {
+        /// Nothing to dial: port 0, or a frame that can't be built.
+        case badRequest
+        /// This device has no network path.
+        case offline
+        /// The host answered and nothing listens on that port.
+        case refused
+        /// The TLS handshake failed, usually because the certificate matched
+        /// none of the pins.
+        case untrusted
+        /// No answer before the connect deadline: a wrong or filtered address,
+        /// or a network that drops the traffic.
+        case unreachable
+        /// Connected, but no complete, decodable reply came back in time.
+        case noReply
+
+        /// What an `NWError` seen before the connection was ready means.
+        static func classify(_ error: NWError) -> Failure {
+            switch error {
+            case .tls:
+                return .untrusted
+            case .posix(let code):
+                switch code {
+                case .ECONNREFUSED: return .refused
+                case .ENETDOWN, .ENETUNREACH, .ENOTCONN: return .offline
+                default: return .unreachable
+                }
+            default:
+                // DNS failures, and error kinds newer SDKs add.
+                return .unreachable
+            }
+        }
+    }
+
     // MARK: - Public API
 
     /// Sends one framed request and awaits at most one framed response.
@@ -48,10 +88,23 @@ nonisolated enum Transport {
                         pins: [String] = [],
                         timeout: TimeInterval = defaultTimeout,
                         connectTimeout: TimeInterval = defaultConnectTimeout) async -> WireMessage? {
-        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return nil }
+        try? await requestResult(message, to: host, port: port, tls: tls, pins: pins,
+                                 timeout: timeout, connectTimeout: connectTimeout).get()
+    }
+
+    /// `request`, saying why when there is no reply.
+    static func requestResult(_ message: WireMessage,
+                              to host: String,
+                              port: UInt16,
+                              tls: Bool,
+                              pins: [String] = [],
+                              timeout: TimeInterval = defaultTimeout,
+                              connectTimeout: TimeInterval = defaultConnectTimeout) async -> Result<WireMessage, Failure> {
+        guard port != 0, let nwPort = NWEndpoint.Port(rawValue: port) else { return .failure(.badRequest) }
         let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: nwPort)
-        return await exchange(message, with: endpoint, tls: tls, pins: pins,
-                              timeout: timeout, connectTimeout: connectTimeout)?.message
+        return await exchangeResult(message, with: endpoint, tls: tls, pins: pins,
+                                    timeout: timeout, connectTimeout: connectTimeout)
+            .map(\.message)
     }
 
     /// Full form: also reports the resolved TCP peer address, which is how a
@@ -62,13 +115,23 @@ nonisolated enum Transport {
                          pins: [String] = [],
                          timeout: TimeInterval = defaultTimeout,
                          connectTimeout: TimeInterval = defaultConnectTimeout) async -> Response? {
+        try? await exchangeResult(message, with: endpoint, tls: tls, pins: pins,
+                                  timeout: timeout, connectTimeout: connectTimeout).get()
+    }
+
+    static func exchangeResult(_ message: WireMessage,
+                               with endpoint: NWEndpoint,
+                               tls: Bool,
+                               pins: [String] = [],
+                               timeout: TimeInterval = defaultTimeout,
+                               connectTimeout: TimeInterval = defaultConnectTimeout) async -> Result<Response, Failure> {
 
         let framed: Data
         do {
             framed = try WireFrame.frame(message)
         } catch {
             Log.net.error("Refusing to send oversized/empty frame: \(String(describing: error), privacy: .public)")
-            return nil
+            return .failure(.badRequest)
         }
 
         let parameters = makeParameters(tls: tls, pins: pins)
@@ -76,7 +139,7 @@ nonisolated enum Transport {
         let session = Session(connection: connection)
 
         return await withTaskCancellationHandler {
-            await withCheckedContinuation { (cont: CheckedContinuation<Response?, Never>) in
+            await withCheckedContinuation { (cont: CheckedContinuation<Result<Response, Failure>, Never>) in
                 session.attach(cont)
 
                 // Connect timeout: `.waiting` (host unreachable, no route) would
@@ -84,14 +147,17 @@ nonisolated enum Transport {
                 let connectDeadline = DispatchWorkItem {
                     guard !session.isReady else { return }
                     Log.net.debug("Transport connect timeout after \(connectTimeout, privacy: .public)s")
-                    session.finish(nil)
+                    // `.waiting` usually said why before the deadline hit.
+                    session.finish(.failure(session.lastWaitingFailure ?? .unreachable))
                 }
                 queue.asyncAfter(deadline: .now() + connectTimeout, execute: connectDeadline)
 
                 // Overall deadline covers connect + send + response read.
                 let overallDeadline = DispatchWorkItem {
                     Log.net.debug("Transport overall timeout after \(timeout, privacy: .public)s")
-                    session.finish(nil)
+                    session.finish(.failure(session.isReady
+                        ? .noReply
+                        : (session.lastWaitingFailure ?? .unreachable)))
                 }
                 queue.asyncAfter(deadline: .now() + timeout, execute: overallDeadline)
                 session.onFinish = {
@@ -108,35 +174,37 @@ nonisolated enum Transport {
                         connection.send(content: framed, completion: .contentProcessed { error in
                             if let error {
                                 Log.net.debug("Transport send failed: \(error.localizedDescription, privacy: .public)")
-                                session.finish(nil)
+                                session.finish(.failure(.noReply))
                                 return
                             }
                             readFrame(from: connection) { result in
                                 switch result {
                                 case .failure(let error):
                                     Log.net.debug("Transport read failed: \(error.localizedDescription, privacy: .public)")
-                                    session.finish(nil)
+                                    session.finish(.failure(.noReply))
                                 case .success(let data):
                                     guard let reply = WireMessage.decode(data) else {
                                         Log.net.debug("Transport got an undecodable reply")
-                                        session.finish(nil)
+                                        session.finish(.failure(.noReply))
                                         return
                                     }
-                                    session.finish(Response(message: reply, remoteIP: remoteIP))
+                                    session.finish(.success(Response(message: reply, remoteIP: remoteIP)))
                                 }
                             }
                         })
 
                     case .failed(let error):
                         Log.net.debug("Transport connection failed: \(error.localizedDescription, privacy: .public)")
-                        session.finish(nil)
+                        session.finish(.failure(session.isReady ? .noReply : Failure.classify(error)))
 
                     case .waiting(let error):
-                        // Keep waiting only until the connect deadline fires.
+                        // Keep waiting only until the connect deadline fires,
+                        // but remember why, so the deadline can say so.
                         Log.net.debug("Transport waiting: \(error.localizedDescription, privacy: .public)")
+                        session.noteWaiting(Failure.classify(error))
 
                     case .cancelled:
-                        session.finish(nil)
+                        session.finish(.failure(.noReply))
 
                     default:
                         break
@@ -146,7 +214,7 @@ nonisolated enum Transport {
                 connection.start(queue: queue)
             }
         } onCancel: {
-            session.finish(nil)
+            session.finish(.failure(.noReply))
         }
     }
 
@@ -154,18 +222,19 @@ nonisolated enum Transport {
 
     private final class Session: @unchecked Sendable {
         private let lock = NSLock()
-        private var cont: CheckedContinuation<Response?, Never>?
+        private var cont: CheckedContinuation<Result<Response, Failure>, Never>?
         private var connection: NWConnection?
         private var ready = false
         private var attached = false
-        private var pendingResult: Response??
+        private var waitingFailure: Failure?
+        private var pendingResult: Result<Response, Failure>?
         var onFinish: (() -> Void)?
 
         init(connection: NWConnection) {
             self.connection = connection
         }
 
-        func attach(_ cont: CheckedContinuation<Response?, Never>) {
+        func attach(_ cont: CheckedContinuation<Result<Response, Failure>, Never>) {
             lock.lock()
             // A terminal state can fire before the continuation is installed
             // (e.g. an immediately-failing connection); replay it here.
@@ -191,10 +260,22 @@ nonisolated enum Transport {
             return ready
         }
 
-        func finish(_ result: Response?) {
+        func noteWaiting(_ failure: Failure) {
+            lock.lock()
+            waitingFailure = failure
+            lock.unlock()
+        }
+
+        var lastWaitingFailure: Failure? {
+            lock.lock()
+            defer { lock.unlock() }
+            return waitingFailure
+        }
+
+        func finish(_ result: Result<Response, Failure>) {
             lock.lock()
             if !attached && pendingResult == nil {
-                pendingResult = .some(result)
+                pendingResult = result
             }
             let c = cont
             cont = nil

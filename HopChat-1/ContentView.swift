@@ -146,6 +146,12 @@ struct ContentView: View {
             guard !didStartService else { return }
             await service.start()
             didStartService = true
+            await PushRegistration.shared.refresh()
+        }
+        .onChange(of: service.isRegistered) { _, registered in
+            // Just verified: there was no account to attach a token to before.
+            guard registered else { return }
+            Task { await PushRegistration.shared.refresh() }
         }
     }
 

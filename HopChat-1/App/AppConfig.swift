@@ -125,6 +125,30 @@ nonisolated enum AppConfig {
     }
 
     #if DEBUG
+    /// Every `hoppin.dev.*` server override the app reads.
+    static let devOverrideKeys = [
+        "hoppin.dev.serverHost",
+        "hoppin.dev.serverPort",
+        "hoppin.dev.allowPlaintext",
+        "hoppin.dev.serverKey",
+        "hoppin.dev.serverPins",
+    ]
+
+    /// Forgets every server override, including the copies remembered from an
+    /// old Xcode scheme, so the built-in host, key and pins apply again.
+    ///
+    /// A stored override outlives the scheme that set it: a launch from the
+    /// home screen carries no scheme variables either, so the app cannot tell
+    /// "the scheme dropped this" from "opened normally". That is how a phone
+    /// kept pinning the retired relay key, over plaintext, after both were
+    /// gone from the code.
+    static func clearDevOverrides(_ defaults: UserDefaults = .standard) {
+        for key in devOverrideKeys {
+            defaults.removeObject(forKey: key)
+            defaults.removeObject(forKey: key + ".fromScheme")
+        }
+    }
+
     /// DEBUG-only override lookup, in this order:
     ///
     /// 1. the Xcode scheme's environment variable (Product ▸ Scheme ▸ Edit

@@ -22,6 +22,8 @@ struct SettingsDeveloperView: View {
     @AppStorage("hoppin.dev.serverKey")     private var serverKey = ""
 
     @State private var isReconnecting = false
+    /// Pending reconnect after an edit; each keystroke pushes it back.
+    @State private var applyTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -69,7 +71,7 @@ struct SettingsDeveloperView: View {
                 } header: {
                     Text("Server")
                 } footer: {
-                    Text("Leave the host empty to use the built-in default.")
+                    Text("Leave the host empty to use the built-in default. Changes apply a second after you stop typing.")
                 }
 
                 Section {
@@ -91,6 +93,24 @@ struct SettingsDeveloperView: View {
                     Text("Server signing key")
                 } footer: {
                     Text("`bootstrap.py` prints this key at startup. Without it the app refuses to connect.")
+                }
+
+                Section {
+                    Button {
+                        AppConfig.clearDevOverrides()
+                        serverHost = ""
+                        serverPort = ""
+                        allowPlaintext = false
+                        serverKey = ""
+                        applyNow()
+                    } label: {
+                        Text("Use built-in server")
+                            .frame(minHeight: 44)
+                    }
+                    .disabled(isReconnecting)
+                    .accessibilityHint(Text("Clears every override above and reconnects to the relay the app ships with"))
+                } footer: {
+                    Text("Also clears values left behind by an old Xcode scheme.")
                 }
 
                 Section {
@@ -127,9 +147,40 @@ struct SettingsDeveloperView: View {
             }
             .glassListRows()
         }
+        .onChange(of: serverHost) { _, _ in applySoon() }
+        .onChange(of: serverPort) { _, _ in applySoon() }
+        .onChange(of: allowPlaintext) { _, _ in applySoon() }
+        .onChange(of: serverKey) { _, _ in applySoon() }
+        .onDisappear {
+            // Leaving mid-debounce must not drop the edit.
+            if applyTask != nil { applyNow() }
+        }
         .lavaBackground()
         .navigationTitle(Text("Developer"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// The service reads host, port and key once, when it builds its server
+    /// client. Editing these fields used to change nothing until the app was
+    /// force-quit, which cost an afternoon of "it's offline" on a phone that
+    /// could reach the relay fine. Now an edit reconnects by itself.
+    private func applySoon() {
+        applyTask?.cancel()
+        applyTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            applyNow()
+        }
+    }
+
+    private func applyNow() {
+        applyTask?.cancel()
+        applyTask = nil
+        isReconnecting = true
+        Task {
+            await kad.reconnect()
+            isReconnecting = false
+        }
     }
 
     private var connectionText: String {

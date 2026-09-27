@@ -35,6 +35,7 @@ nonisolated enum WireType: UInt8 {
     case deleteAccount       = 0x37
     case changeNumberStart   = 0x38
     case changeNumberConfirm = 0x39
+    case pushToken           = 0x3A
     case hello               = 0x40
 }
 

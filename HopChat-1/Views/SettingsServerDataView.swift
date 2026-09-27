@@ -48,10 +48,15 @@ struct SettingsServerDataView: View {
             }
 
             row(String(localized: "Relay"), AppConfig.serverHost)
+
+            row(String(localized: "Notification token"),
+                PushRegistration.shared.isRegisteredWithRelay
+                    ? String(localized: "Registered")
+                    : String(localized: "Not registered"))
         } header: {
             Text("What the relay holds")
         } footer: {
-            Text("Both keys are public halves. They are how other people encrypt to you, and they reveal nothing about your messages. Undelivered messages sit on the relay as sealed envelopes and are erased the moment your phone collects them.")
+            Text("Both keys are public halves. They are how other people encrypt to you, and they reveal nothing about your messages. Undelivered messages sit on the relay as sealed envelopes and are erased the moment your phone collects them. The notification token lets the relay ask Apple to wake your phone; turning off message notifications removes it.")
         }
     }
 

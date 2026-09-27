@@ -31,6 +31,11 @@ struct SettingsNotificationsView: View {
                         Text("Message notifications")
                     }
                     .accessibilityHint(Text("Shows a notification when a message arrives while hoppin is closed"))
+                    .onChange(of: notificationsEnabled) { _, _ in
+                        // Turning this off must also stop the relay waking the
+                        // phone, not just suppress the banner once it is here.
+                        Task { await PushRegistration.shared.refresh() }
+                    }
 
                     Toggle(isOn: $showPreview) {
                         Text("Show preview")
@@ -127,6 +132,7 @@ struct SettingsNotificationsView: View {
         _ = await NotificationService.shared.requestPermission()
         isRequesting = false
         await refreshStatus()
+        await PushRegistration.shared.refresh()
     }
 
     private func openSystemSettings() {

@@ -87,12 +87,20 @@ struct VerificationView: View {
             #endif
         }
         .onAppear {
-            if prefill.isEmpty, let hint = service.legacyPhoneHint {
+            if prefill.isEmpty, let hint = service.reverifyPhone ?? service.legacyPhoneHint {
                 prefill = hint
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if service.legacyPhoneHint != nil, step == .phone {
+            if service.reverifyPhone != nil, step == .phone {
+                Text("Your number needs verifying again. Your chats stay on this phone.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: 700)
+            } else if service.legacyPhoneHint != nil, step == .phone {
                 Text("hoppin now verifies numbers by SMS. Your old number is filled in. Verify it once to keep using it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

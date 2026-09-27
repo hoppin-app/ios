@@ -71,23 +71,6 @@
             ReferencedContainer = "container:HopChat-1.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "HOPPIN_DEV_SERVER_HOST"
-            value = "20.199.104.218"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "HOPPIN_DEV_SERVER_KEY"
-            value = "vzIGAHf1kUgDAxN7UbwUooi9PNsmo5m76aK1cichrgU="
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "HOPPIN_DEV_ALLOW_PLAINTEXT"
-            value = "1"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

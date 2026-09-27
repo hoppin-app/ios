@@ -56,6 +56,23 @@ nonisolated enum ServiceError: LocalizedError, Equatable {
     case tooManyMembers
     case server(String)
     case unavailable
+    /// No network path on this device.
+    case offline
+    /// The relay is reachable but not accepting connections.
+    case serverDown
+    /// Something answered for the relay with a certificate we don't pin.
+    case untrustedServer
+    /// This build can't reach a server at all (no host, port or key).
+    case notConfigured
+
+    /// Every case meaning "the relay couldn't be reached", for screens that
+    /// only care whether anything happened on the server.
+    var isUnreachable: Bool {
+        switch self {
+        case .unavailable, .offline, .serverDown, .untrustedServer, .notConfigured: return true
+        default: return false
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -75,6 +92,14 @@ nonisolated enum ServiceError: LocalizedError, Equatable {
             return message
         case .unavailable:
             return String(localized: "hoppin can't reach the network right now.")
+        case .offline:
+            return String(localized: "You're offline. Connect to Wi-Fi or mobile data and try again.")
+        case .serverDown:
+            return String(localized: "hoppin's server isn't answering. Try again in a few minutes.")
+        case .untrustedServer:
+            return String(localized: "Couldn't confirm this is hoppin's server. The network may be interfering. Try another one, and update the app if it keeps happening.")
+        case .notConfigured:
+            return String(localized: "This version of hoppin isn't set up to reach its server. Update the app.")
         }
     }
 }
@@ -158,6 +183,13 @@ final class KademliaService: ObservableObject {
     /// The user turned off Local Network access, so nearby delivery can't work.
     @Published private(set) var localNetworkDenied = false
     @Published var lastError: String?
+    /// The number this phone was registered with, when the relay no longer
+    /// accepts its certificate: the relay was given a new identity key, or the
+    /// number was verified on another phone. Set together with
+    /// `isRegistered = false`, so the verification screen appears prefilled.
+    /// Keys and chats are untouched; verifying again issues a new certificate
+    /// for the same keys, so contacts see no key change.
+    @Published private(set) var reverifyPhone: String?
 
     /// Legacy v1 phone number found in UserDefaults, kept only as a prefill
     /// hint for the SMS verification screen. The key is removed once the user
@@ -202,6 +234,9 @@ final class KademliaService: ObservableObject {
     private(set) var lanPort: UInt16 = 0
     private var lastLocalIP: String?
     private var relayBackoff = Backoff(base: 1, cap: 60)
+    /// True only while the relay loop is suspended in its backoff sleep, the
+    /// one point where it is safe to cancel and restart it.
+    private var relayLoopParked = false
 
     /// phone → last time we refreshed their certificate.
     private var certificateRefreshedAt: [String: Date] = [:]
@@ -254,6 +289,15 @@ final class KademliaService: ObservableObject {
         guard let certificate = crypto.certificate else {
             connectionState = .offline
             Log.net.info("No identity certificate yet, waiting for SMS verification")
+            return
+        }
+
+        // A certificate the pinned key doesn't vouch for (issued before the
+        // relay's key was rotated, or expired) is refused by the relay and by
+        // every contact. Retrying can't fix that; only verifying again can.
+        guard certificate.isValid(serverKeyBase64: server.serverKeyBase64, now: now) else {
+            Log.crypto.error("Our certificate is not valid under the pinned relay key, asking to verify again")
+            requireReverification(phone: certificate.phone)
             return
         }
 
@@ -364,6 +408,7 @@ final class KademliaService: ObservableObject {
             legacyPhoneHint = nil
 
             myPhone = phone
+            reverifyPhone = nil
             isRegistered = true
             await reconnect()
         } catch let error as ServerError {
@@ -652,7 +697,9 @@ final class KademliaService: ObservableObject {
             guard case .server(let code, _) = error else {
                 // The server wasn't reachable at all — the mesh is the last
                 // chance, even if the path monitor still thinks we're online.
-                connectionState = .offline
+                connectionState = (error == .badServerSignature || error == .untrustedServer)
+                    ? .error(String(localized: "Can't verify the hoppin server"))
+                    : .offline
                 if sendOverMesh(envelope, to: recipientCert, payload: payload) { return .mesh }
                 return nil
             }
@@ -818,6 +865,15 @@ final class KademliaService: ObservableObject {
     private func relayLoop() async {
         while !Task.isCancelled && isRunning {
             do {
+                // A long poll only answers when mail arrives or the wait runs
+                // out, so on a quiet account it can take 25 s to prove we are
+                // online. A ping answers at once.
+                if connectionState != .online {
+                    try await server.ping()
+                    connectionState = .online
+                    relayBackoff.reset()
+                }
+
                 let envelopes = try await server.fetch(wait: AppConfig.relayFetchWait, max: 50)
                 connectionState = .online
                 if envelopes.isEmpty {
@@ -832,31 +888,60 @@ final class KademliaService: ObservableObject {
                     // unacknowledged key change), so they are all still queued
                     // on the server. Re-fetching immediately would spin on the
                     // same envelopes — back off first.
-                    let delay = relayBackoff.next()
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    await parkRelayLoop()
                 }
             } catch is CancellationError {
                 return
             } catch {
                 guard !Task.isCancelled else { return }
-                if case ServerError.server(let code, let message) = error {
-                    Log.net.error("Relay fetch rejected: \(code, privacy: .public)")
-                    if code == "cert_invalid" || code == "not_registered" {
-                        // Our cert was superseded (or the server forgot us).
-                        // Renew and let the loop retry rather than parking offline.
-                        connectionState = .connecting
-                        _ = message
-                        await renewCertificateIfPossible(force: true)
-                    } else {
-                        connectionState = .offline
+                switch error {
+                case ServerError.server(let code, _) where code == "cert_invalid" || code == "not_registered":
+                    // Our cert was superseded, or the relay no longer knows it.
+                    // A renewal fixes the first; for the second the relay's
+                    // (signed) refusal is final, and looping would only hammer
+                    // it while the app says "offline" forever.
+                    connectionState = .connecting
+                    if await renewCertificateIfPossible(force: true) == .refused,
+                       let phone = crypto.certificate?.phone {
+                        requireReverification(phone: phone)
+                        return
                     }
-                } else {
+                case ServerError.server(let code, _):
+                    Log.net.error("Relay fetch rejected: \(code, privacy: .public)")
+                    connectionState = .offline
+                case ServerError.badServerSignature, ServerError.untrustedServer:
+                    // The relay answered, but not with the key this build
+                    // trusts. That is a configuration problem, not a network
+                    // one, and calling it "offline" hid it for an afternoon.
+                    connectionState = .error(String(localized: "Can't verify the hoppin server"))
+                case ServerError.notConfigured:
+                    connectionState = .error(String(localized: "Server not configured"))
+                default:
                     connectionState = .offline
                 }
-                let delay = relayBackoff.next()
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                await parkRelayLoop()
             }
         }
+    }
+
+    /// Backoff sleep, marked so `sceneDidBecomeActive()` can cut it short.
+    private func parkRelayLoop() async {
+        let delay = relayBackoff.next()
+        relayLoopParked = true
+        defer { relayLoopParked = false }
+        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+    }
+
+    /// Restarts the relay loop if it is sitting out a backoff. Called when the
+    /// app comes to the foreground: the fetch that was in flight died with the
+    /// app's sockets, and without this the user would open hoppin to "Offline"
+    /// for up to a minute on a perfectly good connection.
+    private func wakeRelayLoop() {
+        guard isRunning, relayLoopParked else { return }
+        relayTask?.cancel()
+        relayLoopParked = false
+        relayBackoff.reset()
+        relayTask = Task { [weak self] in await self?.relayLoop() }
     }
 
     /// Processes, persists, flushes, then acks — never ack before the data is
@@ -1642,7 +1727,43 @@ final class KademliaService: ObservableObject {
         myPhone = ""
         isRegistered = false
         legacyPhoneHint = nil
+        reverifyPhone = nil
         NotificationService.shared.clearBadge()
+    }
+
+    // MARK: - Push (contract §3 — `pushToken`)
+
+    /// Hands the relay this install's APNs token so it can wake the phone when
+    /// an envelope is deposited. The relay stores the token against the account
+    /// and nothing else; it still cannot read a single envelope.
+    ///
+    /// Best effort by design: a failure costs a late notification, not mail, so
+    /// it is logged and swallowed rather than shown to the user.
+    func registerPushToken(_ token: String, sandbox: Bool) async -> Bool {
+        guard isRegistered else { return false }
+        do {
+            try await server.setPushToken(token, sandbox: sandbox)
+            Log.net.info("Push token registered with the relay")
+            return true
+        } catch {
+            Log.net.error("Push token registration failed: \(String(describing: error), privacy: .public)")
+            return false
+        }
+    }
+
+    /// Tells the relay to stop waking this phone. Sent when the user turns
+    /// notifications off, so "leave me alone" never depends on deleting the
+    /// account.
+    func clearPushToken() async -> Bool {
+        guard isRegistered else { return false }
+        do {
+            try await server.setPushToken("", sandbox: false)
+            Log.net.info("Push token cleared on the relay")
+            return true
+        } catch {
+            Log.net.error("Clearing the push token failed: \(String(describing: error), privacy: .public)")
+            return false
+        }
     }
 
     // MARK: - Certificate maintenance (contract §15)
@@ -1654,10 +1775,17 @@ final class KademliaService: ObservableObject {
         }
     }
 
-    private func renewCertificateIfPossible(force: Bool = false) async {
-        guard let certificate = crypto.certificate else { return }
+    enum RenewalOutcome: Equatable {
+        case renewed, notNeeded, failed
+        /// The relay answered, signed, that it will not renew this certificate.
+        case refused
+    }
+
+    @discardableResult
+    private func renewCertificateIfPossible(force: Bool = false) async -> RenewalOutcome {
+        guard let certificate = crypto.certificate else { return .notNeeded }
         let needsRotation = crypto.needsAgreementRotation
-        guard force || certificate.expiresSoon || needsRotation else { return }
+        guard force || certificate.expiresSoon || needsRotation else { return .notNeeded }
 
         do {
             let agreementKey = needsRotation
@@ -1668,7 +1796,7 @@ final class KademliaService: ObservableObject {
                   renewed.phone == certificate.phone,
                   renewed.signingKey == certificate.signingKey else {
                 Log.crypto.error("Renewed certificate failed validation, keeping the old one")
-                return
+                return .failed
             }
             if needsRotation {
                 try crypto.commitAgreementRotation(certificate: renewed)
@@ -1676,9 +1804,22 @@ final class KademliaService: ObservableObject {
                 try crypto.setCertificate(renewed)
             }
             Log.crypto.info("Certificate renewed (rotated agreement key: \(needsRotation, privacy: .public))")
+            return .renewed
+        } catch ServerError.server(let code, _) where code == "cert_invalid" || code == "not_registered" {
+            Log.crypto.error("Relay refused to renew our certificate: \(code, privacy: .public)")
+            return .refused
         } catch {
             Log.crypto.error("Certificate renewal failed: \(String(describing: error), privacy: .public)")
+            return .failed
         }
+    }
+
+    /// Sends the user back to SMS verification without touching keys or chats.
+    private func requireReverification(phone: String) {
+        stop()
+        reverifyPhone = phone
+        myPhone = ""
+        isRegistered = false
     }
 
     // MARK: - LAN
@@ -1897,6 +2038,7 @@ final class KademliaService: ObservableObject {
     /// listener and Bonjour in the background; bring them back and re-check
     /// peers so presence and direct delivery recover right away.
     func sceneDidBecomeActive() async {
+        wakeRelayLoop()
         guard isRunning, enableLAN else { return }
         if let node = lanNode, node.isListening {
             bonjour?.refresh()
@@ -2021,6 +2163,7 @@ final class KademliaService: ObservableObject {
         }
 
         relayBackoff.reset()
+        wakeRelayLoop()
         await retryPending()
     }
 
@@ -2259,6 +2402,14 @@ final class KademliaService: ObservableObject {
             }
         case .timeout, .transport:
             return .unavailable
+        case .offline:
+            return .offline
+        case .refused:
+            return .serverDown
+        case .untrustedServer:
+            return .untrustedServer
+        case .notConfigured:
+            return .notConfigured
         case .badServerSignature:
             return .server(String(localized: "The server's response could not be verified."))
         case .badResponse:

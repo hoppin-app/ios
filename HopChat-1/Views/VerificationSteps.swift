@@ -26,6 +26,8 @@ nonisolated enum VerificationErrorText {
                 return String(localized: "That doesn't look like a valid phone number. Include the country code, like +351 912 345 678.")
             case .unavailable:
                 return String(localized: "No connection to hoppin. Check your internet and try again.")
+            case .offline, .serverDown, .untrustedServer, .notConfigured:
+                return service.errorDescription ?? String(localized: "Something went wrong.")
             case .notRegistered, .notOnhoppin:
                 return String(localized: "That number isn't verified yet. Request a new code and try again.")
             case .blocked:
@@ -42,6 +44,14 @@ nonisolated enum VerificationErrorText {
                 return serverText(message.isEmpty ? code : message)
             case .timeout, .transport:
                 return String(localized: "No connection to hoppin. Check your internet and try again.")
+            case .offline:
+                return ServiceError.offline.errorDescription ?? ""
+            case .refused:
+                return ServiceError.serverDown.errorDescription ?? ""
+            case .untrustedServer:
+                return ServiceError.untrustedServer.errorDescription ?? ""
+            case .notConfigured:
+                return ServiceError.notConfigured.errorDescription ?? ""
             case .badServerSignature:
                 return String(localized: "The server's reply couldn't be verified. Try again later.")
             case .badResponse:

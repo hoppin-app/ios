@@ -10,6 +10,11 @@
 //    • the UNUserNotificationCenter delegate is installed, so a tap on a
 //      notification that launched the app is still routed.
 //
+//  It is also where APNs reports back: iOS delivers the device token (or the
+//  failure to mint one) to the app delegate and nowhere else. The token is
+//  passed straight to `PushRegistration`, which decides whether the relay needs
+//  to hear about it.
+//
 
 import UIKit
 import UserNotifications
@@ -32,6 +37,26 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         Log.app.info("hoppin \(AppConfig.appVersion, privacy: .public) launched")
         return true
+    }
+
+    // MARK: - APNs
+
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        PushRegistration.shared.didRegister(deviceToken: deviceToken)
+    }
+
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        PushRegistration.shared.didFailToRegister(error)
+    }
+
+    /// A push carries no content, so the only thing to do with one is drain the
+    /// mailbox. iOS calls this only when the payload asks for it and the system
+    /// has budget; the banner is shown either way.
+    func application(_ application: UIApplication,
+                     didReceiveRemoteNotification userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
+        await PushRegistration.shared.handleRemoteNotification() ? .newData : .noData
     }
 
     // MARK: - UNUserNotificationCenterDelegate

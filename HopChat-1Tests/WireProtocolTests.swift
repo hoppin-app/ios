@@ -496,6 +496,27 @@ struct DevOverrideTests {
         #expect(resolve(stored: "   ", env: "  ").value == nil)
     }
 
+    @Test("clearing forgets both the override and the scheme's remembered copy")
+    func clearing() throws {
+        let suite = "hoppin.tests.devOverrides.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        // What the phone held after the scheme was removed: the retired key and
+        // plaintext, both remembered as scheme values.
+        defaults.set("vzIGAHf1kUgDAxN7UbwUooi9PNsmo5m76aK1cichrgU=", forKey: "hoppin.dev.serverKey")
+        defaults.set("vzIGAHf1kUgDAxN7UbwUooi9PNsmo5m76aK1cichrgU=", forKey: "hoppin.dev.serverKey.fromScheme")
+        defaults.set(true, forKey: "hoppin.dev.allowPlaintext")
+        defaults.set("1", forKey: "hoppin.dev.allowPlaintext.fromScheme")
+
+        AppConfig.clearDevOverrides(defaults)
+
+        for key in AppConfig.devOverrideKeys {
+            #expect(defaults.object(forKey: key) == nil)
+            #expect(defaults.object(forKey: key + ".fromScheme") == nil)
+        }
+    }
+
     @Test("whitespace around a value is ignored")
     func trimmed() {
         #expect(resolve(env: " 192.168.1.78 ").value == "192.168.1.78")

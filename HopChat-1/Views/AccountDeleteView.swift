@@ -190,7 +190,7 @@ struct DeleteAccountView: View {
     }
 
     private func offlineAwareText(for error: Error) -> String {
-        if let service = error as? ServiceError, service == .unavailable {
+        if let service = error as? ServiceError, service.isUnreachable {
             return String(localized: "hoppin couldn't reach the server, so nothing was deleted. Your messages are still here. Connect to the internet and try again.")
         }
         return VerificationErrorText.text(for: error)

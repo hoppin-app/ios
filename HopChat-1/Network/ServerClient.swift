@@ -16,6 +16,14 @@ import os
 enum ServerError: Error, Equatable, LocalizedError {
     case transport(String)
     case timeout
+    /// This device has no network path at all.
+    case offline
+    /// The relay's host answered, but nothing is listening: the server is down.
+    case refused
+    /// TLS failed: the certificate matched none of the pins.
+    case untrustedServer
+    /// This build has no usable host, port or signing key to talk to.
+    case notConfigured
     case badResponse
     case badServerSignature
     case server(code: String, message: String)
@@ -24,9 +32,25 @@ enum ServerError: Error, Equatable, LocalizedError {
         switch self {
         case .transport(let detail): return String(localized: "Network error: \(detail)")
         case .timeout: return String(localized: "The server did not respond.")
+        case .offline: return String(localized: "This device is offline.")
+        case .refused: return String(localized: "The server isn't accepting connections.")
+        case .untrustedServer: return String(localized: "The server's certificate didn't match.")
+        case .notConfigured: return String(localized: "No server is configured.")
         case .badResponse: return String(localized: "The server sent an unexpected response.")
         case .badServerSignature: return String(localized: "The server's response could not be verified.")
         case .server(let code, let message): return message.isEmpty ? code : message
+        }
+    }
+}
+
+extension ServerError {
+    init(_ failure: Transport.Failure) {
+        switch failure {
+        case .badRequest: self = .notConfigured
+        case .offline: self = .offline
+        case .refused: self = .refused
+        case .untrusted: self = .untrustedServer
+        case .unreachable, .noReply: self = .timeout
         }
     }
 }
@@ -170,6 +194,19 @@ final class ServerClient {
         _ = try await send(message, expecting: .ok)
     }
 
+    /// Registers this install's APNs token with the relay, or clears it when
+    /// `token` is empty. The relay stores it against the account so it can wake
+    /// the phone for a deposited envelope; it never learns what the envelope
+    /// says.
+    func setPushToken(_ token: String, sandbox: Bool) async throws {
+        var message = WireMessage(type: .pushToken,
+                                  senderPhone: try myPhone(),
+                                  key: token,
+                                  value: try json(["sandbox": sandbox]))
+        sign(&message)
+        _ = try await send(message, expecting: .ok)
+    }
+
     func deleteAccount() async throws {
         var message = WireMessage(type: .deleteAccount, senderPhone: try myPhone())
         sign(&message)
@@ -238,17 +275,22 @@ final class ServerClient {
                       expecting expected: WireType,
                       timeout: TimeInterval = Transport.defaultTimeout) async throws -> WireMessage {
 
-        guard AppConfig.isServerKeyConfigured || serverKeyBase64 != AppConfig.serverKeyPlaceholder else {
-            throw ServerError.badServerSignature
+        // A missing key used to surface as "bad signature", and a port of 0 as
+        // a timeout: both read as network trouble when the build was simply
+        // not set up.
+        guard AppConfig.isServerKeyConfigured || serverKeyBase64 != AppConfig.serverKeyPlaceholder,
+              !host.isEmpty, port != 0 else {
+            throw ServerError.notConfigured
         }
 
-        let reply = await Transport.request(message,
-                                            to: host,
-                                            port: port,
-                                            tls: useTLS,
-                                            pins: pins,
-                                            timeout: timeout)
-        guard let reply else { throw ServerError.timeout }
+        let reply: WireMessage
+        switch await Transport.requestResult(message, to: host, port: port, tls: useTLS,
+                                             pins: pins, timeout: timeout) {
+        case .success(let message):
+            reply = message
+        case .failure(let failure):
+            throw ServerError(failure)
+        }
 
         // Identity of the responder, before anything it says is acted on.
         guard reply.txID == message.txID, reply.senderPhone == "server" else {

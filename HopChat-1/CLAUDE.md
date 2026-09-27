@@ -41,7 +41,7 @@ in `docs/fixtures/crypto_vectors.json`.
 | `Network/Mesh/` | BLE mesh: `MeshPacket`/`CompactEnvelope` (wire), `MeshRouter` (flood, TTL, carry-forward), `BLEFrames` (chunking), `BLETransport` (CoreBluetooth), `MeshNode` (wiring, `MeshDelivering`) |
 | `Network/HoppinService.swift` | `KademliaService` — the only network API the views use |
 | `Storage/` | File-backed store (`ConversationStore`), serial `StoreWriter`, media, legacy migration |
-| `Services/` | Notifications, app lock (Face ID), background relay fetch |
+| `Services/` | Notifications, APNs token registration, app lock (Face ID), background relay fetch |
 | `Views/` | SwiftUI; `Shared/` holds `AvatarView`, `PresenceDot`, `KeyChangeBanner` |
 | `../bootstrap.py`, `../server/` | Relay + verification server, its tests, TLS script, deploy notes |
 
@@ -143,11 +143,19 @@ still there for pointing a development build at a local `bootstrap.py`.
 
 ## Open items
 
-- There is **no push**. Notifications are local, fired after a
-  `BGAppRefreshTask` drains the relay, so a message can land long after it was
-  sent and never while the app is force-quit. APNs is the largest remaining
-  piece of work, and it means the relay learns a device token.
+- **Push is half wired.** Both ends of the token exist — `PushRegistration`
+  (device) and `apns.py` + the `pushToken` op (relay) — but the Xcode project
+  has no Push Notifications capability yet, so no token is ever minted and
+  notifications are still only local ones fired after a `BGAppRefreshTask`. Once
+  the capability and `remote-notification` background mode are added, the banner
+  will say "New message" and nothing more: showing the real sender and text
+  needs a Notification Service Extension, and that needs the store and Keychain
+  to move to an App Group. See `TODO.md` §3.
 - Website legal pages contain `[placeholder]` fields (legal name, contact email,
   governing law) that must be filled before submission.
-- Export compliance (`ITSAppUsesNonExemptEncryption = false`) is a legal
-  declaration the owner must confirm.
+- Export compliance: `ITSAppUsesNonExemptEncryption = false` is correct
+  **because** every cipher comes from CryptoKit / Network.framework and no
+  third-party crypto is linked. See `docs/EXPORT_COMPLIANCE.md`. Adding a crypto
+  package (CryptoSwift, libsodium, OpenSSL, libp2p…) changes that answer.
+- App Store text, privacy labels, age rating and review notes live in
+  `docs/APP_STORE.md`, with three submission blockers listed at its end.
