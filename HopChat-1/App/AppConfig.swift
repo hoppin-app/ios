@@ -212,11 +212,11 @@ nonisolated enum AppConfig {
 
     // MARK: - Links
 
-    static let websiteURL = URL(string: "https://hoppin.app")!
-    static let privacyURL = URL(string: "https://hoppin.app/privacy")!
-    static let termsURL   = URL(string: "https://hoppin.app/terms")!
-    static let supportURL = URL(string: "https://hoppin.app/support")!
-    static let inviteURL  = URL(string: "https://hoppin.app/join")!
+    static let websiteURL = URL(string: "https://hoppin.chat")!
+    static let privacyURL = URL(string: "https://hoppin.chat/privacy")!
+    static let termsURL   = URL(string: "https://hoppin.chat/terms")!
+    static let supportURL = URL(string: "https://hoppin.chat/support")!
+    static let inviteURL  = URL(string: "https://hoppin.chat/join")!
 
     // MARK: - App
 
