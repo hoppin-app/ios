@@ -22,6 +22,7 @@
 import Testing
 import Foundation
 import CryptoKit
+import Network
 @testable import HopChat_1
 
 // MARK: - A pair of running LAN peers
@@ -77,6 +78,105 @@ private struct LANPair {
 
     var bobThread: [StoredMessage] {
         bob.store.thread(ConversationStore.conversationID(peer: alice.phone))
+    }
+}
+
+// MARK: - A peer that has stopped answering
+
+/// Takes over a stopped peer's LAN port and plays a phone whose app has gone
+/// quiet: every connection is accepted and none is ever answered, so a sender
+/// waits out its whole LAN timeout. It records what reaches it, which lets a
+/// test see whether a send tried the LAN at all without timing anything.
+private final class SilentPeer: @unchecked Sendable {
+
+    private let queue = DispatchQueue(label: "hoppin.tests.silent-peer")
+    private let lock = NSLock()
+    private var listener: NWListener?
+    private var connections: [NWConnection] = []
+    private var received: [WireMessage] = []
+
+    /// Listens on `port` once the previous owner has let go of it, and returns
+    /// only after a probe was seen to arrive here. `nil` if neither happened.
+    static func takeOver(port: UInt16) async -> SilentPeer? {
+        let peer = SilentPeer()
+        guard await waitUntil(timeout: 5, interval: 0.1, { await peer.listen(on: port) }) else {
+            return nil
+        }
+        let probe = WireMessage(type: .ping, senderPhone: "probe")
+        let reachable = await waitUntil(timeout: 5, interval: 0.1) {
+            _ = await Transport.request(probe, to: "127.0.0.1", port: port, tls: false,
+                                        timeout: 0.5, connectTimeout: 0.5)
+            return peer.hasReceived(txID: probe.txID)
+        }
+        guard reachable else {
+            peer.stop()
+            return nil
+        }
+        return peer
+    }
+
+    /// Direct deliveries addressed to `phone` that reached this port.
+    func directDeliveries(to phone: String) -> Int {
+        lock.withLock {
+            received.filter { $0.wireType == .directEnvelope && $0.recipientPhone == phone }.count
+        }
+    }
+
+    func stop() {
+        lock.lock()
+        let listener = self.listener
+        let connections = self.connections
+        self.listener = nil
+        self.connections = []
+        lock.unlock()
+        listener?.cancel()
+        connections.forEach { $0.cancel() }
+    }
+
+    private func hasReceived(txID: String) -> Bool {
+        lock.withLock { received.contains { $0.txID == txID } }
+    }
+
+    private func listen(on port: UInt16) async -> Bool {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return false }
+        let parameters = NWParameters.tcp
+        parameters.allowLocalEndpointReuse = true
+        parameters.includePeerToPeer = true
+        guard let listener = try? NWListener(using: parameters, on: nwPort) else { return false }
+        listener.newConnectionHandler = { [weak self] connection in self?.accept(connection) }
+
+        let ready = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            listener.stateUpdateHandler = { state in
+                let result: Bool
+                switch state {
+                case .ready: result = true
+                case .failed, .waiting, .cancelled: result = false
+                default: return
+                }
+                // Serial queue: clearing the handler makes this the only resume.
+                listener.stateUpdateHandler = nil
+                cont.resume(returning: result)
+            }
+            listener.start(queue: queue)
+        }
+        guard ready else {
+            listener.cancel()
+            return false
+        }
+        lock.withLock { self.listener = listener }
+        return true
+    }
+
+    private func accept(_ connection: NWConnection) {
+        lock.withLock { connections.append(connection) }
+        connection.start(queue: queue)
+        // Read the request, record it, and never reply: the connection stays
+        // open until the sender gives up.
+        Transport.readFrame(from: connection) { [weak self] result in
+            guard let self, case .success(let data) = result,
+                  let message = WireMessage.decode(data) else { return }
+            self.lock.withLock { self.received.append(message) }
+        }
     }
 }
 
@@ -272,21 +372,25 @@ struct LANDeliveryTests {
         }
 
         // Bob's app goes quiet (suspended / walked away) while alice still
-        // lists him as nearby, so her direct attempt has to time out.
+        // lists him as nearby: his port still takes connections but nothing
+        // answers, so her direct attempt has to time out.
+        let bobPort = pair.bob.service.lanPort
         pair.bob.stop()
+        let takenOver = await SilentPeer.takeOver(port: bobPort)
+        let silentBob = try #require(takenOver, "couldn't stand in for bob on port \(bobPort)")
+        defer { silentBob.stop() }
         let conversation = ConversationStore.conversationID(peer: pair.bob.phone)
 
-        let clock = ContinuousClock()
-        let first = await clock.measure {
-            await pair.alice.service.sendText("one", to: conversation)
-        }
-        let second = await clock.measure {
-            await pair.alice.service.sendText("two", to: conversation)
-        }
-        // Both sends also fail against the unreachable relay; only the first
-        // pays the LAN timeout (3 s) on top of that.
-        #expect(first - second > .seconds(2),
-                "first send \(first), second \(second) — the silent peer wasn't skipped")
+        // Counted at bob's port, not timed: both sends also fail against the
+        // unreachable relay, and how long that takes varies too much to
+        // measure the 3 s LAN timeout against.
+        await pair.alice.service.sendText("one", to: conversation)
+        let attempts = silentBob.directDeliveries(to: pair.bob.phone)
+        #expect(attempts >= 1, "alice never tried bob directly, so there was no timeout to learn from")
+
+        await pair.alice.service.sendText("two", to: conversation)
+        #expect(silentBob.directDeliveries(to: pair.bob.phone) == attempts,
+                "the second send dialled the silent peer again instead of skipping it")
     }
 
     @Test("a blocked sender's sends fail fast — the refusal isn't a timeout")
