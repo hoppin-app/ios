@@ -8,6 +8,8 @@
 //
 
 import SwiftUI
+import UIKit
+import Combine
 import PencilKit
 
 struct DrawingCanvasSheet: View {
@@ -178,7 +180,11 @@ final class DrawingCanvasModel: ObservableObject {
 
     /// A pen broad enough to survive being shrunk for the background.
     func applyTool() {
-        view.tool = isErasing ? PKEraserTool(.bitmap) : PKInkingTool(.pen, color: ink.color, width: 9)
+        if isErasing {
+            view.tool = PKEraserTool(.bitmap)
+        } else {
+            view.tool = PKInkingTool(.pen, color: ink.color, width: 9)
+        }
     }
 }
 

@@ -9,6 +9,7 @@
 //  readable. The send button follows the same colour.
 //
 
+import Foundation
 import SwiftUI
 
 nonisolated enum BubbleColor {
