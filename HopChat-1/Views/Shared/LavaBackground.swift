@@ -131,20 +131,22 @@ struct LavaBackground: View {
 // MARK: - The page behind every screen
 
 /// The website's plain page colour, or the lava for anyone who picked a
-/// colour theme.
+/// colour theme, with the user's own drawings floating over either.
 struct AppBackground: View {
 
     @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.plain.rawValue
 
     var body: some View {
-        if BackgroundTheme.current(from: themeRaw) == .plain {
-            Palette.canvas
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        } else {
-            LavaBackground()
+        ZStack {
+            if BackgroundTheme.current(from: themeRaw) == .plain {
+                Palette.canvas.ignoresSafeArea()
+            } else {
+                LavaBackground()
+            }
+            FloatingDrawings()
         }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

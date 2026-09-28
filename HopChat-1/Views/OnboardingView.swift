@@ -158,7 +158,7 @@ private struct OnboardingSlideView: View {
                         .frame(width: 148, height: 148)
                     Image(systemName: slide.icon)
                         .font(.system(size: 54, weight: .medium))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Palette.accent)
                         .accessibilityHidden(true)
                 }
                 .scaleEffect(reduceMotion ? 1 : (appeared ? 1 : 0.7))

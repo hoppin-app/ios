@@ -30,10 +30,10 @@ struct AvatarView: View {
 
     var body: some View {
         ZStack {
-            // As the website draws a person: initials in the accent on a wash
-            // of it.
+            // Quiet, like the rest of the page: grey initials on a light wash
+            // of the ink.
             Circle()
-                .fill(Palette.accentSoft)
+                .fill(Palette.ink.opacity(0.08))
 
             if let imageURL {
                 CachedFileImage(url: imageURL, maxPixel: size * 3)
@@ -43,7 +43,7 @@ struct AvatarView: View {
                     .font(.headline)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Palette.muted)
                     .padding(size * 0.18)
             }
         }

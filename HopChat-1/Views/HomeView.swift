@@ -299,10 +299,10 @@ struct ChatListView: View {
                 if archivedUnread > 0 {
                     Text("\(archivedUnread)")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(Palette.onAccent)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor, in: Capsule())
+                        .background(Palette.violet, in: Capsule())
                 }
                 Text("\(archivedCount)")
                     .foregroundStyle(.secondary)
@@ -625,10 +625,10 @@ struct ChatListRow: View {
                 if hasUnread {
                     Text(conversation.unread > 99 ? "99+" : "\(conversation.unread)")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(Palette.onAccent)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .frame(minWidth: 22, minHeight: 22)
-                        .background(Color.accentColor, in: Capsule())
+                        .background(Palette.violet, in: Capsule())
                 }
             }
         }

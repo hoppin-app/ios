@@ -130,8 +130,10 @@ struct ContactDetailSheet: View {
                         confirmDelete = true
                     } label: {
                         Label("Delete Contact", systemImage: "trash")
+                            .foregroundStyle(.red)
                             .frame(minHeight: 44)
                     }
+                    .tint(.red)
                 }
             }
             .appBackground()

@@ -51,6 +51,8 @@ struct ChatComposer: View {
 
     @AppStorage(AppConfig.Keys.typingSuggestions) private var typingSuggestionsEnabled = true
     @AppStorage(AppConfig.Keys.appLanguage) private var appLanguageRaw = ""
+    /// The send button wears the colour of the bubble it is about to make.
+    @AppStorage(AppConfig.Keys.bubbleColor) private var bubbleHex = ""
 
     @State private var suggestion: TypingSuggestion?
     /// The word the writer dismissed; the bar stays away until they move on.
@@ -125,9 +127,10 @@ struct ChatComposer: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.body.weight(.bold))
-                        .foregroundStyle(canSend ? Palette.onAccent : Color.white)
+                        .foregroundStyle(canSend ? BubbleColor.textColor(from: bubbleHex) : Color.white)
                         .frame(width: 34, height: 34)
-                        .background(canSend ? Color.accentColor : Color(.systemGray4), in: Circle())
+                        .background(canSend ? BubbleColor.color(from: bubbleHex) : Color(.systemGray4),
+                                    in: Circle())
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }

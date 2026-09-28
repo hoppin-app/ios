@@ -46,10 +46,12 @@ struct SettingsView: View {
     @AppStorage(AppConfig.Keys.displayName)   private var displayName   = ""
     @AppStorage(AppConfig.Keys.animatedBackground) private var animatedBackground = true
     @AppStorage(AppConfig.Keys.backgroundTheme) private var backgroundTheme = BackgroundTheme.plain.rawValue
+    @StateObject private var drawings = BackgroundDrawings.shared
 
-    /// Only the lava moves; the plain page has nothing to animate.
-    private var hasLavaBackground: Bool {
-        BackgroundTheme.current(from: backgroundTheme) != .plain
+    /// The lava and the floating drawings move; a plain page on its own has
+    /// nothing to animate.
+    private var hasMovingBackground: Bool {
+        BackgroundTheme.current(from: backgroundTheme) != .plain || !drawings.items.isEmpty
     }
 
     var body: some View {
@@ -139,14 +141,19 @@ struct SettingsView: View {
             NavigationLink {
                 BackgroundThemeView()
             } label: {
-                Label("Background colours", systemImage: "paintpalette")
+                Label("Background", systemImage: "paintpalette")
+            }
+            NavigationLink {
+                BubbleColorView()
+            } label: {
+                Label("Bubble colour", systemImage: "bubble.right")
             }
             NavigationLink {
                 SettingsLanguageView()
             } label: {
                 Label("Language", systemImage: "character.bubble")
             }
-            if hasLavaBackground {
+            if hasMovingBackground {
                 Toggle(isOn: $animatedBackground) {
                     Text("Animated background")
                 }
@@ -154,7 +161,7 @@ struct SettingsView: View {
         } header: {
             Text("Appearance")
         } footer: {
-            if hasLavaBackground {
+            if hasMovingBackground {
                 Text("The background also stays still with Reduce Motion or Low Power Mode on.")
             }
         }
@@ -194,6 +201,7 @@ struct SettingsView: View {
                 Label("Delete account", systemImage: "trash")
                     .foregroundStyle(.red)
             }
+            .tint(.red)
             .accessibilityHint(Text("Permanently deletes your account, messages and keys"))
         } header: {
             Text("Account")

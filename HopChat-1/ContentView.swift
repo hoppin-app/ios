@@ -67,10 +67,10 @@ struct FloatingTabBar: View {
                     if index == 0, unreadCount > 0 {
                         Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(Palette.onAccent)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 4)
                             .frame(minWidth: 16, minHeight: 16)
-                            .background(Color.accentColor, in: Capsule())
+                            .background(Palette.violet, in: Capsule())
                             .offset(x: 11, y: -5)
                             .accessibilityHidden(true)
                     }

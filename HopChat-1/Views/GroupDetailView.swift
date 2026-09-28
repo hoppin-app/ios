@@ -120,8 +120,10 @@ struct GroupDetailView: View {
                         showLeaveConfirmation = true
                     } label: {
                         Label("Leave group", systemImage: "rectangle.portrait.and.arrow.right")
+                            .foregroundStyle(.red)
                             .frame(minHeight: 44)
                     }
+                    .tint(.red)
                 }
             }
         }

@@ -102,6 +102,7 @@ struct SettingsServerDataView: View {
                 Label("Delete account", systemImage: "trash")
                     .foregroundStyle(.red)
             }
+            .tint(.red)
         } footer: {
             Text("Deleting removes your certificate and any undelivered envelopes from the relay. Messages already delivered to other people stay on their phones.")
         }

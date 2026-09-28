@@ -1729,6 +1729,7 @@ final class KademliaService: ObservableObject {
         try? crypto.wipeAll()
         trust.wipe()
         store.wipeAll()
+        BackgroundDrawings.shared.removeAll()
         let defaults = UserDefaults.standard
         for key in AppConfig.allUserDefaultsKeys { defaults.removeObject(forKey: key) }
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("hoppin.") {

@@ -8,6 +8,9 @@
 //  (`hoppin.appearance.backgroundTheme` / `…customColors`); custom colours
 //  are stored as "#RRGGBB" strings joined by commas.
 //
+//  Over either, your own drawings can float (`BackgroundDrawings`): drawn
+//  here, kept as files on this phone, deleted here.
+//
 
 import SwiftUI
 import UIKit
@@ -97,10 +100,14 @@ struct BackgroundThemeView: View {
 
     @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.plain.rawValue
     @AppStorage(AppConfig.Keys.backgroundCustomColors) private var customHex = ""
+    @StateObject private var drawings = BackgroundDrawings.shared
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isDrawing = false
 
     private var theme: BackgroundTheme { .current(from: themeRaw) }
 
     private let columns = [GridItem(.adaptive(minimum: 96), spacing: 14)]
+    private let drawingColumns = [GridItem(.adaptive(minimum: 76), spacing: 12)]
 
     var body: some View {
         Form {
@@ -136,12 +143,43 @@ struct BackgroundThemeView: View {
                         Text("Pick five colours. They blend into each other behind the blur.")
                     }
                 }
+
+                drawingsSection
             }
             .backdropListRows()
         }
         .appBackground()
         .navigationTitle(Text("Background"))
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isDrawing) {
+            DrawingCanvasSheet()
+        }
+    }
+
+    private var drawingsSection: some View {
+        Section {
+            if !drawings.items.isEmpty {
+                LazyVGrid(columns: drawingColumns, spacing: 12) {
+                    ForEach(drawings.items) { item in
+                        DrawingThumbnail(image: drawings.image(for: item, dark: colorScheme == .dark)) {
+                            withAnimation(.snappy) { drawings.remove(id: item.id) }
+                        }
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+
+            Button {
+                isDrawing = true
+            } label: {
+                Label("Draw something", systemImage: "scribble")
+            }
+            .disabled(!drawings.canAdd)
+        } header: {
+            Text("Drawings")
+        } footer: {
+            Text("What you draw floats behind your chats, small. Drawings stay on this phone. Up to \(BackgroundDrawings.limit).")
+        }
     }
 
     private func customBinding(_ index: Int) -> Binding<Color> {
@@ -153,6 +191,38 @@ struct BackgroundThemeView: View {
                 customHex = hex.joined(separator: ",")
             }
         )
+    }
+}
+
+/// A drawing in the list, with a button to delete it.
+private struct DrawingThumbnail: View {
+    let image: UIImage
+    let onDelete: () -> Void
+
+    var body: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            .padding(10)
+            .frame(width: 76, height: 76)
+            .background(Palette.surfaceSunken, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Palette.onInk, Palette.ink)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .offset(x: 14, y: -14)
+                .accessibilityLabel(Text("Delete drawing"))
+            }
+            .contextMenu {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
     }
 }
 
@@ -179,7 +249,7 @@ private struct ThemeSwatch: View {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(Palette.onAccent, Color.accentColor)
+                            .foregroundStyle(Palette.onInk, Color.accentColor)
                             .shadow(radius: 3)
                     }
                 }

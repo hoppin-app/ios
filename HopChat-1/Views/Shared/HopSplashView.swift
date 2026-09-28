@@ -38,19 +38,19 @@ struct HopSplashView: View {
                 Image("HopMarkStroke")
                     .resizable()
                     .renderingMode(.template)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Palette.accent)
                     .mask {
                         HopPenPath()
                             .trim(from: 0, to: drawn)
                             .stroke(style: StrokeStyle(lineWidth: (HopMarkGeometry.maxStrokeWidth + 24) * unit,
                                                        lineCap: .round, lineJoin: .round))
                     }
-                    .shadow(color: Color.accentColor.opacity(0.3), radius: 10)
+                    .shadow(color: Palette.accent.opacity(0.3), radius: 10)
 
                 // Glowing pen tip riding the front of the stroke.
                 HopPenTip(progress: drawn, radius: 5)
-                    .fill(Color.accentColor)
-                    .shadow(color: Color.accentColor.opacity(0.6), radius: 8)
+                    .fill(Palette.accent)
+                    .shadow(color: Palette.accent.opacity(0.6), radius: 8)
                     .opacity(showTip ? 1 : 0)
 
                 endPulse
@@ -70,7 +70,7 @@ struct HopSplashView: View {
         let size: CGFloat = 26
         let end = HopMarkGeometry.trailEnd
         return Circle()
-            .fill(RadialGradient(colors: [Color.accentColor, Color.accentColor.opacity(0)],
+            .fill(RadialGradient(colors: [Palette.accent, Palette.accent.opacity(0)],
                                  center: .center, startRadius: 0, endRadius: size / 2))
             .frame(width: size, height: size)
             .scaleEffect(burst ? 2.6 : 0.4)

@@ -254,6 +254,9 @@ nonisolated enum AppConfig {
         static let peopleSort         = "hoppin.people.sort"
         static let backgroundTheme    = "hoppin.appearance.backgroundTheme"
         static let backgroundCustomColors = "hoppin.appearance.customColors"
+        /// Your own chat bubbles' colour as "#RRGGBB"; "" (or absent) is the
+        /// icon's violet. See `BubbleColor`.
+        static let bubbleColor        = "hoppin.appearance.bubbleColor"
         static let appLockEnabled     = "hoppin.appLock.enabled"
         static let appLockTimeout     = "hoppin.appLock.timeout"
         /// DEBUG-only: dev server port, for tunnels and non-standard ports.
@@ -299,7 +302,7 @@ nonisolated enum AppConfig {
          Keys.sendReadReceipts, Keys.sendTypingIndicators,
          Keys.notificationsEnabled, Keys.notificationsPreview, Keys.notificationsSound,
          Keys.appLockEnabled, Keys.appLockTimeout, Keys.animatedBackground, Keys.peopleSort,
-         Keys.backgroundTheme, Keys.backgroundCustomColors,
+         Keys.backgroundTheme, Keys.backgroundCustomColors, Keys.bubbleColor,
          Keys.appLanguage, Keys.typingSuggestions, Keys.meshEnabled, Keys.directInternet,
          Keys.hasSeenOnboarding, Keys.hasAcceptedTerms, Keys.legacyPhone]
     }

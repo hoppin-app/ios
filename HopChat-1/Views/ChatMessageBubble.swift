@@ -111,10 +111,9 @@ private struct DoubleCheck: View {
     }
 }
 
-/// Marks a message that avoided the server, in the accent: radio waves for
-/// phone-to-phone over the local network, a dotted path for a message that
-/// hopped over Bluetooth. A relayed message shows nothing — that is the
-/// ordinary case.
+/// Marks a message that avoided the server: radio waves for phone-to-phone
+/// over the local network, a dotted path for a message that hopped over
+/// Bluetooth. A relayed message shows nothing — that is the ordinary case.
 struct RouteIcon: View {
     let route: MessageRoute?
 
@@ -159,10 +158,12 @@ struct ReplyPreview: Equatable {
 /// The quote block used inside a bubble and above the composer.
 struct ReplyQuote: View {
     let preview: ReplyPreview
-    var onAccentBubble = false
+    /// The text colour of the bubble the quote sits on: your own bubbles are
+    /// coloured, so the quote takes their text colour. Nil elsewhere.
+    var onBubble: Color? = nil
 
     private var accent: Color {
-        onAccentBubble ? Palette.onAccent : Color.accentColor
+        onBubble ?? Color.primary
     }
 
     var body: some View {
@@ -186,7 +187,7 @@ struct ReplyQuote: View {
                 .labelStyle(ReplySnippetLabelStyle(showsIcon: preview.isImage))
                 .font(.caption)
                 .italic(preview.isMissing)
-                .foregroundStyle(onAccentBubble ? Palette.onAccent.opacity(0.85) : .secondary)
+                .foregroundStyle(onBubble.map { $0.opacity(0.85) } ?? Color.secondary)
             }
             Spacer(minLength: 0)
         }
@@ -230,8 +231,11 @@ struct ChatMessageBubble: View {
     var onTapReply: (String) -> Void = { _ in }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Your bubbles' colour, from Settings › Bubble colour.
+    @AppStorage(AppConfig.Keys.bubbleColor) private var bubbleHex = ""
 
     private var isMine: Bool { message.isFromMe }
+    private var bubbleText: Color { BubbleColor.textColor(from: bubbleHex) }
 
     /// A photo of ours that cannot move until there is a network path.
     private var isWaitingForNetwork: Bool {
@@ -255,7 +259,7 @@ struct ChatMessageBubble: View {
                         Button {
                             onTapReply(replyPreview.messageID)
                         } label: {
-                            ReplyQuote(preview: replyPreview, onAccentBubble: isMine)
+                            ReplyQuote(preview: replyPreview, onBubble: isMine ? bubbleText : nil)
                                 .padding(8)
                                 .background(quoteFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
@@ -304,7 +308,7 @@ struct ChatMessageBubble: View {
                 Image(systemName: "trash.slash")
             }
             .font(.body.italic())
-            .foregroundStyle(isMine ? Palette.onAccent.opacity(0.8) : .secondary)
+            .foregroundStyle(isMine ? bubbleText.opacity(0.8) : .secondary)
             .fixedSize(horizontal: false, vertical: true)
 
         } else if message.kind == .image {
@@ -314,7 +318,7 @@ struct ChatMessageBubble: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(displayedBody)
                     .font(.body)
-                    .foregroundStyle(isMine ? Palette.onAccent : Color.primary)
+                    .foregroundStyle(isMine ? bubbleText : Color.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)
 
@@ -325,7 +329,7 @@ struct ChatMessageBubble: View {
                         Image(systemName: "character.bubble")
                     }
                     .font(.caption2)
-                    .foregroundStyle(isMine ? Palette.onAccent.opacity(0.75) : .secondary)
+                    .foregroundStyle(isMine ? bubbleText.opacity(0.75) : .secondary)
                 }
             }
         }
@@ -351,7 +355,7 @@ struct ChatMessageBubble: View {
                 Image(systemName: "photo")
             }
             .font(.body)
-            .foregroundStyle(isMine ? Palette.onAccent.opacity(0.85) : .secondary)
+            .foregroundStyle(isMine ? bubbleText.opacity(0.85) : .secondary)
         }
     }
 
@@ -399,20 +403,21 @@ struct ChatMessageBubble: View {
     }
 
     private var quoteFill: Color {
-        isMine ? Palette.onAccent.opacity(0.18) : Palette.surfaceSunken
+        isMine ? bubbleText.opacity(0.18) : Palette.surfaceSunken
     }
 
     private var displayedBody: String {
         showsOriginal ? message.body : (message.translatedBody ?? message.body)
     }
 
-    /// Ours in the violet, as the website draws a sent message; theirs on
-    /// the surface.
+    /// Ours in the chosen colour (the icon's violet unless changed); theirs
+    /// on the surface.
     private var bubbleFill: Color {
+        let mine = BubbleColor.color(from: bubbleHex)
         if message.isDeleted {
-            return isMine ? Color.accentColor.opacity(0.55) : Palette.surface
+            return isMine ? mine.opacity(0.55) : Palette.surface
         }
-        return isMine ? Color.accentColor : Palette.surface
+        return isMine ? mine : Palette.surface
     }
 
     private var accessibilityText: String {
