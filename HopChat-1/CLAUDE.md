@@ -143,16 +143,13 @@ still there for pointing a development build at a local `bootstrap.py`.
 
 ## Open items
 
-- **Push is half wired.** Both ends of the token exist — `PushRegistration`
-  (device) and `apns.py` + the `pushToken` op (relay) — but the Xcode project
-  has no Push Notifications capability yet, so no token is ever minted and
-  notifications are still only local ones fired after a `BGAppRefreshTask`. Once
-  the capability and `remote-notification` background mode are added, the banner
-  will say "New message" and nothing more: showing the real sender and text
-  needs a Notification Service Extension, and that needs the store and Keychain
-  to move to an App Group. See `TODO.md` §3.
-- Website legal pages contain `[placeholder]` fields (legal name, contact email,
-  governing law) that must be filled before submission.
+- **Push is wired end to end** (28/09/2026, paid team `LD924JL9S4`): the app
+  has the Push Notifications capability and the `remote-notification`
+  background mode, `PushRegistration` sends its token with `setPushToken`, and
+  the deployed relay has the APNs key. Not yet seen on a real device. The banner says "New message" and
+  nothing more: showing the real sender and text needs a Notification Service
+  Extension, and that needs the store and Keychain to move to an App Group. See
+  `TODO.md` §3.
 - Export compliance: `ITSAppUsesNonExemptEncryption = false` is correct
   **because** every cipher comes from CryptoKit / Network.framework and no
   third-party crypto is linked. See `docs/EXPORT_COMPLIANCE.md`. Adding a crypto

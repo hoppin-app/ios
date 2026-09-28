@@ -7588,6 +7588,38 @@
         }
       }
     },
+    "This number has been suspended": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This number has been suspended"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este número foi suspenso"
+          }
+        }
+      }
+    },
+    "This number has been suspended from hoppin. Contact support if you think this is a mistake.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This number has been suspended from hoppin. Contact support if you think this is a mistake."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este número foi suspenso do hoppin. Contacte o suporte se acha que se trata de um erro."
+          }
+        }
+      }
+    },
     "This version of hoppin isn't set up to reach its server. Update the app.": {
       "localizations": {
         "en": {

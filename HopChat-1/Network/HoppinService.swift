@@ -64,6 +64,8 @@ nonisolated enum ServiceError: LocalizedError, Equatable {
     case untrustedServer
     /// This build can't reach a server at all (no host, port or key).
     case notConfigured
+    /// The operator suspended this number after a report. Retrying can't fix it.
+    case suspended
 
     /// Every case meaning "the relay couldn't be reached", for screens that
     /// only care whether anything happened on the server.
@@ -100,6 +102,8 @@ nonisolated enum ServiceError: LocalizedError, Equatable {
             return String(localized: "Couldn't confirm this is hoppin's server. The network may be interfering. Try another one, and update the app if it keeps happening.")
         case .notConfigured:
             return String(localized: "This version of hoppin isn't set up to reach its server. Update the app.")
+        case .suspended:
+            return String(localized: "This number has been suspended from hoppin. Contact support if you think this is a mistake.")
         }
     }
 }
@@ -704,6 +708,10 @@ final class KademliaService: ObservableObject {
                 return nil
             }
             if code == "blocked" { return nil }
+            if code == "suspended" {
+                connectionState = .error(String(localized: "This number has been suspended"))
+                return nil
+            }
             if code == "recipient_not_registered" {
                 // They deleted their account (or changed number). Forget the
                 // cached freshness so the next attempt re-checks the server
@@ -906,6 +914,12 @@ final class KademliaService: ObservableObject {
                         requireReverification(phone: phone)
                         return
                     }
+                case ServerError.server(let code, _) where code == "suspended":
+                    // The relay's signed answer is final until the operator
+                    // lifts the ban, so stop asking; a relaunch tries again.
+                    Log.net.error("Relay refused: this number is suspended")
+                    connectionState = .error(String(localized: "This number has been suspended"))
+                    return
                 case ServerError.server(let code, _):
                     Log.net.error("Relay fetch rejected: \(code, privacy: .public)")
                     connectionState = .offline
@@ -2397,6 +2411,7 @@ final class KademliaService: ObservableObject {
             case "not_registered", "recipient_not_registered": return .notOnhoppin
             case "invalid_phone": return .invalidPhone
             case "blocked": return .blocked
+            case "suspended": return .suspended
             case "cert_invalid": return .notRegistered
             default: return .server(message.isEmpty ? code : message)
             }

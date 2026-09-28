@@ -32,6 +32,8 @@ nonisolated enum VerificationErrorText {
                 return String(localized: "That number isn't verified yet. Request a new code and try again.")
             case .blocked:
                 return String(localized: "This number can't be verified right now.")
+            case .suspended:
+                return service.errorDescription ?? String(localized: "Something went wrong.")
             case .server(let message):
                 return serverText(message)
             case .keyChangeUnacknowledged, .tooManyMembers:
@@ -40,6 +42,8 @@ nonisolated enum VerificationErrorText {
         }
         if let server = error as? ServerError {
             switch server {
+            case .server("suspended", _):
+                return ServiceError.suspended.errorDescription ?? ""
             case .server(let code, let message):
                 return serverText(message.isEmpty ? code : message)
             case .timeout, .transport:
