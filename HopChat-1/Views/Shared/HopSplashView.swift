@@ -2,10 +2,10 @@
 //  HopSplashView.swift
 //  HopChat-1
 //
-//  The animated continuation of the (plain navy) launch screen: the lava
-//  fades in while the mark is drawn like a pen stroke — from the top, round
-//  the bubble, into the tail and up the trail — finishing with a soft pulse
-//  of light where the trail ends.
+//  The animated continuation of the launch screen, on the website's plain
+//  page colour: the mark is drawn in the violet accent like a pen stroke —
+//  from the top, round the bubble, into the tail and up the trail —
+//  finishing with a soft pulse where the trail ends.
 //
 //  The drawing reveals the real, variable-width mark through a mask: a wide
 //  round-capped stroke along the mark's centreline, trimmed to the progress.
@@ -20,7 +20,6 @@ struct HopSplashView: View {
     var onFinished: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var showLava = false
     @State private var drawn: CGFloat = 0
     @State private var showTip = false
     @State private var pulseVisible = false
@@ -35,28 +34,23 @@ struct HopSplashView: View {
         ZStack {
             Color("LaunchBackground")
 
-            LavaBackground()
-                .environment(\.colorScheme, .dark)
-                .opacity(showLava ? 1 : 0)
-
             ZStack(alignment: .topLeading) {
                 Image("HopMarkStroke")
                     .resizable()
                     .renderingMode(.template)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.accentColor)
                     .mask {
                         HopPenPath()
                             .trim(from: 0, to: drawn)
                             .stroke(style: StrokeStyle(lineWidth: (HopMarkGeometry.maxStrokeWidth + 24) * unit,
                                                        lineCap: .round, lineJoin: .round))
                     }
-                    .shadow(color: Color(red: 0.45, green: 0.5, blue: 1).opacity(0.8), radius: 10)
+                    .shadow(color: Color.accentColor.opacity(0.3), radius: 10)
 
                 // Glowing pen tip riding the front of the stroke.
                 HopPenTip(progress: drawn, radius: 5)
-                    .fill(.white)
-                    .shadow(color: Color(red: 0.6, green: 0.7, blue: 1), radius: 8)
-                    .shadow(color: Color(red: 0.45, green: 0.5, blue: 1), radius: 16)
+                    .fill(Color.accentColor)
+                    .shadow(color: Color.accentColor.opacity(0.6), radius: 8)
                     .opacity(showTip ? 1 : 0)
 
                 endPulse
@@ -71,12 +65,12 @@ struct HopSplashView: View {
 
     // MARK: End pulse
 
-    /// A soft ring of light that swells and fades where the pen lifts off.
+    /// A soft ring of violet that swells and fades where the pen lifts off.
     private var endPulse: some View {
         let size: CGFloat = 26
         let end = HopMarkGeometry.trailEnd
         return Circle()
-            .fill(RadialGradient(colors: [.white, Color(red: 0.6, green: 0.7, blue: 1).opacity(0)],
+            .fill(RadialGradient(colors: [Color.accentColor, Color.accentColor.opacity(0)],
                                  center: .center, startRadius: 0, endRadius: size / 2))
             .frame(width: size, height: size)
             .scaleEffect(burst ? 2.6 : 0.4)
@@ -88,12 +82,10 @@ struct HopSplashView: View {
 
     private func run() async {
         if reduceMotion {
-            showLava = true
             drawn = 1
             onFinished()
             return
         }
-        withAnimation(.easeOut(duration: 0.7)) { showLava = true }
         try? await Task.sleep(for: .milliseconds(120))
 
         showTip = true

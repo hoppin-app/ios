@@ -120,6 +120,7 @@ struct ContactNumberChooser: View {
                     Text("Pick the number this person uses on hoppin.")
                 }
             }
+            .appBackground()
             .navigationTitle("Choose Number")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

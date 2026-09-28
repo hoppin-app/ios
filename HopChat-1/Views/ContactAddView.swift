@@ -106,6 +106,7 @@ struct ContactAddView: View {
                     .disabled(normalized == nil || isAdding)
                 }
             }
+            .appBackground()
             .navigationTitle("Add Contact")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

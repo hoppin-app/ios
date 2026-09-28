@@ -53,9 +53,9 @@ struct SettingsNotificationsView: View {
                     Text("With previews off, notifications say only that a new message arrived.")
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Notifications"))
         .navigationBarTitleDisplayMode(.inline)
         .task { await refreshStatus() }

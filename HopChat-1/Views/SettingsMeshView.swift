@@ -84,9 +84,9 @@ struct SettingsMeshView: View {
                     .foregroundStyle(.secondary)
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Bluetooth mesh"))
         .navigationBarTitleDisplayMode(.inline)
     }

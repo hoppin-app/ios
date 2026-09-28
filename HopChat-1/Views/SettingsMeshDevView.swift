@@ -88,9 +88,9 @@ struct SettingsMeshDevView: View {
                          + "Corrupt must stay 0; received should reach the number sent.")
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text(verbatim: "Mesh (dev)"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { tester.attach(to: mesh) }

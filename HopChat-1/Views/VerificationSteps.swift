@@ -146,7 +146,7 @@ struct PhoneNumberStep: View {
                         .accessibilityHidden(true)
 
                     Text(title)
-                        .font(.system(.title, design: .rounded).weight(.bold))
+                        .hopTitle()
 
                     Text(explanation)
                         .font(.body)
@@ -178,7 +178,11 @@ struct PhoneNumberStep: View {
                         .frame(minHeight: 44)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
+                                .fill(Palette.surface)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Palette.hairlineStrong, lineWidth: 1)
                         )
                         .accessibilityLabel(Text("Phone number, including country code"))
                         .accessibilityIdentifier("verification.phoneField")
@@ -199,7 +203,7 @@ struct PhoneNumberStep: View {
                             Image(systemName: "exclamationmark.circle.fill")
                         }
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Palette.warn)
                     }
                 }
 
@@ -220,7 +224,7 @@ struct PhoneNumberStep: View {
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.ink)
                 .disabled(!canSubmit)
                 .accessibilityIdentifier("verification.submit")
 
@@ -298,7 +302,7 @@ struct VerificationCodeStep: View {
                         .accessibilityHidden(true)
 
                     Text("Enter Your Code")
-                        .font(.system(.title, design: .rounded).weight(.bold))
+                        .hopTitle()
 
                     Text("We sent a 6-digit code by SMS to \(phone). It expires in 10 minutes.")
                         .font(.body)
@@ -317,7 +321,11 @@ struct VerificationCodeStep: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color(.secondarySystemBackground))
+                            .fill(Palette.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Palette.hairlineStrong, lineWidth: 1)
                     )
                     .accessibilityLabel(Text("Six digit verification code"))
                     .onChange(of: code) { _, new in
@@ -343,7 +351,7 @@ struct VerificationCodeStep: View {
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.ink)
                 .disabled(code.count != 6 || isWorking)
 
                 HStack {

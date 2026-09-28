@@ -131,6 +131,7 @@ struct ReportView: View {
                     .disabled(isSubmitting || (reason == .other && details.trimmingCharacters(in: .whitespaces).isEmpty))
                 }
             }
+            .appBackground()
             .navigationTitle("Report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

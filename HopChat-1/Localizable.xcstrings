@@ -5065,6 +5065,17 @@
         }
       }
     },
+    "Plain": {
+      "comment": "A background theme: the website's plain page colour, with no animated backdrop.",
+      "localizations": {
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simples"
+          }
+        }
+      }
+    },
     "Play sound": {
       "extractionState": "manual",
       "localizations": {

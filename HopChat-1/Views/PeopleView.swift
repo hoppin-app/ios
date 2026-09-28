@@ -39,8 +39,8 @@ nonisolated enum ContactTrustState: Equatable {
 
     var tint: Color {
         switch self {
-        case .keyChanged: return .orange
-        case .verified:   return .green
+        case .keyChanged: return Palette.warn
+        case .verified:   return Color.accentColor
         case .unverified: return .secondary
         }
     }
@@ -154,10 +154,10 @@ struct PeopleView: View {
                         }
                     }
                 }
-                .glassListRows()
+                .backdropListRows()
             }
             .listStyle(.insetGrouped)
-            .lavaBackground()
+            .appBackground()
             .navigationTitle("People")
             .searchable(text: $searchText, prompt: Text("Search contacts"))
             .toolbar {

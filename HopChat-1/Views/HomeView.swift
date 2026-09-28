@@ -97,7 +97,7 @@ struct ChatListView: View {
                     list
                 }
             }
-            .lavaBackground()
+            .appBackground()
             .navigationTitle(showingArchived ? Text("Archived") : Text("Chats"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -299,10 +299,10 @@ struct ChatListView: View {
                 if archivedUnread > 0 {
                     Text("\(archivedUnread)")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Palette.onAccent)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(.blue, in: Capsule())
+                        .background(Color.accentColor, in: Capsule())
                 }
                 Text("\(archivedCount)")
                     .foregroundStyle(.secondary)
@@ -356,7 +356,7 @@ struct ChatListView: View {
                             Label("Archive", systemImage: "archivebox")
                         }
                     }
-                    .tint(.indigo)
+                    .tint(.gray)
 
                     if conversation.unread > 0 {
                         Button {
@@ -364,7 +364,7 @@ struct ChatListView: View {
                         } label: {
                             Label("Read", systemImage: "envelope.open")
                         }
-                        .tint(.blue)
+                        .tint(Palette.violet)
                     }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -415,7 +415,7 @@ struct ChatListView: View {
                 HStack(spacing: 12) {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
-                        .foregroundStyle(isSelected ? Color.blue : Color.secondary)
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                         .transition(.move(edge: .leading).combined(with: .opacity))
                     content
                 }
@@ -455,7 +455,7 @@ struct ChatListView: View {
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Palette.warn)
                 .lineLimit(1)
         }
     }
@@ -474,8 +474,9 @@ struct ChatListView: View {
                 Text("Start a chat")
                     .font(.body.weight(.semibold))
                     .frame(minHeight: 44)
+                    .padding(.horizontal, 24)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.ink)
         }
     }
 
@@ -619,15 +620,15 @@ struct ChatListRow: View {
                 if let last = conversation.last {
                     Text(ChatFormatters.listStamp(last.timestamp))
                         .font(.caption2)
-                        .foregroundStyle(hasUnread ? .blue : Color(.tertiaryLabel))
+                        .foregroundStyle(hasUnread ? Color.accentColor : Color(.tertiaryLabel))
                 }
                 if hasUnread {
                     Text(conversation.unread > 99 ? "99+" : "\(conversation.unread)")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Palette.onAccent)
                         .padding(.horizontal, 6)
                         .frame(minWidth: 22, minHeight: 22)
-                        .background(.blue, in: Capsule())
+                        .background(Color.accentColor, in: Capsule())
                 }
             }
         }
@@ -688,7 +689,7 @@ struct NewConversationSheet: View {
                                 .font(.body)
                         } icon: {
                             Image(systemName: "person.3.fill")
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.accentColor)
                         }
                         .frame(minHeight: 44)
                     }
@@ -729,6 +730,7 @@ struct NewConversationSheet: View {
                     Text("New chat")
                 }
             }
+            .appBackground()
             .navigationTitle(Text("New conversation"))
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: Text("Search contacts"))

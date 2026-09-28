@@ -161,7 +161,7 @@ struct TextRoomView: View {
                          onImage: sendImage,
                          onTyping: notifyTyping)
         }
-        .lavaBackground()
+        .appBackground()
         .navigationBarTitleDisplayMode(.inline)
         // The bar's own material paints a flat band with a hard bottom edge
         // across the background gradient. `topEdgeBlur` does the job instead,
@@ -357,12 +357,15 @@ struct TextRoomView: View {
     
     /// Keeps the title and buttons legible over whatever scrolls beneath them,
     /// without drawing an edge: the blur ramps to nothing and the scrim over it
-    /// fades on the same run, so there is no line where the header stops.
+    /// fades on the same run, so there is no line where the header stops. The
+    /// scrim is the page colour, frosted like the website's top bar.
     private var topEdgeBlur: some View {
         VariableBlur(maxBlurRadius: 16)
             .frame(height: 140)
             .overlay(
-                LinearGradient(colors: [.black.opacity(0.28), .black.opacity(0.10), .clear],
+                LinearGradient(colors: [Palette.canvas.opacity(0.85),
+                                        Palette.canvas.opacity(0.4),
+                                        Palette.canvas.opacity(0)],
                                startPoint: .top,
                                endPoint: .bottom)
             )
@@ -599,7 +602,7 @@ struct TextRoomView: View {
         } else if !isEncryptionReady {
             inlineNote(icon: "lock.trianglebadge.exclamationmark",
                        text: String(localized: "Can't encrypt yet: verifying \(title)'s keys."),
-                       tint: .orange)
+                       tint: Palette.warn)
         } else if kad.connectionState != .online {
             if allParticipantsNearby {
                 inlineNote(icon: "dot.radiowaves.left.and.right",
@@ -640,7 +643,7 @@ struct TextRoomView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(Palette.surface)
         .overlay(alignment: .top) { Divider() }
         .accessibilityElement(children: .combine)
     }

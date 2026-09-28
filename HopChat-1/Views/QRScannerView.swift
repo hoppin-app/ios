@@ -111,9 +111,13 @@ struct QRScannerView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(.borderedProminent)
-                    .frame(minHeight: 44)
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.headline)
+                        .frame(minHeight: 44)
+                        .padding(.horizontal, 24)
+                }
+                .buttonStyle(.ink)
             }
         }
         .padding(24)

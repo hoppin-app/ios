@@ -34,7 +34,7 @@ struct KeyChangeBanner: View {
                     .font(.subheadline.weight(.semibold))
             } icon: {
                 Image(systemName: "exclamationmark.shield.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Palette.warn)
             }
 
             Text("\(phone) may have reinstalled hoppin or switched device. Messages are blocked until you check.")
@@ -55,7 +55,7 @@ struct KeyChangeBanner: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.12))
+        .background(Palette.warnSoft)
         .overlay(alignment: .top) { Divider() }
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityElement(children: .contain)
@@ -68,7 +68,7 @@ struct KeyChangeBanner: View {
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.ink)
         .accessibilityHint(Text("Compare safety numbers with \(phone)"))
     }
 
@@ -79,6 +79,7 @@ struct KeyChangeBanner: View {
                 .frame(maxWidth: .infinity, minHeight: 44)
         }
         .buttonStyle(.bordered)
+        .tint(Palette.ink)
         .accessibilityHint(Text("Trust the new security code without verifying"))
     }
 }

@@ -68,6 +68,7 @@ struct NewGroupView: View {
                 footer: String(localized: "\(selected.count + 1) of \(AppConfig.maxGroupMembers) members")
             )
         }
+        .appBackground()
         .navigationTitle(Text("New group"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -153,7 +154,7 @@ struct ContactMultiPickerSection: View {
                             }
                             Spacer()
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(isSelected ? Color.blue : Color(.tertiaryLabel))
+                                .foregroundStyle(isSelected ? Color.accentColor : Color(.tertiaryLabel))
                                 .accessibilityHidden(true)
                         }
                         .frame(minHeight: 44)

@@ -60,6 +60,7 @@ struct VerificationView: View {
                     )
                 }
             }
+            .appBackground()
             .navigationBarTitleDisplayMode(.inline)
             #if DEBUG
             .toolbar {

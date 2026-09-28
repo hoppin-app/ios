@@ -74,7 +74,11 @@ struct DeleteAccountView: View {
                         .frame(minHeight: 44)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
+                                .fill(Palette.surface)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Palette.hairlineStrong, lineWidth: 1)
                         )
                         .accessibilityLabel(Text("Type the word DELETE to confirm"))
                 }
@@ -117,6 +121,7 @@ struct DeleteAccountView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
+        .appBackground()
         .navigationTitle(Text("Delete Account"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(Text("Delete your hoppin account?"), isPresented: $showFinalAlert) {
@@ -137,7 +142,7 @@ struct DeleteAccountView: View {
                 .accessibilityHidden(true)
 
             Text("Delete Account")
-                .font(.system(.title, design: .rounded).weight(.bold))
+                .hopTitle()
 
             if !service.myPhone.isEmpty {
                 Text("Signed in as \(service.myPhone)")

@@ -41,9 +41,9 @@ struct SettingsPrivacyView: View {
                 blockedSection
                 relaySection
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Privacy & Security"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { appLockOn = lock.isEnabled }
@@ -62,7 +62,7 @@ struct SettingsPrivacyView: View {
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: "wifi.exclamationmark")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Palette.warn)
             }
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -195,12 +195,12 @@ struct SettingsPrivacyView: View {
                 Label {
                     Text("It cannot read your messages, see your photos, or know what you typed. Everything is sealed with keys that only you and the person you are writing to hold.")
                 } icon: {
-                    Image(systemName: "lock.fill").foregroundStyle(.green)
+                    Image(systemName: "lock.fill").foregroundStyle(Color.accentColor)
                 }
                 Label {
                     Text("It does see phone numbers, yours and the one you are writing to, along with your IP address and the time each message passes through.")
                 } icon: {
-                    Image(systemName: "eye.fill").foregroundStyle(.orange)
+                    Image(systemName: "eye.fill").foregroundStyle(Palette.warn)
                 }
                 Text("On the same Wi-Fi, messages go straight to the other phone and the server sees nothing at all.")
             }
@@ -269,9 +269,9 @@ struct SettingsBlockedContactsView: View {
                     }
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Blocked"))
         .navigationBarTitleDisplayMode(.inline)
     }

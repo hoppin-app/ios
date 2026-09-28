@@ -2,7 +2,8 @@
 //  BackgroundThemeView.swift
 //  HopChat-1
 //
-//  Colour choice for the lava backdrop: a handful of presets plus a custom
+//  What sits behind every screen: Plain, the website's page colour, by
+//  default, or the lava backdrop in one of a handful of presets or a custom
 //  palette of five colours. The choice is a plain preference
 //  (`hoppin.appearance.backgroundTheme` / `…customColors`); custom colours
 //  are stored as "#RRGGBB" strings joined by commas.
@@ -14,7 +15,7 @@ import UIKit
 // MARK: - Theme model
 
 nonisolated enum BackgroundTheme: String, CaseIterable, Identifiable {
-    case aurora, sunset, ocean, forest, candy, mono, custom
+    case plain, aurora, sunset, ocean, forest, candy, mono, custom
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ nonisolated enum BackgroundTheme: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .plain:  return String(localized: "Plain")
         case .aurora: return String(localized: "Aurora")
         case .sunset: return String(localized: "Sunset")
         case .ocean:  return String(localized: "Ocean")
@@ -33,10 +35,11 @@ nonisolated enum BackgroundTheme: String, CaseIterable, Identifiable {
     }
 
     /// Five base colours, as hex. Dark mode uses them as-is; light mode
-    /// lightens them (see `LavaBackground`).
+    /// lightens them (see `LavaBackground`). Plain draws none; custom starts
+    /// from Aurora's.
     var presetHex: [String] {
         switch self {
-        case .aurora, .custom: return ["#5C29D9", "#E6338C", "#FA7324", "#1473F2", "#1ABFB3"]
+        case .plain, .aurora, .custom: return ["#5C29D9", "#E6338C", "#FA7324", "#1473F2", "#1ABFB3"]
         case .sunset: return ["#F24A2E", "#FF9A1F", "#D6246E", "#8A2BE2", "#FFC94D"]
         case .ocean:  return ["#0A5CD6", "#12B5CB", "#2340A8", "#3DD6C4", "#6A4CE0"]
         case .forest: return ["#1F8A4C", "#7CC242", "#0F6E6E", "#C9A227", "#2E5E3A"]
@@ -45,14 +48,18 @@ nonisolated enum BackgroundTheme: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The colours currently in effect for this theme.
+    /// The colours currently in effect for this theme. Plain is the page
+    /// colour throughout, which is also what its swatch shows.
     func colors(customHex: String) -> [Color] {
+        if self == .plain {
+            return Array(repeating: Palette.canvas, count: BackgroundTheme.colorCount)
+        }
         let hex = self == .custom ? BackgroundTheme.parseCustom(customHex) : presetHex
         return hex.map { Color(hex: $0) ?? .gray }
     }
 
     static func current(from raw: String) -> BackgroundTheme {
-        BackgroundTheme(rawValue: raw) ?? .aurora
+        BackgroundTheme(rawValue: raw) ?? .plain
     }
 
     /// Always returns exactly `colorCount` entries, falling back to Aurora.
@@ -88,7 +95,7 @@ extension Color {
 
 struct BackgroundThemeView: View {
 
-    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.aurora.rawValue
+    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.plain.rawValue
     @AppStorage(AppConfig.Keys.backgroundCustomColors) private var customHex = ""
 
     private var theme: BackgroundTheme { .current(from: themeRaw) }
@@ -130,9 +137,9 @@ struct BackgroundThemeView: View {
                     }
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Background"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -172,7 +179,7 @@ private struct ThemeSwatch: View {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(.white, .blue)
+                            .foregroundStyle(Palette.onAccent, Color.accentColor)
                             .shadow(radius: 3)
                     }
                 }
@@ -180,7 +187,7 @@ private struct ThemeSwatch: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(isSelected ? Color.blue : Color.white.opacity(0.15),
+                        .strokeBorder(isSelected ? Color.accentColor : Palette.hairlineStrong,
                                       lineWidth: isSelected ? 3 : 1)
                 )
 

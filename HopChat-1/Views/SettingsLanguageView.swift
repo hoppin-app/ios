@@ -102,7 +102,7 @@ struct SettingsLanguageView: View {
                                 Spacer(minLength: 12)
                                 if option == selection {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(.blue)
+                                        .foregroundStyle(Color.accentColor)
                                         .accessibilityHidden(true)
                                 }
                             }
@@ -153,9 +153,9 @@ struct SettingsLanguageView: View {
                     Text("Offers spelling corrections as you write, using the dictionaries already on this device. Nothing you type is sent anywhere.")
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Language"))
         .navigationBarTitleDisplayMode(.inline)
     }

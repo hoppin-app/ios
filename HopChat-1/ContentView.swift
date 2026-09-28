@@ -11,11 +11,15 @@ import SwiftUI
 
 // MARK: - Floating Tab Bar
 
+/// Floats the way the website's top bar does once it pins: a frosted capsule
+/// with a hairline edge. The selected tab sits in an ink pill, as the
+/// website's stage bar marks the road a message is on.
 struct FloatingTabBar: View {
     @Binding var selectedTab: Int
     var unreadCount: Int = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var selection
 
     private let items: [(icon: String, filled: String, label: String)] = [
         ("bubble.left",  "bubble.left.fill",  String(localized: "Chats")),
@@ -24,20 +28,18 @@ struct FloatingTabBar: View {
     ]
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 2) {
             ForEach(items.indices, id: \.self) { i in
                 tabButton(index: i)
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 8)
+        .padding(4)
         .background {
             Capsule()
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule().strokeBorder(.primary.opacity(0.07), lineWidth: 0.5)
-                )
-                .shadow(color: .black.opacity(0.13), radius: 26, x: 0, y: 8)
+                .overlay(Capsule().fill(Palette.canvas.opacity(0.72)))
+                .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
+                .shadow(color: Palette.shadow, radius: 17, x: 0, y: 12)
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 10)
@@ -65,10 +67,10 @@ struct FloatingTabBar: View {
                     if index == 0, unreadCount > 0 {
                         Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Palette.onAccent)
                             .padding(.horizontal, 4)
                             .frame(minWidth: 16, minHeight: 16)
-                            .background(.red, in: Capsule())
+                            .background(Color.accentColor, in: Capsule())
                             .offset(x: 11, y: -5)
                             .accessibilityHidden(true)
                     }
@@ -77,8 +79,16 @@ struct FloatingTabBar: View {
                 Text(items[index].label)
                     .font(.caption2.weight(.semibold))
             }
-            .foregroundStyle(selectedTab == index ? Color.accentColor : Color(.tertiaryLabel))
+            .foregroundStyle(selectedTab == index ? Palette.onInk : Palette.muted)
             .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.vertical, 6)
+            .background {
+                if selectedTab == index {
+                    Capsule()
+                        .fill(Palette.ink)
+                        .matchedGeometryEffect(id: "selectedTab", in: selection)
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -215,7 +225,7 @@ private struct ConnectionBanner: View {
         switch state {
         case .error(let message):
             banner(text: message, systemImage: "exclamationmark.triangle.fill",
-                   tint: .orange, showsProgress: false)
+                   tint: Palette.warn, showsProgress: false)
         case .connecting:
             banner(text: String(localized: "Connecting…"), systemImage: nil,
                    tint: .secondary, showsProgress: true)
@@ -267,7 +277,7 @@ private struct LockScreen: View {
                     .accessibilityHidden(true)
 
                 Text("hoppin is locked")
-                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .hopTitle(.title2)
 
                 Text("Unlock to read your messages.")
                     .font(.body)
@@ -293,7 +303,7 @@ private struct LockScreen: View {
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.ink)
                 .disabled(isAuthenticating)
                 .padding(.horizontal, 32)
                 .padding(.top, 8)

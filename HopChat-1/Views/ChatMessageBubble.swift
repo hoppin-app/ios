@@ -92,10 +92,10 @@ struct MessageStatusIcon: View {
         case .delivered:
             DoubleCheck().foregroundStyle(Color(.tertiaryLabel))
         case .read:
-            DoubleCheck().foregroundStyle(.blue)
+            DoubleCheck().foregroundStyle(Color.accentColor)
         case .failed:
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(Palette.warn)
         }
     }
 }
@@ -111,9 +111,10 @@ private struct DoubleCheck: View {
     }
 }
 
-/// Marks a message that avoided the server: teal for phone-to-phone over the
-/// local network, indigo for a message that hopped over Bluetooth. A relayed
-/// message shows nothing — that is the ordinary case.
+/// Marks a message that avoided the server, in the accent: radio waves for
+/// phone-to-phone over the local network, a dotted path for a message that
+/// hopped over Bluetooth. A relayed message shows nothing — that is the
+/// ordinary case.
 struct RouteIcon: View {
     let route: MessageRoute?
 
@@ -121,11 +122,11 @@ struct RouteIcon: View {
         switch route {
         case .direct:
             Image(systemName: "dot.radiowaves.left.and.right")
-                .foregroundStyle(.teal)
+                .foregroundStyle(Color.accentColor)
                 .accessibilityLabel(Text("Sent directly"))
         case .mesh:
             Image(systemName: "point.3.connected.trianglepath.dotted")
-                .foregroundStyle(.indigo)
+                .foregroundStyle(Color.accentColor)
                 .accessibilityLabel(Text("Sent over Bluetooth"))
         case .relay, nil:
             EmptyView()
@@ -158,10 +159,10 @@ struct ReplyPreview: Equatable {
 /// The quote block used inside a bubble and above the composer.
 struct ReplyQuote: View {
     let preview: ReplyPreview
-    var onDarkBubble = false
+    var onAccentBubble = false
 
     private var accent: Color {
-        onDarkBubble ? .white : AvatarView.color(for: preview.author)
+        onAccentBubble ? Palette.onAccent : Color.accentColor
     }
 
     var body: some View {
@@ -185,7 +186,7 @@ struct ReplyQuote: View {
                 .labelStyle(ReplySnippetLabelStyle(showsIcon: preview.isImage))
                 .font(.caption)
                 .italic(preview.isMissing)
-                .foregroundStyle(onDarkBubble ? Color.white.opacity(0.85) : .secondary)
+                .foregroundStyle(onAccentBubble ? Palette.onAccent.opacity(0.85) : .secondary)
             }
             Spacer(minLength: 0)
         }
@@ -245,7 +246,7 @@ struct ChatMessageBubble: View {
                 if let senderName, !isMine {
                     Text(senderName)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(AvatarView.color(for: senderName))
+                        .foregroundStyle(Color.accentColor)
                         .padding(.horizontal, 6)
                 }
 
@@ -254,7 +255,7 @@ struct ChatMessageBubble: View {
                         Button {
                             onTapReply(replyPreview.messageID)
                         } label: {
-                            ReplyQuote(preview: replyPreview, onDarkBubble: isMine)
+                            ReplyQuote(preview: replyPreview, onAccentBubble: isMine)
                                 .padding(8)
                                 .background(quoteFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
@@ -271,6 +272,13 @@ struct ChatMessageBubble: View {
                 }
                 .background(bubbleFill, in: BubbleShape(isFromMe: isMine))
                 .clipShape(BubbleShape(isFromMe: isMine))
+                .overlay {
+                    // Theirs sit on the page like the website's cards: a
+                    // surface with a hairline edge.
+                    if !isMine {
+                        BubbleShape(isFromMe: false).stroke(Palette.hairline, lineWidth: 1)
+                    }
+                }
 
                 if showsFooter || (isMine && message.status == .failed) {
                     footer
@@ -296,7 +304,7 @@ struct ChatMessageBubble: View {
                 Image(systemName: "trash.slash")
             }
             .font(.body.italic())
-            .foregroundStyle(isMine ? Color.white.opacity(0.8) : .secondary)
+            .foregroundStyle(isMine ? Palette.onAccent.opacity(0.8) : .secondary)
             .fixedSize(horizontal: false, vertical: true)
 
         } else if message.kind == .image {
@@ -306,7 +314,7 @@ struct ChatMessageBubble: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(displayedBody)
                     .font(.body)
-                    .foregroundStyle(isMine ? Color.white : Color.primary)
+                    .foregroundStyle(isMine ? Palette.onAccent : Color.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)
 
@@ -317,7 +325,7 @@ struct ChatMessageBubble: View {
                         Image(systemName: "character.bubble")
                     }
                     .font(.caption2)
-                    .foregroundStyle(isMine ? Color.white.opacity(0.75) : .secondary)
+                    .foregroundStyle(isMine ? Palette.onAccent.opacity(0.75) : .secondary)
                 }
             }
         }
@@ -343,7 +351,7 @@ struct ChatMessageBubble: View {
                 Image(systemName: "photo")
             }
             .font(.body)
-            .foregroundStyle(isMine ? Color.white.opacity(0.85) : .secondary)
+            .foregroundStyle(isMine ? Palette.onAccent.opacity(0.85) : .secondary)
         }
     }
 
@@ -376,7 +384,7 @@ struct ChatMessageBubble: View {
                         .font(.caption.weight(.semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.accentColor)
                 .frame(minHeight: 44)
             }
         }
@@ -391,18 +399,20 @@ struct ChatMessageBubble: View {
     }
 
     private var quoteFill: Color {
-        isMine ? Color.white.opacity(0.18) : Color(.systemGray4).opacity(0.6)
+        isMine ? Palette.onAccent.opacity(0.18) : Palette.surfaceSunken
     }
 
     private var displayedBody: String {
         showsOriginal ? message.body : (message.translatedBody ?? message.body)
     }
 
+    /// Ours in the violet, as the website draws a sent message; theirs on
+    /// the surface.
     private var bubbleFill: Color {
         if message.isDeleted {
-            return isMine ? Color.blue.opacity(0.55) : Color(.systemGray5)
+            return isMine ? Color.accentColor.opacity(0.55) : Palette.surface
         }
-        return isMine ? .blue : Color(.systemGray5)
+        return isMine ? Color.accentColor : Palette.surface
     }
 
     private var accessibilityText: String {
@@ -457,7 +467,8 @@ struct TypingBubble: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color(.systemGray5), in: BubbleShape(isFromMe: false))
+        .background(Palette.surface, in: BubbleShape(isFromMe: false))
+        .overlay(BubbleShape(isFromMe: false).stroke(Palette.hairline, lineWidth: 1))
         .padding(.leading, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { animate = true }

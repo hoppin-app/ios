@@ -112,8 +112,12 @@ struct ChatComposer: View {
                     .disabled(isSendBlocked)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 9)
-                    .background(Color(.secondarySystemBackground),
+                    .background(Palette.surface,
                                 in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .strokeBorder(Palette.hairlineStrong, lineWidth: 1)
+                    )
                     .accessibilityLabel(Text(placeholder))
 
                 Button {
@@ -121,9 +125,9 @@ struct ChatComposer: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.body.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(canSend ? Palette.onAccent : Color.white)
                         .frame(width: 34, height: 34)
-                        .background(canSend ? Color.blue : Color(.systemGray4), in: Circle())
+                        .background(canSend ? Color.accentColor : Color(.systemGray4), in: Circle())
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -271,7 +275,7 @@ struct ChatComposer: View {
         HStack(spacing: 10) {
             Image(systemName: "arrowshape.turn.up.left.fill")
                 .font(.footnote)
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
 
             ReplyQuote(preview: preview)

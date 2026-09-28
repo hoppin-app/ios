@@ -61,6 +61,7 @@ struct ChangeNumberView: View {
                 success(phone)
             }
         }
+        .appBackground()
         .navigationTitle(Text("Change Number"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -77,7 +78,7 @@ struct ChangeNumberView: View {
                         .accessibilityHidden(true)
 
                     Text("Change Your Number")
-                        .font(.system(.title, design: .rounded).weight(.bold))
+                        .hopTitle()
                 }
 
                 if !service.myPhone.isEmpty {
@@ -113,7 +114,7 @@ struct ChangeNumberView: View {
                         .frame(maxWidth: .infinity, minHeight: 28)
                         .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.ink)
                 .disabled(!service.isRegistered)
 
                 if !service.isRegistered {
@@ -138,10 +139,10 @@ struct ChangeNumberView: View {
             Spacer()
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
             Text("You're on \(phone)")
-                .font(.system(.title2, design: .rounded).weight(.bold))
+                .hopTitle(.title2)
                 .multilineTextAlignment(.center)
             Text("Your contacts have been notified. Your old number no longer reaches this device.")
                 .font(.body)
@@ -157,7 +158,7 @@ struct ChangeNumberView: View {
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .padding(.vertical, 12)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.ink)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 24)

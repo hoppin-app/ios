@@ -28,7 +28,7 @@ struct ContactKeyChangeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Security code changed", systemImage: "exclamationmark.triangle.fill")
                         .font(.headline)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Palette.warn)
                     Text("The encryption key hoppin has for \(contact.displayName) is not the one it saw before. Messages to them are held back until you decide.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -76,6 +76,7 @@ struct ContactKeyChangeView: View {
                 Text("Verifying compares a safety number with them in person or over a call you trust. That is the only way to be sure. Accepting simply trusts the new key so you can keep messaging, and it will no longer be marked verified.")
             }
         }
+        .appBackground()
         .navigationTitle("Security Code")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Accept the new key for \(contact.displayName)?",

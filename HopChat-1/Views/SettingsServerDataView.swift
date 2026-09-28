@@ -25,9 +25,9 @@ struct SettingsServerDataView: View {
                 avoidingSection
                 removalSection
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Your Data"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -64,13 +64,13 @@ struct SettingsServerDataView: View {
 
     private var notHeldSection: some View {
         Section {
-            point("lock.fill", .green,
+            point("lock.fill", Color.accentColor,
                   String(localized: "Your messages, photos and what you typed. They are sealed with keys the relay does not have."))
-            point("person.2.slash.fill", .green,
+            point("person.2.slash.fill", Color.accentColor,
                   String(localized: "Your contact list. It is never uploaded, so the relay cannot tell who you know."))
-            point("key.slash.fill", .green,
+            point("key.slash.fill", Color.accentColor,
                   String(localized: "Your private keys. They are generated on this device and never leave the Keychain."))
-            point("externaldrive.badge.xmark", .green,
+            point("externaldrive.badge.xmark", Color.accentColor,
                   String(localized: "Your chat history. Conversations live on this device only."))
         } header: {
             Text("What it never sees")
@@ -81,9 +81,9 @@ struct SettingsServerDataView: View {
 
     private var avoidingSection: some View {
         Section {
-            point("eye.fill", .orange,
+            point("eye.fill", Palette.warn,
                   String(localized: "Your IP address, and the time each message passes through."))
-            point("arrow.left.arrow.right", .orange,
+            point("arrow.left.arrow.right", Palette.warn,
                   String(localized: "Who you are writing to, whenever a message goes through the relay rather than straight to the other phone."))
         } header: {
             Text("What it can work out")

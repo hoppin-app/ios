@@ -45,6 +45,12 @@ struct SettingsView: View {
 
     @AppStorage(AppConfig.Keys.displayName)   private var displayName   = ""
     @AppStorage(AppConfig.Keys.animatedBackground) private var animatedBackground = true
+    @AppStorage(AppConfig.Keys.backgroundTheme) private var backgroundTheme = BackgroundTheme.plain.rawValue
+
+    /// Only the lava moves; the plain page has nothing to animate.
+    private var hasLavaBackground: Bool {
+        BackgroundTheme.current(from: backgroundTheme) != .plain
+    }
 
     var body: some View {
         NavigationStack {
@@ -58,10 +64,10 @@ struct SettingsView: View {
                     aboutSection
                     developerSection
                 }
-                .glassListRows()
+                .backdropListRows()
             }
             .listStyle(.insetGrouped)
-            .lavaBackground()
+            .appBackground()
             .navigationTitle(Text("Settings"))
         }
     }
@@ -140,13 +146,17 @@ struct SettingsView: View {
             } label: {
                 Label("Language", systemImage: "character.bubble")
             }
-            Toggle(isOn: $animatedBackground) {
-                Text("Animated background")
+            if hasLavaBackground {
+                Toggle(isOn: $animatedBackground) {
+                    Text("Animated background")
+                }
             }
         } header: {
             Text("Appearance")
         } footer: {
-            Text("The background also stays still with Reduce Motion or Low Power Mode on.")
+            if hasLavaBackground {
+                Text("The background also stays still with Reduce Motion or Low Power Mode on.")
+            }
         }
     }
 

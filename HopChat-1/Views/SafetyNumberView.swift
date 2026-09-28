@@ -132,6 +132,7 @@ struct SafetyNumberView: View {
                      : "Only mark this as verified once you have compared every digit, or scanned their code.")
             }
         }
+        .appBackground()
         .navigationTitle("Safety Number")
         .navigationBarTitleDisplayMode(.inline)
         .task { await compute() }
@@ -204,7 +205,7 @@ struct SafetyNumberView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Verified", systemImage: "checkmark.shield.fill")
                     .font(.headline)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.accentColor)
                 Text("The codes match. Your conversation with \(contact.displayName) is end-to-end encrypted and nobody is in the middle.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

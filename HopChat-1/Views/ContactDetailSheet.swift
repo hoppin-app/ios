@@ -134,6 +134,7 @@ struct ContactDetailSheet: View {
                     }
                 }
             }
+            .appBackground()
             .navigationTitle("Contact")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $keyChangeDestination) { _ in

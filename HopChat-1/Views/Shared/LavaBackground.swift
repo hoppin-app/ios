@@ -2,8 +2,11 @@
 //  LavaBackground.swift
 //  HopChat-1
 //
-//  The app's backdrop: a few large, softly coloured blobs drifting slowly
-//  behind a heavy blur, like a lava lamp seen through frosted glass.
+//  What sits behind every screen. By default that is the website's plain page
+//  colour (`AppBackground`); anyone who picks a colour theme in Settings ›
+//  Background colours gets the lava instead: a few large, softly coloured
+//  blobs drifting slowly behind a heavy blur, like a lava lamp seen through
+//  frosted glass.
 //
 //  Cost is kept low on purpose:
 //   • the blobs are drawn into a canvas a quarter of the screen's size and
@@ -20,7 +23,7 @@ import SwiftUI
 struct LavaBackground: View {
 
     @AppStorage(AppConfig.Keys.animatedBackground) private var animated = true
-    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.aurora.rawValue
+    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.plain.rawValue
     @AppStorage(AppConfig.Keys.backgroundCustomColors) private var customHex = ""
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -125,13 +128,54 @@ struct LavaBackground: View {
     ]
 }
 
+// MARK: - The page behind every screen
+
+/// The website's plain page colour, or the lava for anyone who picked a
+/// colour theme.
+struct AppBackground: View {
+
+    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.plain.rawValue
+
+    var body: some View {
+        if BackgroundTheme.current(from: themeRaw) == .plain {
+            Palette.canvas
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        } else {
+            LavaBackground()
+        }
+    }
+}
+
+/// A grouped list row's background: a solid surface on the plain page, the
+/// way the website's cards sit on it, and frosted glass over the lava.
+private struct BackdropRowBackground: View {
+
+    @AppStorage(AppConfig.Keys.backgroundTheme) private var themeRaw = BackgroundTheme.plain.rawValue
+
+    var body: some View {
+        if BackgroundTheme.current(from: themeRaw) == .plain {
+            Palette.surface
+        } else {
+            Rectangle().fill(.ultraThinMaterial)
+        }
+    }
+}
+
 extension View {
-    /// Puts the animated lava backdrop behind a screen and clears the
-    /// system list/scroll background so it shows through.
-    func lavaBackground() -> some View {
+    /// Puts the app's backdrop behind a screen and clears the system
+    /// list/scroll background so it shows through.
+    func appBackground() -> some View {
         self
             .scrollContentBackground(.hidden)
-            .background { LavaBackground() }
+            .background { AppBackground() }
+    }
+
+    /// Row backgrounds for grouped lists and forms shown over the backdrop.
+    /// Apply to the list *content* (row backgrounds are per row).
+    func backdropListRows() -> some View {
+        listRowBackground(BackdropRowBackground())
     }
 }
 
@@ -141,12 +185,4 @@ extension View {
 
 #Preview("Light") {
     LavaBackground().preferredColorScheme(.light)
-}
-
-extension View {
-    /// Frosted-glass rows for grouped lists and forms shown over the lava
-    /// backdrop. Apply to the list *content* (row backgrounds are per row).
-    func glassListRows() -> some View {
-        listRowBackground(Rectangle().fill(.ultraThinMaterial))
-    }
 }

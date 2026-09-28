@@ -30,8 +30,10 @@ struct AvatarView: View {
 
     var body: some View {
         ZStack {
+            // As the website draws a person: initials in the accent on a wash
+            // of it.
             Circle()
-                .fill(AvatarView.color(for: name))
+                .fill(Palette.accentSoft)
 
             if let imageURL {
                 CachedFileImage(url: imageURL, maxPixel: size * 3)
@@ -41,7 +43,7 @@ struct AvatarView: View {
                     .font(.headline)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.accentColor)
                     .padding(size * 0.18)
             }
         }
@@ -63,14 +65,6 @@ struct AvatarView: View {
         let first = name.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() }
         return first ?? "#"
     }
-
-    /// Stable per-name colour. Deterministic so the same contact always looks
-    /// the same across screens and launches.
-    nonisolated static func color(for name: String) -> Color {
-        let palette: [Color] = [.blue, .purple, .pink, .orange, .green, .teal, .indigo, .cyan]
-        let hash = name.unicodeScalars.reduce(UInt32(5381)) { ($0 &* 33) &+ $1.value }
-        return palette[Int(hash % UInt32(palette.count))]
-    }
 }
 
 // MARK: - Presence
@@ -87,7 +81,7 @@ struct PresenceDot: View {
         Circle()
             .fill(fill)
             .frame(width: 12, height: 12)
-            .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
+            .overlay(Circle().stroke(Palette.canvas, lineWidth: 2))
             .accessibilityHidden(true)
     }
 

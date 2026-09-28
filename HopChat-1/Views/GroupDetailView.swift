@@ -41,6 +41,7 @@ struct GroupDetailView: View {
                                        description: Text("This group is no longer on this device."))
             }
         }
+        .appBackground()
         .navigationTitle(Text("Group info"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -283,6 +284,7 @@ struct AddGroupMembersView: View {
                 footer: String(localized: "\(remainingSlots - selected.count) slots left")
             )
         }
+        .appBackground()
         .navigationTitle(Text("Add members"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -18,7 +18,6 @@ import os
 private struct OnboardingSlide: Identifiable {
     let id: Int
     let icon: String
-    let color: Color
     let title: String
     let body: String
 }
@@ -27,42 +26,36 @@ private let onboardingSlides: [OnboardingSlide] = [
     OnboardingSlide(
         id: 0,
         icon: "hand.wave.fill",
-        color: .blue,
         title: String(localized: "Welcome to hoppin"),
         body: String(localized: "Private messaging for the people you actually know. Set-up takes one SMS and about a minute.")
     ),
     OnboardingSlide(
         id: 1,
         icon: "checkmark.message.fill",
-        color: .indigo,
         title: String(localized: "Verify Your Number Once"),
         body: String(localized: "We text a 6-digit code to your phone number so people can find you and nobody can pretend to be you. Your number is sent to the hoppin server only for that check.")
     ),
     OnboardingSlide(
         id: 2,
         icon: "lock.shield.fill",
-        color: .green,
         title: String(localized: "Encrypted End to End"),
         body: String(localized: "Every message is encrypted and signed on your device before it leaves. Only the people in the conversation hold the keys that open it.")
     ),
     OnboardingSlide(
         id: 3,
         icon: "arrow.triangle.branch",
-        color: .orange,
         title: String(localized: "Two Ways to Arrive"),
         body: String(localized: "On the same Wi-Fi, messages hop straight from device to device. Otherwise a relay holds them sealed until you pick them up, and the people running it cannot read them.")
     ),
     OnboardingSlide(
         id: 4,
         icon: "number.square.fill",
-        color: .purple,
         title: String(localized: "Check Your Contacts"),
         body: String(localized: "Each chat has a safety number you can compare in person or by QR code. If a contact's keys ever change, hoppin warns you before you send anything.")
     ),
     OnboardingSlide(
         id: 5,
         icon: "iphone.and.arrow.forward",
-        color: .teal,
         title: String(localized: "Stays on Your Device"),
         body: String(localized: "Messages, photos and contacts live on your iPhone. Nothing readable is kept off it, and deleting your account wipes all of it.")
     ),
@@ -105,7 +98,7 @@ struct OnboardingView: View {
                             .frame(maxWidth: .infinity, minHeight: 28)
                             .padding(.vertical, 12)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.ink)
                     .accessibilityIdentifier("onboarding.next")
 
                     Button {
@@ -124,7 +117,7 @@ struct OnboardingView: View {
                 .frame(maxWidth: 700)
             }
         }
-        .background(Color(.systemBackground))
+        .background(Palette.canvas)
         .frame(maxWidth: .infinity)
     }
 
@@ -157,13 +150,15 @@ private struct OnboardingSlideView: View {
             VStack(spacing: 28) {
                 Spacer(minLength: 24)
 
+                // One colour throughout, as on the website: the accent on a
+                // wash of itself.
                 ZStack {
                     Circle()
-                        .fill(slide.color.opacity(0.14))
+                        .fill(Palette.accentSoft)
                         .frame(width: 148, height: 148)
                     Image(systemName: slide.icon)
                         .font(.system(size: 54, weight: .medium))
-                        .foregroundStyle(slide.color)
+                        .foregroundStyle(Color.accentColor)
                         .accessibilityHidden(true)
                 }
                 .scaleEffect(reduceMotion ? 1 : (appeared ? 1 : 0.7))
@@ -172,7 +167,7 @@ private struct OnboardingSlideView: View {
 
                 VStack(spacing: 14) {
                     Text(slide.title)
-                        .font(.system(.title, design: .rounded).weight(.bold))
+                        .hopTitle()
                         .multilineTextAlignment(.center)
 
                     Text(slide.body)
@@ -215,7 +210,7 @@ private struct TermsPage: View {
                         .accessibilityHidden(true)
 
                     Text("Before You Start")
-                        .font(.system(.title2, design: .rounded).weight(.bold))
+                        .hopTitle(.title2)
                 }
 
                 Text("hoppin has a zero-tolerance policy for abusive content and abusive users. Anything you send is your responsibility.")
@@ -261,7 +256,7 @@ private struct TermsPage: View {
                         .frame(maxWidth: .infinity, minHeight: 28)
                         .padding(.vertical, 12)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.ink)
                 .disabled(!agreed)
                 .accessibilityIdentifier("onboarding.agree")
 

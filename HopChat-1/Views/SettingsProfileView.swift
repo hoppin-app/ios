@@ -153,9 +153,9 @@ struct SettingsProfileView: View {
                     }
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Profile"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

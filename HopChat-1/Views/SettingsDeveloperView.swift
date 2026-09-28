@@ -145,7 +145,7 @@ struct SettingsDeveloperView: View {
                     Text("Status")
                 }
             }
-            .glassListRows()
+            .backdropListRows()
         }
         .onChange(of: serverHost) { _, _ in applySoon() }
         .onChange(of: serverPort) { _, _ in applySoon() }
@@ -155,7 +155,7 @@ struct SettingsDeveloperView: View {
             // Leaving mid-debounce must not drop the edit.
             if applyTask != nil { applyNow() }
         }
-        .lavaBackground()
+        .appBackground()
         .navigationTitle(Text("Developer"))
         .navigationBarTitleDisplayMode(.inline)
     }
