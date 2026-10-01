@@ -5010,6 +5010,17 @@
         }
       }
     },
+    "Now let %@ scan your code, so they can verify you too." : {
+      "comment" : "After scanning a contact's security code: they still need to scan yours. The argument is their name.",
+      "localizations" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agora deixe %@ ler o seu código, para que também possa confirmar que está mesmo a falar consigo."
+          }
+        }
+      }
+    },
     "Number not verified yet" : {
       "extractionState" : "manual",
       "localizations" : {

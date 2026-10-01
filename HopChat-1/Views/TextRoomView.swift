@@ -204,6 +204,7 @@ struct TextRoomView: View {
             NotificationService.shared.activeConversationID = conversationID
             kad.markRead(conversationID: conversationID)
             store.showTabBar = false
+            Task { await kad.translateMissing(in: conversationID) }
         }
         .onDisappear {
             if NotificationService.shared.activeConversationID == conversationID {

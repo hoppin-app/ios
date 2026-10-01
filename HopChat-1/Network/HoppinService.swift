@@ -1246,12 +1246,23 @@ final class KademliaService: ObservableObject {
         }
         pendingReceipts.insert(receiptTask)
 
-        // Translation runs afterwards, with a 10 s ceiling, only in chats
-        // where the user turned it on.
+        // Translation runs afterwards, only in chats where the user turned it
+        // on, and normally with a 10 s ceiling and no system UI: without the
+        // language pack, the message just stays untranslated. But someone
+        // looking at this very chat is waiting for it, so iOS may offer the
+        // download there, once per language.
         if kind == .text, !body.isEmpty, let language = store.translateLanguage(for: conversationID) {
+            let interactive = mayOfferTranslationDownload(for: body, to: language, in: conversationID)
             Task { [weak self] in
                 guard let self else { return }
-                let translated = await self.translate(body, to: language)
+                let translated: String?
+                if interactive {
+                    // The service gives an offered download two minutes.
+                    translated = await TranslationService.shared.translate(text: body, to: language,
+                                                                          interactive: true)
+                } else {
+                    translated = await self.translate(body, to: language)
+                }
                 guard let translated, !translated.isEmpty else { return }
                 self.store.setTranslation(messageID: envelopeID,
                                           conversationID: conversationID,
@@ -1307,6 +1318,45 @@ final class KademliaService: ObservableObject {
     }
 
     private static let translateBackfillLimit = 30
+
+    /// Opening a chat with auto-translate on translates the incoming messages
+    /// that arrived untranslated, usually because a language pack wasn't
+    /// downloaded yet. The user is looking now, so iOS may offer it.
+    func translateMissing(in conversationID: String) async {
+        guard let language = store.translateLanguage(for: conversationID) else { return }
+        let missing = store.thread(conversationID)
+            .filter { !$0.isFromMe && !$0.isDeleted && $0.kind == .text
+                && !$0.body.isEmpty && $0.translatedBody == nil }
+            .suffix(Self.translateBackfillLimit)
+        for message in missing.reversed() {
+            // Stop if the user changed their mind meanwhile.
+            guard store.translateLanguage(for: conversationID) == language else { return }
+            let interactive = mayOfferTranslationDownload(for: message.body, to: language,
+                                                          in: conversationID)
+            let translated = await TranslationService.shared.translate(text: message.body,
+                                                                       to: language,
+                                                                       interactive: interactive)
+            if let translated, !translated.isEmpty {
+                store.setTranslation(messageID: message.id, conversationID: conversationID, text: translated)
+            }
+        }
+    }
+
+    /// Source languages iOS has already offered to download this session, so
+    /// a declined offer isn't repeated on every message.
+    private var translationDownloadOffered: Set<String> = []
+
+    /// Whether translating an incoming message may bring up iOS's download
+    /// sheet: only while the user has that chat on screen, and once per
+    /// language. Everywhere else translation is silent.
+    private func mayOfferTranslationDownload(for body: String,
+                                             to language: String,
+                                             in conversationID: String) -> Bool {
+        guard NotificationService.shared.isShowing(conversationID),
+              let source = TranslationService.detectLanguage(body, minimumConfidence: 0.3),
+              !TranslationService.sameLanguage(source, language) else { return false }
+        return translationDownloadOffered.insert(source).inserted
+    }
 
     private func applyReceipt(_ payload: ChatPayload, from sender: String, status: MessageStatus) {
         let conversationID = payload.groupID.map(ConversationStore.conversationID(group:))

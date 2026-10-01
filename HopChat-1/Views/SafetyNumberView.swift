@@ -209,6 +209,11 @@ struct SafetyNumberView: View {
                 Text("The codes match. Your conversation with \(contact.displayName) is end-to-end encrypted and nobody is in the middle.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                // Verifying is one way: their phone made no check of its own,
+                // so it shows you as unverified until it scans your code.
+                Text("Now let \(contact.displayName) scan your code, so they can verify you too.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .padding(.vertical, 4)
             .accessibilityElement(children: .combine)

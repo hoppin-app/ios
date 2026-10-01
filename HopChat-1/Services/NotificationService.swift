@@ -29,6 +29,12 @@ final class NotificationService {
 
     init() {}
 
+    /// Whether the user has this conversation open on screen right now.
+    func isShowing(_ conversationID: String) -> Bool {
+        UIApplication.shared.applicationState == .active
+            && activeConversationID == conversationID
+    }
+
     // MARK: - Permission
 
     @discardableResult
@@ -50,8 +56,7 @@ final class NotificationService {
                 || defaults.bool(forKey: AppConfig.Keys.notificationsEnabled) else { return }
 
         // Don't interrupt the user while they are reading that very thread.
-        if UIApplication.shared.applicationState == .active,
-           activeConversationID == conversationID {
+        if isShowing(conversationID) {
             return
         }
 
