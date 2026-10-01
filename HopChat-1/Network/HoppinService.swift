@@ -691,9 +691,10 @@ final class KademliaService: ObservableObject {
             return .mesh
         }
 
-        // 5. Encrypted store-and-forward relay.
+        // 5. Encrypted store-and-forward relay. Only a message or a photo
+        //    rings their phone; receipts and updates wait for the next open.
         do {
-            try await server.deposit(envelope)
+            try await server.deposit(envelope, notify: payload.isStoredMessage)
             connectionState = .online
             return .relay
         } catch let error as ServerError {
@@ -725,7 +726,7 @@ final class KademliaService: ObservableObject {
                 await renewCertificateIfPossible(force: true)
                 guard let resealed = try? reseal(envelope, payload: payload, to: phone) else { return nil }
                 do {
-                    try await server.deposit(resealed)
+                    try await server.deposit(resealed, notify: payload.isStoredMessage)
                     connectionState = .online
                     return .relay
                 } catch {

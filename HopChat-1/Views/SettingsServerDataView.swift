@@ -85,6 +85,8 @@ struct SettingsServerDataView: View {
                   String(localized: "Your IP address, and the time each message passes through."))
             point("arrow.left.arrow.right", Palette.warn,
                   String(localized: "Who you are writing to, whenever a message goes through the relay rather than straight to the other phone."))
+            point("bell.fill", Palette.warn,
+                  String(localized: "Whether what you send is a message or just a receipt or update, since only messages show a notification on the other phone."))
         } header: {
             Text("What it can work out")
         } footer: {

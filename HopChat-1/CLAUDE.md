@@ -103,8 +103,9 @@ deletes the user's mail permanently — that was a real bug; keep the distinctio
   genuinely absent. v1 wiped identities whenever the device was locked.
 - **Never auto-replace a pinned signing key.** A change raises a warning, blocks
   sending, and defers incoming mail until the user verifies or accepts.
-- The server learns phone numbers, IPs and timing. It cannot read content. Don't
-  add anything that weakens that, and don't describe the app as serverless.
+- The server learns phone numbers, IPs and timing, and from the push flag on a
+  deposit, which envelopes are messages. It cannot read content. Don't add
+  anything that weakens that, and don't describe the app as serverless.
 - Secrets live in the Keychain (`AfterFirstUnlockThisDeviceOnly`), conversations
   in protected files excluded from backup. UserDefaults holds only preferences
   (the exact key list is §6 of the contract).

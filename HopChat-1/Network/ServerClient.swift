@@ -134,10 +134,14 @@ final class ServerClient {
 
     // MARK: - Relay
 
-    func deposit(_ envelope: Envelope) async throws {
+    /// `notify` asks the relay to wake the recipient with a push. Only a
+    /// message or a photo should: a receipt or a profile update that rang
+    /// their phone would read as a "New message" with nothing new in it.
+    func deposit(_ envelope: Envelope, notify: Bool = true) async throws {
         var message = WireMessage(type: .relayDeposit,
                                   senderPhone: try myPhone(),
                                   recipientPhone: envelope.recipientPhone,
+                                  value: try json(["notify": notify]),
                                   envelope: envelope)
         sign(&message)
         _ = try await send(message, expecting: .relayAccepted)
