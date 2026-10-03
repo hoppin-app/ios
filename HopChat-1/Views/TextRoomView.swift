@@ -98,7 +98,11 @@ struct TextRoomView: View {
     }
 
     private var isEncryptionReady: Bool {
-        kad.isEncryptionReady(for: conversationID)
+        #if DEBUG
+        // Screenshot contacts are made up and have no keys to verify.
+        if DemoContent.isRequested { return true }
+        #endif
+        return kad.isEncryptionReady(for: conversationID)
     }
 
     private var isSendBlocked: Bool {
@@ -203,14 +207,14 @@ struct TextRoomView: View {
         .onAppear {
             NotificationService.shared.activeConversationID = conversationID
             kad.markRead(conversationID: conversationID)
-            store.showTabBar = false
+            store.holdTabBarHidden()
             Task { await kad.translateMissing(in: conversationID) }
         }
         .onDisappear {
             if NotificationService.shared.activeConversationID == conversationID {
                 NotificationService.shared.activeConversationID = nil
             }
-            store.showTabBar = true
+            store.releaseTabBar()
         }
         .onChange(of: messages.count) { _, _ in
             // New mail while the thread is open counts as read.

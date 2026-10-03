@@ -156,11 +156,17 @@ struct ContentView: View {
             guard !didStartService else { return }
             await service.start()
             didStartService = true
+            #if DEBUG
+            if service.isRegistered { DemoContent.seedIfRequested(store: store, me: service.myPhone) }
+            #endif
             await PushRegistration.shared.refresh()
         }
         .onChange(of: service.isRegistered) { _, registered in
             // Just verified: there was no account to attach a token to before.
             guard registered else { return }
+            #if DEBUG
+            DemoContent.seedIfRequested(store: store, me: service.myPhone)
+            #endif
             Task { await PushRegistration.shared.refresh() }
         }
     }
@@ -193,6 +199,9 @@ struct ContentView: View {
                 .toolbar(.hidden, for: .tabBar)
                 .tag(2)
         }
+        // The inset below doesn't reach screens pushed inside a tab, so the
+        // last row of a long list ended up under the floating bar.
+        .contentMargins(.bottom, store.showTabBar ? 80 : 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if store.showTabBar {
                 FloatingTabBar(selectedTab: $selectedTab,

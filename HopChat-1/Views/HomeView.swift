@@ -174,7 +174,6 @@ struct ChatListView: View {
             }
             .onAppear {
                 NotificationService.shared.setBadge(store.totalUnreadCount)
-                store.showTabBar = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .openChat)) { note in
                 guard let conversationID = note.userInfo?["conversationID"] as? String else { return }
@@ -206,7 +205,7 @@ struct ChatListView: View {
             Menu {
                 Button {
                     withAnimation { isSelecting = true }
-                    store.showTabBar = false
+                    store.setSelectingChats(true)
                 } label: {
                     Label("Select Chats", systemImage: "checkmark.circle")
                 }
@@ -281,7 +280,7 @@ struct ChatListView: View {
             isSelecting = false
             selection = []
         }
-        store.showTabBar = true
+        store.setSelectingChats(false)
     }
 
     private var archivedRow: some View {

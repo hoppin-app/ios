@@ -937,3 +937,45 @@ struct StoreWipeTests {
         #expect(reloaded.messages.isEmpty)
     }
 }
+
+// MARK: - Tab bar
+
+@MainActor
+@Suite("ConversationStore — tab bar")
+struct StoreTabBarTests {
+
+    @Test("leaving one chat after entering the next keeps the bar hidden")
+    func overlappingChats() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+
+        store.holdTabBarHidden()      // chat A opens
+        store.holdTabBarHidden()      // chat B appears before A has gone
+        store.releaseTabBar()         // A's onDisappear arrives late
+        #expect(store.showTabBar == false)
+
+        store.releaseTabBar()         // back to the list
+        #expect(store.showTabBar == true)
+    }
+
+    @Test("an extra release cannot leave the bar shown over a chat")
+    func unbalancedRelease() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+
+        store.releaseTabBar()
+        store.holdTabBarHidden()
+        #expect(store.showTabBar == false)
+    }
+
+    @Test("select mode hides the bar until it ends")
+    func selecting() {
+        let temp = TempDirectory()
+        let store = makeStore(temp.url)
+
+        store.setSelectingChats(true)
+        #expect(store.showTabBar == false)
+        store.setSelectingChats(false)
+        #expect(store.showTabBar == true)
+    }
+}

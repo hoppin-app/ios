@@ -38,7 +38,14 @@ final class ConversationStore: ObservableObject {
 
     // MARK: - Published state
 
-    @Published var showTabBar: Bool = true
+    /// Derived, never assigned: going back from one chat and straight into
+    /// another can run the new chat's onAppear before the old one's
+    /// onDisappear, so a plain flag ended up showing the bar over the composer.
+    @Published private(set) var showTabBar: Bool = true
+    /// Open chat screens, each holding the bar hidden until it disappears.
+    private var tabBarHolds = 0
+    /// Multi-select on the chat list swaps the bar for its action bar.
+    private var isSelectingChats = false
     @Published private(set) var contacts: [Contact] = []
     @Published private(set) var groups: [ChatGroup] = []
     /// conversationID → messages sorted ascending by timestamp
@@ -114,6 +121,28 @@ final class ConversationStore: ObservableObject {
         values.isExcludedFromBackup = true
         do { try url.setResourceValues(values) }
         catch { Log.store.error("could not exclude store from backup: \(String(describing: error), privacy: .public)") }
+    }
+
+    // MARK: - Tab bar
+
+    func holdTabBarHidden() {
+        tabBarHolds += 1
+        refreshTabBar()
+    }
+
+    func releaseTabBar() {
+        tabBarHolds = max(0, tabBarHolds - 1)
+        refreshTabBar()
+    }
+
+    func setSelectingChats(_ selecting: Bool) {
+        isSelectingChats = selecting
+        refreshTabBar()
+    }
+
+    private func refreshTabBar() {
+        let show = tabBarHolds == 0 && !isSelectingChats
+        if showTabBar != show { showTabBar = show }
     }
 
     // MARK: - Conversation identity

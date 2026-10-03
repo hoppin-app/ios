@@ -1,0 +1,9 @@
+{
+  "id" : "dd5d69a4-cdf1-4eed-b46b-cb5baa5e28cc",
+  "targets" : [
+    {
+      "id" : "ac2e4595-f01d-4667-bd72-3ed8005b8811",
+      "name" : "HopChat-1"
+    }
+  ]
+}

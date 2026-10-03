@@ -2169,6 +2169,9 @@ final class KademliaService: ObservableObject {
     }
 
     private func presence(for phone: String) -> PresenceStatus {
+        #if DEBUG
+        if let demo = DemoContent.presence(for: phone) { return demo }
+        #endif
         if let peer = routing.peer(for: phone), peer.isOnline() { return .online }
         if let heard = lastHeardFrom[phone] ?? store.lastMessage(ConversationStore.conversationID(peer: phone))
             .flatMap({ $0.isFromMe ? nil : $0.timestamp }) {
