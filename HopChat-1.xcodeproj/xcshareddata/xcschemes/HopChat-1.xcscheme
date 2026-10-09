@@ -17,6 +17,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E15D74D12F4F81AC0091BB92"
                BuildableName = "HopChat-1.app"
+               BlueprintName = "HopChat-1"
                ReferencedContainer = "container:HopChat-1.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -68,6 +69,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E15D74D12F4F81AC0091BB92"
             BuildableName = "HopChat-1.app"
+            BlueprintName = "HopChat-1"
             ReferencedContainer = "container:HopChat-1.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -84,6 +86,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E15D74D12F4F81AC0091BB92"
             BuildableName = "HopChat-1.app"
+            BlueprintName = "HopChat-1"
             ReferencedContainer = "container:HopChat-1.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
