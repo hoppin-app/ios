@@ -44,6 +44,8 @@ nonisolated enum VerificationErrorText {
             switch server {
             case .server("suspended", _):
                 return ServiceError.suspended.errorDescription ?? ""
+            case .server("rate_limited", let message):
+                return rateLimitedText(message)
             case .server(let code, let message):
                 return serverText(message.isEmpty ? code : message)
             case .timeout, .transport:
@@ -96,6 +98,23 @@ nonisolated enum VerificationErrorText {
             return String(localized: "The server had a problem. Try again in a moment.")
         }
         return raw
+    }
+
+    /// The relay's `rate_limited` messages, from `start_verification` and
+    /// `confirm_verification` in bootstrap.py. Its limits are per hour, sliding.
+    private static func rateLimitedText(_ message: String) -> String {
+        let lower = message.lowercased()
+        if lower.contains("codes requested") {
+            return String(localized: "Too many codes have been requested. Wait up to an hour, then try again.")
+        }
+        if lower.contains("attempts") {
+            // The review number's lock after repeated wrong codes; it lasts a day.
+            return String(localized: "Too many wrong codes for this number. Try again later.")
+        }
+        if let seconds = firstInteger(in: message) {
+            return String(localized: "Too many attempts. Try again in \(wait(seconds)).")
+        }
+        return String(localized: "Too many attempts. Wait a few minutes and try again.")
     }
 
     private static func wait(_ seconds: Int) -> String {
@@ -288,8 +307,8 @@ struct VerificationCodeStep: View {
     @State private var code = ""
     @State private var isWorking = false
     @State private var errorText: String?
-    @State private var remaining = 0
-    @State private var countdownToken = 0
+    /// Changes only when a countdown starts. The ticking lives in `ResendRow`.
+    @State private var countdown = ResendRow.Countdown(seconds: 0, token: 0)
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -354,34 +373,10 @@ struct VerificationCodeStep: View {
                 .buttonStyle(.ink)
                 .disabled(code.count != 6 || isWorking)
 
-                HStack {
-                    if remaining > 0 {
-                        Text("Resend in \(remaining)s")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(minHeight: 44)
-                            .accessibilityLabel(Text("You can request a new code in \(remaining) seconds"))
-                    } else {
-                        Button {
-                            resend()
-                        } label: {
-                            Text("Send a new code")
-                                .font(.subheadline)
-                                .frame(minHeight: 44)
-                        }
-                        .disabled(isWorking)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        onBack()
-                    } label: {
-                        Text("Wrong number?")
-                            .font(.subheadline)
-                            .frame(minHeight: 44)
-                    }
-                }
+                ResendRow(countdown: countdown,
+                          isWorking: isWorking,
+                          onResend: resend,
+                          onBack: onBack)
 
                 Spacer(minLength: 24)
             }
@@ -393,20 +388,12 @@ struct VerificationCodeStep: View {
         .scrollDismissesKeyboard(.interactively)
         .onAppear {
             focused = true
-            if remaining == 0 { startCountdown(retryAfter) }
-        }
-        .task(id: countdownToken) {
-            while remaining > 0 {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                if Task.isCancelled { return }
-                remaining -= 1
-            }
+            if countdown.token == 0 { startCountdown(retryAfter) }
         }
     }
 
     private func startCountdown(_ seconds: Int) {
-        remaining = max(0, seconds)
-        countdownToken += 1
+        countdown = ResendRow.Countdown(seconds: max(0, seconds), token: countdown.token + 1)
     }
 
     private func confirm() {
@@ -441,6 +428,64 @@ struct VerificationCodeStep: View {
                 errorText = VerificationErrorText.text(for: error)
             }
             isWorking = false
+        }
+    }
+}
+
+/// The resend countdown and "Wrong number?". Kept apart from the code field on
+/// purpose: a tick that re-renders the field resets the keyboard session, and
+/// iOS then drops the "From Messages" code when it is tapped.
+private struct ResendRow: View {
+
+    struct Countdown: Equatable {
+        var seconds: Int
+        /// Bumped to restart the countdown, even with the same `seconds`.
+        var token: Int
+    }
+
+    let countdown: Countdown
+    let isWorking: Bool
+    let onResend: () -> Void
+    let onBack: () -> Void
+
+    @State private var remaining = 0
+
+    var body: some View {
+        HStack {
+            if remaining > 0 {
+                Text("Resend in \(remaining)s")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel(Text("You can request a new code in \(remaining) seconds"))
+            } else {
+                Button {
+                    onResend()
+                } label: {
+                    Text("Send a new code")
+                        .font(.subheadline)
+                        .frame(minHeight: 44)
+                }
+                .disabled(isWorking)
+            }
+
+            Spacer()
+
+            Button {
+                onBack()
+            } label: {
+                Text("Wrong number?")
+                    .font(.subheadline)
+                    .frame(minHeight: 44)
+            }
+        }
+        .task(id: countdown) {
+            remaining = countdown.seconds
+            while remaining > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { return }
+                remaining -= 1
+            }
         }
     }
 }
