@@ -54,7 +54,7 @@ nonisolated struct IdentityCertificate: Codable, Equatable, Hashable, Sendable {
 
     /// Valid iff `v == 1`, the signature verifies with the pinned server key,
     /// `issuedAt - 300 <= now < expiresAt`, and `phone` is E.164.
-    func isValid(serverKey: Curve25519.Signing.PublicKey, now: Date = Date()) -> Bool {
+    func isValid(serverKey: Curve25519.Signing.PublicKey, now: Date = ServerClock.now()) -> Bool {
         guard v == 1 else { return false }
         guard PhoneNumber.isValidE164(phone) else { return false }
         let t = Int64(now.timeIntervalSince1970)
@@ -67,14 +67,14 @@ nonisolated struct IdentityCertificate: Codable, Equatable, Hashable, Sendable {
     }
 
     /// Convenience overload taking the pinned server key as base64.
-    func isValid(serverKeyBase64: String, now: Date = Date()) -> Bool {
+    func isValid(serverKeyBase64: String, now: Date = ServerClock.now()) -> Bool {
         guard let raw = Data(base64Encoded: serverKeyBase64),
               let key = try? Curve25519.Signing.PublicKey(rawRepresentation: raw) else { return false }
         return isValid(serverKey: key, now: now)
     }
 
     /// True when less than 7 days of validity remain (clients should renew).
-    var expiresSoon: Bool { expiresSoon(now: Date()) }
+    var expiresSoon: Bool { expiresSoon(now: ServerClock.now()) }
 
     func expiresSoon(now: Date) -> Bool {
         expiresAt - Int64(now.timeIntervalSince1970) < 7 * 86_400

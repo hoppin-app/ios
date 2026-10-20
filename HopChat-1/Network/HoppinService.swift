@@ -253,7 +253,9 @@ final class KademliaService: ObservableObject {
 
     /// Injectable clock. Tests drive the fixed-timestamp fixtures through
     /// `processIncoming` by moving this, rather than by faking the system time.
-    var clock: () -> Date = { Date() }
+    /// Relay time, not the device's: certificates and envelopes are judged
+    /// against other machines' clocks, and the device's can be days off.
+    var clock: () -> Date = { ServerClock.now() }
     private var now: Date { clock() }
 
     // MARK: - Lifecycle
@@ -294,6 +296,15 @@ final class KademliaService: ObservableObject {
             connectionState = .offline
             Log.net.info("No identity certificate yet, waiting for SMS verification")
             return
+        }
+
+        // Expired by our clock but sound otherwise: the clock may be what's
+        // wrong (it has been, by weeks). One signed round trip sets relay time
+        // before deciding; offline, nothing changes and the check below stands.
+        if !certificate.isValid(serverKeyBase64: server.serverKeyBase64, now: now),
+           certificate.isValid(serverKeyBase64: server.serverKeyBase64,
+                               now: Date(timeIntervalSince1970: TimeInterval(certificate.issuedAt))) {
+            _ = try? await server.ping()
         }
 
         // A certificate the pinned key doesn't vouch for (issued before the

@@ -30,7 +30,7 @@ nonisolated struct DirectCandidate: Equatable, Sendable {
     let port: UInt16
     let expiresAt: Date
 
-    func isFresh(at now: Date = Date()) -> Bool { expiresAt > now }
+    func isFresh(at now: Date = ServerClock.now()) -> Bool { expiresAt > now }
 }
 
 // MARK: - Addresses of this device
@@ -121,7 +121,7 @@ nonisolated enum DirectAddress {
     static func candidate(from addresses: [String],
                           port: UInt16,
                           expiresAt: Date,
-                          now: Date = Date(),
+                          now: Date = ServerClock.now(),
                           isDialable: (String) -> Bool = isGloballyRoutable) -> DirectCandidate? {
         guard port != 0, expiresAt > now else { return nil }
         guard let address = addresses.first(where: isDialable) else { return nil }

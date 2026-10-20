@@ -67,7 +67,7 @@ nonisolated struct WireMessage: Codable {
          txID: String = UUID().uuidString,
          senderPhone: String,
          senderPort: UInt16 = 0,
-         timestamp: Int64 = Int64(Date().timeIntervalSince1970),
+         timestamp: Int64 = ServerClock.timestamp(),
          certificate: String? = nil,
          recipientPhone: String? = nil,
          key: String? = nil,
@@ -108,8 +108,8 @@ nonisolated struct WireMessage: Codable {
 
     static let freshnessWindow: Int64 = 300
 
-    /// `false` when `|now - timestamp| > 300` (contract §3).
-    func isFresh(now: Date = Date()) -> Bool {
+    /// `false` when `|now - timestamp| > 300` (contract §3), in relay time.
+    func isFresh(now: Date = ServerClock.now()) -> Bool {
         let n = Int64(now.timeIntervalSince1970)
         return abs(n - timestamp) <= WireMessage.freshnessWindow
     }

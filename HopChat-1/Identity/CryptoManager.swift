@@ -47,7 +47,7 @@ nonisolated final class CryptoManager: @unchecked Sendable {
     private let lock = NSLock()
 
     /// Injectable clock (tests). Set before first use.
-    var now: @Sendable () -> Date = { Date() }
+    var now: @Sendable () -> Date = { ServerClock.now() }
 
     private var _signing: Curve25519.Signing.PrivateKey?
     private var _ring: AgreementRing?

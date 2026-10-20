@@ -175,7 +175,9 @@ nonisolated struct StoredMessage: Codable, Identifiable, Hashable, Sendable {
          kind: MessageKind = .text,
          body: String,
          imageFilename: String? = nil,
-         timestamp: Date = Date(),
+         // Relay time, the clock incoming messages are dated by, so a phone
+         // whose clock is off still orders its own messages among theirs.
+         timestamp: Date = ServerClock.now(),
          status: MessageStatus = .pending,
          isFromMe: Bool,
          isRead: Bool = true,

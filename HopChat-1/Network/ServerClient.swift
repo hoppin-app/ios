@@ -6,8 +6,10 @@
 //  §5 server policy).
 //
 //  Every reply is checked before it is believed: matching txID, sender
-//  `"server"`, freshness ±300 s and a valid signature by the **pinned** server
-//  Ed25519 key. An unsigned or mis-signed reply is a hard failure.
+//  `"server"` and a valid signature by the **pinned** server Ed25519 key. An
+//  unsigned or mis-signed reply is a hard failure. Its timestamp is not held to
+//  the device clock (the signed txID already proves it current); it sets
+//  `ServerClock` instead, so requests are stamped in the relay's time.
 //
 
 import Foundation
@@ -252,10 +254,13 @@ final class ServerClient {
         return phone
     }
 
+    /// Stamps in relay time (`ServerClock`), so a device whose clock is wrong
+    /// still passes the relay's ±300 s freshness check.
     private func sign(_ message: inout WireMessage, withCertificate: Bool = true) {
         if withCertificate {
             message.certificate = crypto.certificate?.encodedJSON()
         }
+        message.timestamp = ServerClock.timestamp()
         message.signature = crypto.sign(message.signedFields)
     }
 
@@ -278,6 +283,22 @@ final class ServerClient {
     private func send(_ message: WireMessage,
                       expecting expected: WireType,
                       timeout: TimeInterval = Transport.defaultTimeout) async throws -> WireMessage {
+        do {
+            return try await sendOnce(message, expecting: expected, timeout: timeout)
+        } catch ServerError.server(code: "stale", _) {
+            // Our clock is off. The signed refusal carried the relay's time and
+            // `ServerClock` has learned it: re-stamp, re-sign, try once more.
+            var retry = message
+            retry.txID = UUID().uuidString
+            retry.timestamp = ServerClock.timestamp()
+            retry.signature = crypto.sign(retry.signedFields)
+            return try await sendOnce(retry, expecting: expected, timeout: timeout)
+        }
+    }
+
+    private func sendOnce(_ message: WireMessage,
+                          expecting expected: WireType,
+                          timeout: TimeInterval) async throws -> WireMessage {
 
         // A missing key used to surface as "bad signature", and a port of 0 as
         // a timeout: both read as network trouble when the build was simply
@@ -301,14 +322,16 @@ final class ServerClient {
             Log.net.error("Server reply identity mismatch")
             throw ServerError.badResponse
         }
-        guard reply.isFresh() else {
-            Log.net.error("Server reply outside the freshness window")
-            throw ServerError.badResponse
-        }
         guard reply.hasValidSignature(signingKeyBase64: serverKeyBase64) else {
             Log.net.error("Server reply signature invalid, dropping")
             throw ServerError.badServerSignature
         }
+        // No freshness check on the reply's timestamp: the relay signed the
+        // txID this request just made up, so the reply is current whatever our
+        // clock says. Checking it against the device clock is what turned the
+        // relay's "stale" refusal into "unexpected reply" on a device whose
+        // clock was wrong. Its timestamp is the relay's clock: learn from it.
+        ServerClock.learn(serverTimestamp: reply.timestamp)
 
         if reply.wireType == .error {
             throw ServerError.server(code: reply.key ?? "internal", message: reply.value ?? "")

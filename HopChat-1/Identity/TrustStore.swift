@@ -58,7 +58,7 @@ final class TrustStore: ObservableObject {
     private var loaded = false
 
     /// Injectable clock (tests).
-    var now: () -> Date = { Date() }
+    var now: () -> Date = { ServerClock.now() }
 
     /// Phones whose signing key changed and the user has not accepted yet.
     /// Sending to these contacts must be refused (`ServiceError.keyChangeUnacknowledged`).

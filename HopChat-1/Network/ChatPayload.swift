@@ -75,7 +75,7 @@ nonisolated struct ChatPayload: Codable, Equatable {
          directAddresses: [String]? = nil,
          directPort: UInt16? = nil,
          directExpiresAt: Int64? = nil,
-         sentAt: Int64 = Int64(Date().timeIntervalSince1970)) {
+         sentAt: Int64 = ServerClock.timestamp()) {
         self.kind = kind
         self.text = text
         self.imageJPEGBase64 = imageJPEGBase64
