@@ -9,6 +9,10 @@
 //                                     Dynamic Island, medium display")
 //   docs/screenshots/store/6.9-inch/  1320 × 2868
 //   docs/screenshots/store/6.5-inch/  1284 × 2778
+// and the two optional iOS 27 marketing images (they go under "Header and
+// Search Results", not under the screenshots):
+//   docs/screenshots/store/header/   3840 × 1646  (product page header, 21:9)
+//   docs/screenshots/store/search/   3840 × 2560  (search results card, 3:2)
 // A slot refuses any other size ("File dimensions are invalid"). Output is
 // opaque: App Store Connect refuses screenshots with an alpha channel.
 //
@@ -181,6 +185,94 @@ func writeOpaquePNG(_ image: CGImage, pixels: CGSize, to url: URL) throws {
     guard CGImageDestinationFinalize(destination) else { throw CocoaError(.fileWriteUnknown) }
 }
 
+// MARK: - Header and search results (optional, iOS 27+)
+
+/// A wide marketing image: a caption over a row of phones that run off the
+/// bottom edge. Everything is centred, because the header and the search
+/// card crop the image differently.
+struct Banner {
+    let file: String
+    let pixels: CGSize
+    let title: String
+    let subtitle: String
+    let titleSize: CGFloat
+    let textTop: CGFloat
+    let phonesTop: CGFloat
+    /// Left to right; the middle one is drawn larger and higher.
+    let screens: [String]
+    let centreWidth: CGFloat
+    let sideWidth: CGFloat
+    let spacing: CGFloat
+}
+
+let banners: [Banner] = [
+    // Product page header: 21:9.
+    Banner(file: "header/header-3840x1646", pixels: CGSize(width: 3840, height: 1646),
+           title: "Private chat that finds a way",
+           subtitle: "Encrypted on your iPhone, then sent by whichever road is open.",
+           titleSize: 196, textTop: 150, phonesTop: 610,
+           screens: ["4-group", "2-direct", "1-chats", "3-bluetooth", "5-relay-data"],
+           centreWidth: 560, sideWidth: 470, spacing: 70),
+    // Search results card: 3:2, the largest size allowed.
+    Banner(file: "search/search-results-3840x2560", pixels: CGSize(width: 3840, height: 2560),
+           title: "Private chat that finds a way",
+           subtitle: "Same Wi-Fi, the internet, or Bluetooth when there's no signal.",
+           titleSize: 220, textTop: 170, phonesTop: 720,
+           screens: ["2-direct", "1-chats", "3-bluetooth"],
+           centreWidth: 860, sideWidth: 760, spacing: 90),
+]
+
+struct BannerView: View {
+    let banner: Banner
+    let screens: [NSImage]
+
+    var body: some View {
+        let size = banner.pixels
+        let centre = screens.count / 2
+
+        ZStack(alignment: .top) {
+            canvasColor
+
+            Circle().fill(accent.opacity(0.30))
+                .frame(width: size.height * 1.3, height: size.height * 1.3)
+                .blur(radius: size.height * 0.2)
+                .position(x: size.width * 0.18, y: size.height * 0.7)
+            Circle().fill(coral.opacity(0.20))
+                .frame(width: size.height * 1.1, height: size.height * 1.1)
+                .blur(radius: size.height * 0.2)
+                .position(x: size.width * 0.84, y: size.height * 0.8)
+            Circle().fill(accent.opacity(0.18))
+                .frame(width: size.height * 0.9, height: size.height * 0.9)
+                .blur(radius: size.height * 0.18)
+                .position(x: size.width * 0.5, y: size.height * 0.95)
+
+            VStack(spacing: 0) {
+                Text(banner.title)
+                    .font(.system(size: banner.titleSize, weight: .bold))
+                    .tracking(-banner.titleSize * 0.021)
+                    .foregroundStyle(ink)
+                Text(banner.subtitle)
+                    .font(.system(size: banner.titleSize * 0.44, weight: .regular))
+                    .foregroundStyle(muted)
+                    .padding(.top, banner.titleSize * 0.2)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.top, banner.textTop)
+
+            HStack(alignment: .top, spacing: banner.spacing) {
+                ForEach(screens.indices, id: \.self) { i in
+                    Phone(screen: screens[i],
+                          width: i == centre ? banner.centreWidth : banner.sideWidth)
+                        .padding(.top, i == centre ? 0 : banner.centreWidth * 0.16)
+                }
+            }
+            .padding(.top, banner.phonesTop)
+        }
+        .frame(width: size.width, height: size.height, alignment: .top)
+        .clipped()
+    }
+}
+
 MainActor.assumeIsolated {
     do {
         for target in targets {
@@ -205,6 +297,27 @@ MainActor.assumeIsolated {
                 try writeOpaquePNG(image, pixels: target.pixels, to: url)
                 print("wrote \(target.folder)/\(slide.file).png (\(Int(target.pixels.width)) × \(Int(target.pixels.height)))")
             }
+        }
+        for banner in banners {
+            let screens = try banner.screens.map { name -> NSImage in
+                let input = source.appendingPathComponent("\(name).png")
+                guard let image = NSImage(contentsOf: input) else {
+                    throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: input.path])
+                }
+                return image
+            }
+            let url = output.appendingPathComponent("\(banner.file).png")
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
+            let renderer = ImageRenderer(content: BannerView(banner: banner, screens: screens))
+            renderer.scale = 1
+            renderer.proposedSize = ProposedViewSize(banner.pixels)
+            guard let image = renderer.cgImage else {
+                print("could not render \(banner.file)")
+                exit(1)
+            }
+            try writeOpaquePNG(image, pixels: banner.pixels, to: url)
+            print("wrote \(banner.file).png (\(Int(banner.pixels.width)) × \(Int(banner.pixels.height)))")
         }
     } catch {
         print("failed: \(error)")
