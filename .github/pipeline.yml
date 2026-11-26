@@ -1,0 +1,22 @@
+version: 1
+
+ios:
+  enable: true
+  project: HopChat-1.xcodeproj
+  scheme: HopChat-1
+  destination: platform=iOS Simulator,name=iPhone 17
+  lint:
+    # Existing violations. Remove a rule from this list once it is fixed.
+    disable_rules: [type_name, line_length, force_try, file_length, type_body_length, empty_count, force_cast]
+  format:
+    enable: false   # the code base is not formatted with swift-format yet
+  test:
+    coverage_min: 0 # set after the first run shows the real number
+
+security:
+  codeql:
+    enable: true
+    languages: [swift]
+    runner: macos-latest
+    build_mode: manual
+    build_command: xcodebuild build -project HopChat-1.xcodeproj -scheme HopChat-1 -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
