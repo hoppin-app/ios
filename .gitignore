@@ -9,3 +9,7 @@ build/
 
 # The lib repo, when CI checks it out inside this one for the fixtures.
 /lib/
+/server/
+
+# CI output
+/build/ci/
