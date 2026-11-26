@@ -1,0 +1,7 @@
+# Reviewed gitleaks findings that are not secrets (commit:file:rule:line).
+# A property declaration with no value (v1 CryptoManager):
+72dc853cedc9af5ddd6dd27be15de1382c626868:HopChat-1/CryptoManager.swift:generic-api-key:13
+72dc853cedc9af5ddd6dd27be15de1382c626868:HopChat-1/CryptoManager.swift:generic-api-key:14
+# UserDefaults key names in the legacy-migration tests:
+57499f30d97b785eb5e477d20eb7ecc889833ae8:HopChat-1Tests/StorageTests.swift:generic-api-key:799
+57499f30d97b785eb5e477d20eb7ecc889833ae8:HopChat-1Tests/StorageTests.swift:generic-api-key:833
