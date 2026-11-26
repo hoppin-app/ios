@@ -2,7 +2,7 @@
 //  IntegrationTests.swift
 //  HopChat-1Tests
 //
-//  End-to-end against a REAL `bootstrap.py`, started by `scripts/run_tests.sh`.
+//  End-to-end against a REAL `bootstrap.py`, started by `lib/run_tests.sh`.
 //  A simulator process cannot spawn the server itself, so the script starts it,
 //  writes /tmp/hoppin-test-server.json, and these tests read that file.
 //  Without it every test here skips, so a plain `xcodebuild test` still passes.
@@ -73,7 +73,7 @@ struct World {
         }
     }
 
-    /// `nil` (skip) without a server — unless `scripts/run_tests.sh` asked for
+    /// `nil` (skip) without a server — unless `lib/run_tests.sh` asked for
     /// one, in which case a missing server is a hard failure, never a skip.
     static func make() throws -> World? {
         guard let info = ServerInfo.current else {

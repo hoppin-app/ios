@@ -8,7 +8,7 @@
 //  way in. The app now runs on relay time (`ServerClock`).
 //
 //  These move the process-wide device clock, so every test restores it, and
-//  the suites are serialized (scripts/run_tests.sh also disables parallel
+//  the suites are serialized (lib/run_tests.sh also disables parallel
 //  testing).
 //
 

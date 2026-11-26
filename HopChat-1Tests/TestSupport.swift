@@ -6,7 +6,7 @@
 //  directories, fixed clocks and the integration-server handshake file.
 //
 //  Nothing here talks to the network. `ServerInfo` only *reads* the JSON that
-//  `scripts/run_tests.sh` writes; when it is absent the integration suite skips.
+//  `lib/run_tests.sh` writes; when it is absent the integration suite skips.
 //
 
 import Foundation
@@ -23,11 +23,13 @@ enum RepoPaths {
     static let testSourceDirectory: URL =
         URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 
-    /// The checkout root: the first ancestor holding `docs/fixtures`.
+    /// The folder holding the lib repo: the hoppin parent checkout, or this
+    /// repo with `lib/` checked out inside it (CI). The first ancestor
+    /// holding `lib/fixtures`.
     static let root: URL = {
         var dir = testSourceDirectory
         for _ in 0..<8 {
-            let marker = dir.appendingPathComponent("docs/fixtures/crypto_vectors.json")
+            let marker = dir.appendingPathComponent("lib/fixtures/crypto_vectors.json")
             if FileManager.default.fileExists(atPath: marker.path) { return dir }
             dir = dir.deletingLastPathComponent()
         }
@@ -40,10 +42,10 @@ enum RepoPaths {
            !override.isEmpty {
             return URL(fileURLWithPath: override)
         }
-        return root.appendingPathComponent("docs/fixtures/crypto_vectors.json")
+        return root.appendingPathComponent("lib/fixtures/crypto_vectors.json")
     }
 
-    /// Handshake file written by `scripts/run_tests.sh`.
+    /// Handshake file written by `lib/run_tests.sh`.
     static var serverInfoURL: URL {
         if let override = ProcessInfo.processInfo.environment["HOPPIN_TEST_SERVER"],
            !override.isEmpty {
@@ -53,7 +55,7 @@ enum RepoPaths {
     }
 }
 
-// MARK: - Cross-language fixtures (docs/fixtures/crypto_vectors.json)
+// MARK: - Cross-language fixtures (lib/fixtures/crypto_vectors.json)
 
 struct CryptoVectors: Decodable {
 
@@ -145,7 +147,7 @@ enum Fixtures {
 
     static func require() throws -> CryptoVectors {
         try #require(vectors,
-                     "docs/fixtures/crypto_vectors.json is missing or unreadable — run server/make_vectors.py")
+                     "lib/fixtures/crypto_vectors.json is missing or unreadable — run lib/make_vectors.py")
     }
 }
 
@@ -306,7 +308,7 @@ enum TestClock {
 
 // MARK: - Integration server handshake
 
-/// Written by `scripts/run_tests.sh` before it launches `xcodebuild test`.
+/// Written by `lib/run_tests.sh` before it launches `xcodebuild test`.
 struct ServerInfo: Decodable, Sendable {
     let host: String
     let port: UInt16
@@ -324,7 +326,7 @@ struct ServerInfo: Decodable, Sendable {
     }()
 
     static let skipComment: Comment = """
-        No development bootstrap server: run `scripts/run_tests.sh` to start one \
+        No development bootstrap server: run `lib/run_tests.sh` to start one \
         (it writes /tmp/hoppin-test-server.json). Skipping the integration suite.
         """
 }

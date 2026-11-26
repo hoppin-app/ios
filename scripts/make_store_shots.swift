@@ -2,21 +2,21 @@
 //
 //   swift scripts/make_store_shots.swift
 //
-// Reads docs/screenshots/<n>-*.png (1284 × 2778, iPhone 14 Plus simulator)
+// Reads docs/app-store/screenshots/<n>-*.png (1284 × 2778, iPhone 14 Plus simulator)
 // and writes a caption over the screenshot in a phone frame, on the website's
 // colours, once per App Store Connect slot:
-//   docs/screenshots/store/6.3-inch/  1206 × 2622  (required: "iPhone with
+//   docs/app-store/screenshots/store/6.3-inch/  1206 × 2622  (required: "iPhone with
 //                                     Dynamic Island, medium display")
-//   docs/screenshots/store/6.9-inch/  1320 × 2868
-//   docs/screenshots/store/6.5-inch/  1284 × 2778
+//   docs/app-store/screenshots/store/6.9-inch/  1320 × 2868
+//   docs/app-store/screenshots/store/6.5-inch/  1284 × 2778
 // and the two optional iOS 27 marketing images (they go under "Header and
 // Search Results", not under the screenshots):
-//   docs/screenshots/store/header/   3840 × 1646  (product page header, 21:9)
-//   docs/screenshots/store/search/   3840 × 2560  (search results card, 3:2)
+//   docs/app-store/screenshots/store/header/   3840 × 1646  (product page header, 21:9)
+//   docs/app-store/screenshots/store/search/   3840 × 2560  (search results card, 3:2)
 // A slot refuses any other size ("File dimensions are invalid"). Output is
 // opaque: App Store Connect refuses screenshots with an alpha channel.
 //
-// The Bluetooth caption stays at "over Bluetooth" until final_testing.md §10
+// The Bluetooth caption stays at "over Bluetooth" until docs/testing/FINAL_TESTING.md §10
 // (a message carried through a middle phone) has passed on real phones.
 
 import AppKit
@@ -24,7 +24,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-let source = root.appendingPathComponent("docs/screenshots")
+// The screenshots live in the docs repo, next to ios/ in the hoppin parent checkout.
+let source = root.deletingLastPathComponent().appendingPathComponent("docs/app-store/screenshots")
 let output = source.appendingPathComponent("store")
 
 /// The raw screenshots' size, which fixes the screen's shape inside the frame.

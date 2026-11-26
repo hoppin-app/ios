@@ -3,7 +3,7 @@
 //  HopChat-1Tests
 //
 //  Cross-language conformance: every assertion here is against
-//  `docs/fixtures/crypto_vectors.json`, which `server/make_vectors.py`
+//  `lib/fixtures/crypto_vectors.json`, which `lib/make_vectors.py`
 //  generates from the Python implementation. If Swift and Python ever disagree
 //  about a single byte, these fail.
 //

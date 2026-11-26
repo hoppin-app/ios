@@ -12,11 +12,12 @@ This replaced a v1 design that was serverless-by-DHT and insecure (unverified
 phone numbers, keys accepted from any inbound message, plaintext fallback,
 open phone→IP lookup). None of the v1 protocol survives.
 
-**`docs/DESIGN_CONTRACT.md` at the repo root is the binding spec** for the wire
+**`DESIGN_CONTRACT.md` in the docs repo (`../docs/` in the hoppin parent
+checkout) is the binding spec** for the wire
 format, canonical signing encoding, certificates, envelope sealing, server
 policy and the Swift API surface. Read it before changing anything that crosses
 the Swift ⇄ Python boundary; the two sides are verified against shared fixtures
-in `docs/fixtures/crypto_vectors.json`.
+in `lib/fixtures/crypto_vectors.json` (the lib repo).
 
 ---
 
@@ -43,7 +44,7 @@ in `docs/fixtures/crypto_vectors.json`.
 | `Storage/` | File-backed store (`ConversationStore`), serial `StoreWriter`, media, legacy migration |
 | `Services/` | Notifications, APNs token registration, app lock (Face ID), background relay fetch |
 | `Views/` | SwiftUI; `Shared/` holds `AvatarView`, `PresenceDot`, `KeyChangeBanner` |
-| `../bootstrap.py`, `../server/` | Relay + verification server, its tests, TLS script, deploy notes |
+| `../server/` (server repo) | Relay + verification server, its tests, TLS script, deploy files |
 
 ---
 
@@ -116,10 +117,11 @@ deletes the user's mail permanently — that was a real bug; keep the distinctio
 
 ```bash
 # Server (dev): fixed code, plaintext, ephemeral state
-HOPPIN_ENV=dev HOPPIN_ALLOW_PLAINTEXT=1 HOPPIN_DEV_FIXED_CODE=123456 ./venv/bin/python bootstrap.py
+# From the hoppin parent checkout.
+cd server && HOPPIN_ENV=dev HOPPIN_ALLOW_PLAINTEXT=1 HOPPIN_DEV_FIXED_CODE=123456 ./venv/bin/python bootstrap.py
 
-./venv/bin/python -m unittest discover -s server     # server suite
-./scripts/run_tests.sh                               # server + app tests end to end
+cd server && ./venv/bin/python -m unittest discover -s tests   # server suite
+lib/run_tests.sh                                              # server + app tests end to end
 ```
 
 Xcode's command-line tools are not selected on this machine — prefix builds with
@@ -133,7 +135,7 @@ automatically (`CLAUDE.md` is excluded from the bundle).
 
 Deployed at **`20.199.104.218:4443`** (Azure, France Central, `hoppin-relay`),
 running `hoppin-bootstrap.service`. Details, credentials layout and caveats are
-in [`docs/DEPLOY.md`](../docs/DEPLOY.md). It runs in `prod` mode with real SMS
+in [`ops/DEPLOY.md`](../../docs/ops/DEPLOY.md) (docs repo). It runs in `prod` mode with real SMS
 through Twilio (sender `hoppin`), and its identity key was generated on the
 instance — the Mac-derived key was retired on 25/09/2026.
 
@@ -153,7 +155,7 @@ still there for pointing a development build at a local `bootstrap.py`.
   `TODO.md` §3.
 - Export compliance: `ITSAppUsesNonExemptEncryption = false` is correct
   **because** every cipher comes from CryptoKit / Network.framework and no
-  third-party crypto is linked. See `docs/EXPORT_COMPLIANCE.md`. Adding a crypto
+  third-party crypto is linked. See `app-store/EXPORT_COMPLIANCE.md` (docs repo). Adding a crypto
   package (CryptoSwift, libsodium, OpenSSL, libp2p…) changes that answer.
 - App Store text, privacy labels, age rating and review notes live in
-  `docs/APP_STORE.md`, with three submission blockers listed at its end.
+  `app-store/APP_STORE.md` (docs repo), with three submission blockers listed at its end.
