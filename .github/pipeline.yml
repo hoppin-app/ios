@@ -1,5 +1,9 @@
 version: 1
 
+# To run the complete pipeline on ft/* pushes, uncomment:
+# feature_branches:
+#   full: true
+
 ios:
   enable: true
   project: HopChat-1.xcodeproj
